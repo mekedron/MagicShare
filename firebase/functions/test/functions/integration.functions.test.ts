@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { Timestamp } from 'firebase-admin/firestore';
+import { type Message } from 'firebase-admin/messaging';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createAccountLogic, deleteAccountLogic } from '../../src/accounts';
 import { getDb } from '../../src/admin';
@@ -8,15 +10,30 @@ import {
   renameDeviceLogic,
   setDeviceIconLogic,
 } from '../../src/devices';
+import {
+  type MessagingSender,
+  pollPendingWakesLogic,
+  sendWakeLogic,
+} from '../../src/notifications';
 import { createJoinTokenLogic, joinNetworkLogic, previewJoinTokenLogic } from '../../src/pairing';
+import {
+  cleanupExpiredJoinTokensLogic,
+  cleanupInactiveAccountsLogic,
+  markStalePresenceLogic,
+} from '../../src/scheduled';
 
 import {
   clearEmulator,
   listDeviceIds,
+  listInboxIds,
+  listJoinTokenIds,
   readAccount,
   readDevice,
   readJoinToken,
+  seedAccount,
+  seedDevice,
   seedInboxItem,
+  seedJoinToken,
 } from './_helpers';
 
 const UID = 'integrationUser';
@@ -197,5 +214,131 @@ describe('Epic 5 integration: pairing', () => {
     expect((await listDeviceIds(UID_A)).sort()).toEqual([A1, B1].sort());
     expect(await readDevice(UID_A, B1)).not.toBeNull();
     expect(await readDevice(UID_B, B1)).toBeNull();
+  });
+});
+
+describe('Epic 6 integration: notifications + maintenance', () => {
+  const UID = 'epic6User';
+  const SRC = 'src-laptop';
+  const TGT_ANDROID = 'tgt-pixel';
+  const TGT_LINUX = 'tgt-linux';
+
+  function fakeMessaging(): MessagingSender & { send: ReturnType<typeof vi.fn> } {
+    return {
+      send: vi
+        .fn<(message: Message) => Promise<string>>()
+        .mockResolvedValue('projects/test/messages/abc'),
+    };
+  }
+
+  beforeEach(async () => {
+    await clearEmulator();
+  });
+
+  it('drives wake → fan-out (FCM + inbox) → poll → maintenance end-to-end', async () => {
+    const db = getDb();
+    const messaging = fakeMessaging();
+
+    // 1. Bootstrap one group with three devices: a sender, an Android
+    //    target (FCM), and a Linux target (inbox-only).
+    await createAccountLogic(db, UID);
+    await registerDeviceLogic(db, UID, {
+      deviceId: SRC,
+      displayName: 'Macbook Pro',
+      icon: 'laptop',
+      fcmToken: 'fcm-src',
+      platform: 'macos',
+    });
+    await registerDeviceLogic(db, UID, {
+      deviceId: TGT_ANDROID,
+      displayName: 'Pixel 8',
+      icon: 'phone',
+      fcmToken: 'fcm-pixel',
+      platform: 'android',
+    });
+    await registerDeviceLogic(db, UID, {
+      deviceId: TGT_LINUX,
+      displayName: 'Linux box',
+      icon: 'desktop',
+      fcmToken: null,
+      platform: 'linux',
+    });
+
+    // 2. Wake the Android target → goes through FCM, no inbox write.
+    const a = await sendWakeLogic(db, messaging, UID, {
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_ANDROID,
+      payload: 'wake-android-blob',
+    });
+    expect(a).toEqual({ delivered: true, channel: 'fcm' });
+    expect(messaging.send).toHaveBeenCalledTimes(1);
+    expect(await listInboxIds(UID, TGT_ANDROID)).toEqual([]);
+
+    // 3. Wake the Linux target → inbox writeback, FCM untouched.
+    const b = await sendWakeLogic(db, messaging, UID, {
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_LINUX,
+      payload: 'wake-linux-blob',
+    });
+    expect(b).toEqual({ delivered: true, channel: 'inbox' });
+    expect(messaging.send).toHaveBeenCalledTimes(1); // still 1
+    expect(await listInboxIds(UID, TGT_LINUX)).toHaveLength(1);
+
+    // 4. Source device's recentSendsAt accrued both sends.
+    expect((await readDevice(UID, SRC))?.recentSendsAt).toHaveLength(2);
+
+    // 5. The Linux device polls — sees the queued wake, and the
+    //    transaction clears the inbox.
+    const polled = await pollPendingWakesLogic(db, UID, { deviceId: TGT_LINUX });
+    expect(polled.items).toHaveLength(1);
+    expect(polled.items[0].type).toBe('wake');
+    expect(polled.items[0].payload).toBe('wake-linux-blob');
+    expect(await listInboxIds(UID, TGT_LINUX)).toEqual([]);
+
+    // 6. Maintenance pass against the live state plus a few seeded
+    //    stragglers — confirms the sweeps target the right rows
+    //    without nuking anything still in use.
+
+    // Stale presence: pre-age the Linux device's lastSeenAt past the
+    // 10-min cutoff and flip it online so the sweep should mark it.
+    const now = new Date();
+    const stale = Timestamp.fromMillis(now.getTime() - 11 * 60_000);
+    await db
+      .doc(`accounts/${UID}/devices/${TGT_LINUX}`)
+      .update({ presence: 'online', lastSeenAt: stale });
+    const presence = await markStalePresenceLogic(db, now);
+    expect(presence.marked).toBeGreaterThanOrEqual(1);
+    expect((await readDevice(UID, TGT_LINUX))?.presence).toBe('offline');
+
+    // Expired join token sweep: seed one expired and one valid; only
+    // the expired one should disappear.
+    await seedJoinToken('expired', {
+      accountId: UID,
+      issuingDeviceId: SRC,
+      expiresAt: Timestamp.fromMillis(now.getTime() - 60_000),
+    });
+    await seedJoinToken('valid', {
+      accountId: UID,
+      issuingDeviceId: SRC,
+      expiresAt: Timestamp.fromMillis(now.getTime() + 60_000),
+    });
+    const sweep = await cleanupExpiredJoinTokensLogic(db, now);
+    expect(sweep.deleted).toBe(1);
+    expect((await listJoinTokenIds()).sort()).toEqual(['valid']);
+
+    // Inactive-account sweep: seed an unrelated zombie account; it
+    // disappears, the Epic-6 group survives.
+    await seedAccount('zombie', {
+      lastActiveAt: Timestamp.fromMillis(now.getTime() - 91 * 24 * 60 * 60_000),
+      deviceCount: 1,
+    });
+    await seedDevice('zombie', 'zombie-d');
+    await seedInboxItem('zombie', 'zombie-d', 'queued');
+
+    const inactive = await cleanupInactiveAccountsLogic(db, now);
+    expect(inactive.deleted).toBe(1);
+    expect(await readAccount('zombie')).toBeNull();
+    expect(await readAccount(UID)).not.toBeNull();
+    expect((await listDeviceIds(UID)).sort()).toEqual([SRC, TGT_ANDROID, TGT_LINUX].sort());
   });
 });

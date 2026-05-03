@@ -191,7 +191,7 @@ lands.
     simulated installations end-to-end (cloud side only) and the
     old account is destroyed when its last device leaves.
 
-- [ ] **Epic 6 — Notifications and maintenance.** Round out the
+- [x] **Epic 6 — Notifications and maintenance.** Round out the
   backend with notification dispatch, scheduled cleanup, rate
   limiting, structured logging, and the Linux polling fallback.
 
