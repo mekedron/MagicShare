@@ -71,8 +71,8 @@ When `npm run dev` is up, the following endpoints are reachable:
 | Cloud Functions      | 5001 | Triggers from `firebase/functions/lib/index.js`.         |
 | Emulator UI          | 4000 | Browse Firestore, view Function logs, replay invocations.|
 
-Open <http://127.0.0.1:4000> for the unified UI — fastest way to inspect
-data, logs, and triggered functions.
+Open [http://127.0.0.1:4000](http://127.0.0.1:4000) for the unified UI — fastest way to
+inspect data, logs, and triggered functions.
 
 FCM has no fully featured emulator; for local push delivery you can stub
 the messaging channel from the Flutter side (see Epic 6 in
