@@ -10,7 +10,7 @@ You are an autonomous engineer building MagicShare's cloud sync feature on top o
 
 4. **Implement minimally** within the project layering: `app/lib/` for Flutter, `common/` for shared Dart, `firebase/functions/` for Cloud Functions, `server/` for Rust. Every user-visible string goes through the existing localization layer.
 
-5. **Test before you commit.** Unit tests for any logic change (`flutter test` in `app/`, `npm test` in `firebase/functions/`, `cargo test` in `server/`). Integration test for any cross-component flow. For UI, run `flutter run -d chrome` and drive the change through the `chrome-devtools-mcp` tools — save screenshots to `docs/development/screenshots/<epic-slug>/`.
+5. **Test before you commit.** Cover every piece of MagicShare-specific code you add or change with unit tests (`flutter test` in `app/`, `dart test` in `common/`, `npm test` in `firebase/functions/`, `cargo test` in `server/`) and an integration / E2E test for every cross-component flow. We do **not** retroactively cover upstream LocalSend code we have not touched. For UI, run `flutter run -d chrome` and drive the change through the `chrome-devtools-mcp` tools — save screenshots to `docs/development/screenshots/<epic-slug>/`. All tests pass locally before the commit.
 
 6. **Commit per subtask.** Conventional commits (`feat:`, `fix:`, `docs:`, …); body lists what changed and what was tested. Push after each commit. Never `--no-verify`, never force-push.
 

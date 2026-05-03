@@ -12,6 +12,13 @@ are suggested implementation order — finish the whole epic before
 moving on. Tick the epic-level checkbox when the last subtask
 lands.
 
+**Testing policy.** Every epic adds tests for the MagicShare-specific
+code it introduces — unit tests in the same commit as the code they
+cover, plus integration / end-to-end tests for any cross-component
+flow. We do **not** retroactively cover upstream LocalSend code we
+have not touched. All tests pass locally and in CI before any commit
+lands.
+
 - [ ] **Epic 1 — Project foundations.** Stand up the Firebase
   project, the Cloud Functions package, the emulator suite, the CI
   workflow, and the Flutter web build that the agent uses for
@@ -36,6 +43,10 @@ lands.
   - Add `.github/workflows/firebase-functions.yml` that lints and
     tests Cloud Functions on PRs touching `firebase/functions/**`.
     Skip on docs-only changes.
+  - **Tests:** the CI workflows added in this epic must run
+    `npm test` (Cloud Functions, even on the empty stub),
+    `flutter analyze` and `flutter test` (Flutter), and `dart test`
+    (`common/`) on every PR. A no-op PR is green on all of them.
   - **Done when:** `flutter run -d chrome` opens the app in a
     browser; `firebase use [project]` works locally;
     `npm run dev` brings up all emulators; CI passes on a PR
@@ -58,6 +69,10 @@ lands.
     `@firebase/rules-unit-testing`. Cover happy path,
     unauthorized cross-group reads, and direct `joinTokens`
     writes. Wire into CI.
+  - **Tests:** `@firebase/rules-unit-testing` cases for
+    happy-path reads, unauthorized cross-group reads, and direct
+    `joinTokens` writes. Run on every PR touching
+    `firestore.rules` or `firebase/functions/`.
   - **Done when:** rules deploy without warnings; unit tests pass
     locally and in CI; schema doc and TypeScript types stay in
     sync.
@@ -75,6 +90,13 @@ lands.
   - Deletion callables: `removeDevice` (deletes the parent
     account if it was the last device); `deleteAccount` (deletes
     the account and all child devices in one transaction).
+  - **Tests:**
+    - Unit (emulator): idempotency of `createAccount`; input
+      validation paths for `renameDevice` and `setDeviceIcon`;
+      rate-limit boundary for `updateDevicePresence`; cascade
+      behaviour of `removeDevice` and `deleteAccount`.
+    - Integration: the create → register two devices → rename
+      → remove → delete scenario described in *Done when*.
   - **Done when:** an end-to-end emulator test creates an
     account, registers two devices, renames one, removes one, and
     deletes the account — with Firestore state consistent at
@@ -90,6 +112,13 @@ lands.
   - `joinNetwork` (verifies the token, marks it consumed, moves
     the device to the target account, deletes the empty old
     account, all in one transaction).
+  - **Tests:**
+    - Unit (emulator): expired-token rejection; consumed-token
+      rejection; public-safe filtering of the preview device
+      list (no FCM tokens leak); transactional integrity of
+      `joinNetwork`.
+    - Integration: emulator pairing flow including old-account
+      destruction when the last device leaves.
   - **Done when:** an emulator integration test pairs two
     simulated installations end-to-end (cloud side only) and the
     old account is destroyed when its last device leaves.
@@ -114,6 +143,16 @@ lands.
     success/error, latency. No PII.
   - `pollPendingWakes` callable for Linux clients: returns and
     atomically consumes the calling device's `inbox` items.
+  - **Tests:**
+    - Unit (emulator): cross-account auth rejection in
+      `sendWake` and `sendLinkNotification`; URL scheme
+      validation in plaintext mode; rate-limit boundary
+      behaviour; scheduled-job logic against a fake clock;
+      atomic consumption in `pollPendingWakes`; Linux inbox
+      writeback path.
+    - Integration: dispatch path end-to-end via the emulator's
+      FCM stub; scheduled jobs trigger correctly under the
+      emulator clock.
   - **Done when:** dispatch works in the emulator with auth
     enforced; scheduled jobs execute on schedule; logs are
     structured and PII-free; Linux polling returns inbox items.
@@ -145,6 +184,13 @@ lands.
     Messaging SDK on Windows and macOS; a 30 s polling loop
     against `pollPendingWakes` on Linux. Document platform
     decisions in `docs/development/desktop-push.md`.
+  - **Tests:**
+    - Unit (`flutter test`): typed Cloud Functions client
+      wrappers (mock the underlying `cloud_functions` API);
+      FCM provider state on token + refresh events; anonymous
+      sign-in service.
+    - Integration (`flutter test` against emulator): app boot
+      reaches a non-null current user within ~1 s.
   - **Done when:** the app builds on Android, iOS, macOS,
     Windows, Linux, and web; an anonymous user is signed in
     within ~1 s of launch; a test FCM data message reaches the
@@ -170,6 +216,14 @@ lands.
     equivalent) encrypt/decrypt helpers. Generated on first launch
     (account-creation path); cleared on `deleteAccount`.
     Round-trip tested.
+  - **Tests:**
+    - Unit (`flutter test`): AccountRepository state transitions
+      on Firestore events; DeviceIdentityService persistence
+      across restarts; AES-GCM round-trip with fixed vectors;
+      tampered-ciphertext rejection (auth-tag failure).
+    - Integration (`flutter test` against emulator): first-launch
+      bootstrap end-to-end (anonymous sign-in → `createAccount`
+      → `registerDevice`) is idempotent across restarts.
   - **Done when:** a fresh install produces an account + device
     row in Firestore within ~3 s; the device shows online while
     foregrounded and offline within 5 min of backgrounding;
@@ -184,6 +238,12 @@ lands.
     sides if both touch the upload-request shape.
   - Stock LocalSend clients must still interoperate. Verify with
     a fixture or a manual round-trip test.
+  - **Tests:**
+    - Unit: parse / serialize the upload-request with and
+      without `wakeSessionId` on both Flutter (`flutter test`)
+      and Rust (`cargo test`) sides.
+    - Integration: stock-LocalSend ↔ MagicShare interop check
+      using a captured fixture, both directions.
   - **Done when:** a stock LocalSend client can still send to and
     receive from a MagicShare client both ways; a request
     carrying a `wakeSessionId` parses correctly on both sides.
@@ -208,6 +268,12 @@ lands.
     account on success.
   - Localization keys for every visible string introduced in this
     section.
+  - **Tests:**
+    - Widget (`flutter test`): device list rendering for
+      current / online / offline variants; bottom sheet actions;
+      icon picker selection; delete-group confirmation dialog.
+    - Integration (`flutter_test` against emulator): rename,
+      remove, and delete-group flows driven from the UI.
   - **Done when:** every action above works against the emulator;
     localization is complete; deleting the group from one device
     wipes Firestore docs and the local app re-creates a fresh
@@ -240,6 +306,15 @@ lands.
     snackbar.
   - Desktop alternative to QR scanning: a paste-token text field
     that accepts the same payload as the QR.
+  - **Tests:**
+    - Widget (`flutter test`): QR display dialog (countdown,
+      copy-as-text fallback); scan preview; paste-token
+      alternative.
+    - Integration / E2E (emulator + virtual LAN): two simulated
+      installations pair end-to-end, both end up with the same
+      shared key, the joining device's old account is
+      destroyed; cross-LAN pairing fails fast with the
+      LAN-required error.
   - **Done when:** two simulated installations on the same LAN
     pair end-to-end, both end up with the same shared key, and
     the joining device's old (now empty) account is destroyed;
@@ -266,6 +341,13 @@ lands.
     link notifications* setting. Add the setting under General;
     default off; persisted in the existing settings store;
     localized.
+  - **Tests:**
+    - Widget (`flutter test`): merged device list with both LAN
+      and network sources; status dots; the three send-tab UX
+      states (waking / retrying / error).
+    - Integration: send-to-offline wake flow against a paused
+      receiver; URL fast-path with both encryption modes
+      observed end-to-end.
   - **Done when:** a manual smoke test with two real devices
     delivers a small file via wake-on-offline, and a URL via the
     fast-path with both setting modes; UX states for waking /
@@ -299,6 +381,15 @@ lands.
     from FCM on Windows/macOS, from polling on Linux. URL tap
     opens browser; wake tap focuses app and triggers the wake
     handler.
+  - **Tests:**
+    - Unit (`flutter test`): payload decryption error paths;
+      expected-nonce map TTL expiry; URL scheme handling; auth
+      failure for tampered payloads.
+    - Integration / E2E: wake notification with the app fully
+      closed brings up a P2P receive that auto-accepts on a
+      matching nonce and falls back to the prompt on a missing
+      one; URL notification taps open a browser without
+      launching the app where supported.
   - **Done when:** receiving a wake notification with the app
     fully closed brings the device into a state where it
     accepts a P2P connection from the sender without the user
@@ -325,6 +416,14 @@ lands.
   - Account-state debug page under the existing debug menu.
     Dumps account ID, device ID, FCM token (truncated),
     shared-key fingerprint, last-presence timestamp.
+  - **Tests:**
+    - Widget (`flutter test`): master-toggle hides the
+      device-group section and short-circuits cloud calls; the
+      *Cloud unavailable* banner appears when cloud calls fail;
+      debug page renders every field.
+    - Unit: telemetry hook captures function name, status, and
+      latency; debug-only logging is suppressed in release
+      builds.
   - **Done when:** turning the master toggle off and relaunching
     produces a stock-LocalSend-like experience; airplane-mode
     shows the unavailable banner; the debug page renders real
@@ -338,15 +437,16 @@ lands.
     install, pairing, wake-on-offline, URL fast-path (both
     modes), group destruction, account expiry. Reference from
     the README.
-  - E2E test: pairing happy path (`flutter_test` + Firebase
-    emulator). Two simulated installations pair; one removes
-    the other.
-  - E2E test: wake-and-receive. One simulated device sends a
-    wake to a paused second device; the second device opens
-    its receive window.
+  - Confirm every per-epic unit, integration, and E2E suite is
+    green in CI on the release branch. The pairing E2E (Epic
+    10) and the wake-and-receive E2E (Epic 12) are the
+    load-bearing ones for release readiness.
   - Release prep: update the top-level `README.md` and
     `docs-site/` with cloud-feature instructions and a new
     *Cloud Sync* docs page; bump `app/pubspec.yaml` version;
     add a `CHANGELOG.md` entry.
-  - **Done when:** the manual QA checklist passes; E2E tests
-    are green in CI; release notes published.
+  - **Tests:** all suites added in earlier epics must be green
+    in CI; the manual QA checklist must be fully ticked off.
+    Block the release on any red test.
+  - **Done when:** the manual QA checklist passes; CI is green
+    on the release commit; release notes published.
