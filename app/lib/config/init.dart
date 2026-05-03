@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:logging/logging.dart';
+import 'package:magicshare_app/config/cloud/firebase_init.dart';
 import 'package:magicshare_app/config/refena.dart';
 import 'package:magicshare_app/config/theme.dart';
 import 'package:magicshare_app/pages/home_page.dart';
@@ -81,6 +82,15 @@ Future<RefenaContainer> preInit(List<String> args) async {
 
   if (persistenceService.isFirstAppStart && !persistenceService.isPortableMode()) {
     await enableContextMenu();
+  }
+
+  try {
+    final result = await initializeFirebase(
+      cloudSyncEnabled: persistenceService.getCloudSyncEnabled(),
+    );
+    _logger.info('Firebase init: ${result.name}');
+  } catch (e, st) {
+    _logger.warning('Firebase init failed; cloud features disabled this run', e, st);
   }
 
   await initI18n();
