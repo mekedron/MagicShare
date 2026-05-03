@@ -1,0 +1,20 @@
+import { onCall } from 'firebase-functions/v2/https';
+import { setGlobalOptions } from 'firebase-functions/v2/options';
+
+setGlobalOptions({
+  region: 'europe-west1',
+  maxInstances: 10,
+});
+
+/**
+ * Health probe. Used to verify the Cloud Functions deployment is reachable
+ * and the emulator wires up correctly. Real callables (account, device,
+ * pairing, sendWake, etc.) land in Epics 3 through 5.
+ */
+export const health = onCall(() => {
+  return {
+    ok: true,
+    service: 'magicshare-functions',
+    version: '0.0.1',
+  };
+});

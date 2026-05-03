@@ -1,0 +1,9 @@
+node_modules/
+lib/
+coverage/
+.eslintcache
+*.tsbuildinfo
+
+# Service-account credentials must NEVER be committed.
+service-account*.json
+*-firebase-adminsdk-*.json

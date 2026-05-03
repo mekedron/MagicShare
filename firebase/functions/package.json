@@ -1,0 +1,40 @@
+{
+  "name": "@magicshare/functions",
+  "private": true,
+  "version": "0.0.1",
+  "description": "MagicShare cloud-sync Cloud Functions (TypeScript, Node 20).",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "lint": "eslint --ext .ts src",
+    "lint:fix": "eslint --ext .ts --fix src",
+    "format": "prettier --check \"src/**/*.ts\"",
+    "format:fix": "prettier --write \"src/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "firebase --project=magic-share-backend emulators:start",
+    "deploy": "firebase --project=magic-share-backend deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.10.0",
+    "@typescript-eslint/parser": "^8.10.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  }
+}
