@@ -1,30 +1,466 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * MagicShare global styles.
+ *
+ * Two layers:
+ *   1. Design tokens (OKLCH) in `:root` (light) + `[data-theme='dark']` (dark)
+ *      — sourced from the Anthropic Design landing prototype.
+ *   2. Infima overrides so Docusaurus chrome (navbar, sidebar, footer,
+ *      doc pages, buttons) inherits the same palette and typography.
  */
 
-/* You can override the default Infima variables here. */
+/* ========== design tokens ========== */
+/* LIGHT (Docusaurus default) */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --bg-0:        oklch(98% 0.004 90);
+  --bg-1:        oklch(96% 0.006 90);
+  --bg-2:        oklch(93% 0.008 90);
+  --line:        oklch(64% 0.014 265 / 0.55);
+  --line-soft:   oklch(64% 0.014 265 / 0.32);
+
+  --ink-0:       oklch(20% 0.02 265);
+  --ink-1:       oklch(32% 0.018 265);
+  --ink-2:       oklch(50% 0.014 265);
+  --ink-3:       oklch(66% 0.010 265);
+
+  --spark:       oklch(62% 0.18 55);
+  --spark-deep:  oklch(54% 0.20 50);
+  --aura:        oklch(56% 0.20 295);
+  --beam:        oklch(58% 0.16 220);
+
+  --device-fill:    oklch(99% 0.003 90);
+  --device-screen:  oklch(95% 0.006 90);
+  --device-fill-2:  oklch(96% 0.012 280);
+  --device-screen-2:oklch(92% 0.012 280);
+  --device-fill-3:  oklch(94% 0.018 150);
+  --device-screen-3:oklch(89% 0.014 150);
+
+  --aurora-1: oklch(72% 0.18 295 / 0.10);
+  --aurora-2: oklch(82% 0.16 55 / 0.10);
+  --aurora-3: oklch(72% 0.18 295 / 0.06);
+  --star: oklch(45% 0.02 265);
+  --star-strong: 0.18;
+  --star-faint: 0.08;
+
+  --radius-sm: 8px;
+  --radius:    14px;
+  --radius-lg: 22px;
+
+  /* Brand-yellow (Buy Me a Coffee). Static, not theme-responsive. */
+  --bmc-yellow:      #ffdd00;
+  --bmc-yellow-deep: #ffb800;
+  --bmc-ink:         #1a1308;
+
+  /* ===== Infima overrides — light ===== */
+  --ifm-color-primary:         oklch(54% 0.20 50);
+  --ifm-color-primary-dark:    oklch(48% 0.20 48);
+  --ifm-color-primary-darker:  oklch(44% 0.20 48);
+  --ifm-color-primary-darkest: oklch(38% 0.20 48);
+  --ifm-color-primary-light:   oklch(60% 0.20 55);
+  --ifm-color-primary-lighter: oklch(66% 0.18 60);
+  --ifm-color-primary-lightest:oklch(74% 0.16 65);
+
+  --ifm-background-color:        var(--bg-0);
+  --ifm-background-surface-color:var(--bg-1);
+  --ifm-color-content:           var(--ink-1);
+  --ifm-color-content-secondary: var(--ink-2);
+  --ifm-heading-color:           var(--ink-0);
+  --ifm-link-color:              var(--ifm-color-primary);
+
+  --ifm-navbar-background-color: color-mix(in oklch, var(--bg-0) 80%, transparent);
+  --ifm-navbar-link-color:       var(--ink-1);
+  --ifm-navbar-link-hover-color: var(--ink-0);
+  --ifm-navbar-shadow:           none;
+
+  --ifm-footer-background-color: var(--bg-1);
+  --ifm-footer-color:            var(--ink-2);
+  --ifm-footer-link-color:       var(--ink-1);
+  --ifm-footer-title-color:      var(--ink-0);
+
+  --ifm-toc-border-color:        var(--line-soft);
+  --ifm-color-emphasis-200:      var(--line-soft);
+  --ifm-color-emphasis-300:      var(--line);
+
+  --ifm-font-family-base:
+    "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Helvetica, Arial, sans-serif;
+  --ifm-font-family-monospace:
+    "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    Consolas, "Liberation Mono", monospace;
+  --ifm-heading-font-family:
+    "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Helvetica, Arial, sans-serif;
+
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+
+  color-scheme: light;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+/* DARK */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --bg-0:        oklch(14% 0.018 265);
+  --bg-1:        oklch(17% 0.020 265);
+  --bg-2:        oklch(21% 0.022 265);
+  --line:        oklch(28% 0.020 265 / 0.6);
+  --line-soft:   oklch(28% 0.020 265 / 0.3);
+
+  --ink-0:       oklch(97% 0.005 90);
+  --ink-1:       oklch(86% 0.008 90);
+  --ink-2:       oklch(66% 0.010 265);
+  --ink-3:       oklch(48% 0.014 265);
+
+  --spark:       oklch(82% 0.16 75);
+  --spark-deep:  oklch(72% 0.18 65);
+  --aura:        oklch(72% 0.18 295);
+  --beam:        oklch(82% 0.16 200);
+
+  --device-fill:    oklch(20% 0.02 265);
+  --device-screen:  oklch(15% 0.02 265);
+  --device-fill-2:  oklch(24% 0.03 280);
+  --device-screen-2:oklch(17% 0.03 280);
+  --device-fill-3:  oklch(22% 0.04 150);
+  --device-screen-3:oklch(16% 0.03 150);
+
+  --aurora-1: oklch(72% 0.18 295 / 0.18);
+  --aurora-2: oklch(82% 0.16 75 / 0.10);
+  --aurora-3: oklch(72% 0.18 295 / 0.10);
+  --star: oklch(95% 0 0);
+  --star-strong: 0.45;
+  --star-faint: 0.25;
+
+  /* ===== Infima overrides — dark ===== */
+  --ifm-color-primary:         oklch(82% 0.16 75);
+  --ifm-color-primary-dark:    oklch(76% 0.17 72);
+  --ifm-color-primary-darker:  oklch(72% 0.18 70);
+  --ifm-color-primary-darkest: oklch(64% 0.20 65);
+  --ifm-color-primary-light:   oklch(86% 0.15 78);
+  --ifm-color-primary-lighter: oklch(90% 0.13 82);
+  --ifm-color-primary-lightest:oklch(94% 0.10 88);
+
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+
+  color-scheme: dark;
+}
+
+/* ========== globals ========== */
+* { box-sizing: border-box; }
+html { background: var(--bg-0); transition: background 0.3s ease; }
+body {
+  font-family: var(--ifm-font-family-base);
+  color: var(--ink-1);
+  background: var(--bg-0);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Ambient aurora + star field — limited to the landing page so docs pages
+   stay calm. The landing page wraps itself in a `.landing-page` container. */
+.landing-page {
+  position: relative;
+  isolation: isolate;
+}
+.landing-page::before {
+  content: "";
+  position: fixed;
+  inset: -20vmax;
+  background:
+    radial-gradient(40vmax 30vmax at 18% 12%, var(--aurora-1), transparent 60%),
+    radial-gradient(36vmax 28vmax at 88% 30%, var(--aurora-2), transparent 60%),
+    radial-gradient(50vmax 40vmax at 50% 110%, var(--aurora-3), transparent 60%);
+  z-index: -2;
+  pointer-events: none;
+}
+.landing-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-strong)) * 100%)) 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 14%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-strong)) * 100%)) 50%, transparent 51%),
+    radial-gradient(1px 1px at 33% 78%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-faint)) * 100%)) 50%, transparent 51%),
+    radial-gradient(1px 1px at 64% 62%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-strong)) * 100%)) 50%, transparent 51%),
+    radial-gradient(1px 1px at 92% 88%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-faint)) * 100%)) 50%, transparent 51%),
+    radial-gradient(1px 1px at 8%  56%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-faint)) * 100%)) 50%, transparent 51%),
+    radial-gradient(1px 1px at 47% 33%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-faint)) * 100%)) 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 22% 88%, color-mix(in oklch, var(--star) 100%, transparent calc((1 - var(--star-strong)) * 100%)) 50%, transparent 51%);
+  z-index: -1;
+  pointer-events: none;
+  animation: ms-twinkle 9s ease-in-out infinite;
+}
+@keyframes ms-twinkle {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.85; }
+}
+
+/* ========== typography ========== */
+.landing-page h1,
+.landing-page h2,
+.landing-page h3 {
+  color: var(--ink-0);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.display {
+  font-family: "Instrument Serif", "Times New Roman", serif;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  line-height: 0.96;
+  color: var(--ink-0);
+}
+.display .upright { font-style: normal; }
+.mono {
+  font-family: "Geist Mono", ui-monospace, monospace;
+}
+.eyebrow {
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* ========== layout helpers ========== */
+.landing-page .wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.landing-page .section {
+  padding: 96px 0;
+  position: relative;
+}
+@media (max-width: 720px) {
+  .landing-page .section { padding: 64px 0; }
+}
+
+/* ========== buttons (design system, distinct from Infima `.button`) ========== */
+.landing-page .btn,
+a.ms-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font: 500 14px/1 "Geist", sans-serif;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  color: var(--ink-0);
+  background: var(--bg-2);
+  transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .3s ease;
+  cursor: pointer;
+}
+.landing-page .btn:hover,
+a.ms-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--ink-3);
+  text-decoration: none;
+  color: var(--ink-0);
+}
+.landing-page .btn-primary,
+a.ms-btn-primary {
+  background: linear-gradient(180deg, oklch(86% 0.16 75), oklch(72% 0.18 65));
+  color: oklch(18% 0.04 50);
+  border-color: transparent;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px oklch(82% 0.16 75 / 0.4),
+    0 8px 30px oklch(82% 0.16 75 / 0.25);
+}
+.landing-page .btn-primary:hover,
+a.ms-btn-primary:hover {
+  color: oklch(18% 0.04 50);
+  box-shadow:
+    0 0 0 1px oklch(82% 0.16 75 / 0.6),
+    0 10px 40px oklch(82% 0.16 75 / 0.40);
+}
+.landing-page .btn-ghost,
+a.ms-btn-ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink-1);
+}
+
+/* ========== card ========== */
+.landing-page .card {
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+}
+.landing-page .card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--ink-0) 6%, transparent),
+    transparent 30%
+  );
+}
+
+/* ========== shared keyframes (referenced by inline animations) ========== */
+@keyframes dash-flow {
+  to { stroke-dashoffset: -1000; }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.04); }
+}
+
+/* ========== Docusaurus chrome restyle ========== */
+/* Navbar — translucent so the aurora layer shows through */
+.navbar {
+  background: color-mix(in oklch, var(--bg-0) 70%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.navbar__title {
+  color: var(--ink-0);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.navbar__link {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.navbar__link:hover,
+.navbar__link--active {
+  color: var(--ink-0);
+}
+
+/* Header GitHub icon — replaces the link text with an inline SVG mark */
+.header-github-link::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  background-color: var(--ink-1);
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.73-1.53-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17.91-.25 1.89-.38 2.86-.39.97.01 1.95.13 2.86.39 2.18-1.48 3.14-1.17 3.14-1.17.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.25 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.8.55C20.22 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.74 2.67 1.24 3.32.95.1-.74.4-1.24.73-1.53-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17.91-.25 1.89-.38 2.86-.39.97.01 1.95.13 2.86.39 2.18-1.48 3.14-1.17 3.14-1.17.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.25 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.8.55C20.22 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z'/></svg>");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  transition: background-color .2s ease;
+}
+.header-github-link:hover::before { background-color: var(--ink-0); }
+.header-github-link {
+  font-size: 0;          /* hide the "GitHub" label, keep the link a11y label */
+  padding: 6px 8px;
+}
+
+/* Donate button (Buy Me a Coffee yellow) */
+.navbar .navbar__item.navbar-donate-link,
+.navbar-donate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px !important;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--bmc-ink) !important;
+  background: linear-gradient(135deg, var(--bmc-yellow), var(--bmc-yellow-deep));
+  border: 1px solid color-mix(in oklch, var(--bmc-yellow-deep) 60%, transparent);
+  box-shadow: 0 4px 14px -4px rgba(255, 184, 0, 0.5);
+  transition: transform .2s ease, box-shadow .2s ease;
+  white-space: nowrap;
+}
+.navbar-donate-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -4px rgba(255, 184, 0, 0.7);
+  text-decoration: none;
+  color: var(--bmc-ink) !important;
+}
+.navbar-donate-link::before { content: "☕"; font-size: 14px; }
+
+/* "Get the app" primary button — reuses the design system */
+.navbar-cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px !important;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  color: oklch(18% 0.04 50) !important;
+  background: linear-gradient(180deg, oklch(86% 0.16 75), oklch(72% 0.18 65));
+  border: 1px solid transparent;
+  box-shadow:
+    0 0 0 1px oklch(82% 0.16 75 / 0.4),
+    0 6px 20px oklch(82% 0.16 75 / 0.25);
+  transition: transform .2s ease, box-shadow .2s ease;
+  white-space: nowrap;
+}
+.navbar-cta-link:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px oklch(82% 0.16 75 / 0.6),
+    0 10px 30px oklch(82% 0.16 75 / 0.40);
+  text-decoration: none;
+  color: oklch(18% 0.04 50) !important;
+}
+
+@media (max-width: 720px) {
+  .navbar-cta-link { display: none !important; }
+}
+@media (max-width: 540px) {
+  .navbar-donate-link {
+    padding: 8px 10px !important;
+    font-size: 0 !important;
+    gap: 0;
+  }
+  .navbar-donate-link::before { font-size: 16px; }
+}
+
+/* Footer */
+.footer {
+  background: var(--bg-1);
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-2);
+}
+.footer--dark { background: var(--bg-1); }
+.footer__title { color: var(--ink-0); }
+.footer__link-item { color: var(--ink-2); }
+.footer__link-item:hover { color: var(--ink-0); text-decoration: none; }
+.footer__copyright { color: var(--ink-3); }
+
+/* Doc page tweaks — keep them readable but on-brand */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 { color: var(--ink-0); }
+.markdown { color: var(--ink-1); }
+.menu__link { color: var(--ink-2); }
+.menu__link--active,
+.menu__link:hover { color: var(--ink-0); }
+.menu__link--active:not(.menu__link--sublist) {
+  background: color-mix(in oklch, var(--spark) 10%, transparent);
+  color: var(--ink-0);
+}
+
+/* Hide the page-default heroBanner that ships with the classic preset
+   (we render our own Hero on `/`). */
+.landing-page main {
+  position: relative;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
 }

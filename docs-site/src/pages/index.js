@@ -1,32 +1,13 @@
-import clsx from 'clsx';
-import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import HomepageFeatures from '@site/src/components/HomepageFeatures';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 
-import Heading from '@theme/Heading';
-import styles from './index.module.css';
-
-function HomepageHeader() {
-  const {siteConfig} = useDocusaurusContext();
-  return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
-      <div className="container">
-        <Heading as="h1" className="hero__title">
-          {siteConfig.title}
-        </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/intro">
-            Read the docs
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
+import Hero from '@site/src/components/landing/Hero';
+import CrossPlatformShowcase from '@site/src/components/landing/CrossPlatformShowcase';
+import Comparison from '@site/src/components/landing/Comparison';
+import Connect from '@site/src/components/landing/Connect';
+import HowItWorks from '@site/src/components/landing/HowItWorks';
+import Features from '@site/src/components/landing/Features';
+import Download from '@site/src/components/landing/Download';
 
 export default function Home() {
   const {siteConfig} = useDocusaurusContext();
@@ -34,10 +15,17 @@ export default function Home() {
     <Layout
       title={siteConfig.title}
       description="MagicShare — send a file or open a link on any device, even when it is offline, on a different platform, or signed into a different account.">
-      <HomepageHeader />
-      <main>
-        <HomepageFeatures />
-      </main>
+      <div className="landing-page">
+        <main>
+          <Hero />
+          <CrossPlatformShowcase />
+          <Comparison />
+          <Connect />
+          <HowItWorks />
+          <Features />
+          <Download />
+        </main>
+      </div>
     </Layout>
   );
 }

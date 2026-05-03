@@ -1,23 +1,6 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
+/*
+ * Landing page styling lives in `src/css/custom.css` (the `.landing-page`
+ * scope) and inline styles inside the section components. This module is
+ * kept intentionally empty so existing imports do not break and so future
+ * page-specific tweaks have an obvious home.
  */
-
-.heroBanner {
-  padding: 4rem 0;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
-}
-
-.buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}

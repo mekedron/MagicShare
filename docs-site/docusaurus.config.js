@@ -32,6 +32,11 @@ const config = {
   deploymentBranch: 'gh-pages',
 
   onBrokenLinks: 'throw',
+  // Section anchors on the landing page (#cross, #how, #features, #download)
+  // live inside React components, which Docusaurus cannot statically scan
+  // — so it would flag them as broken. Downgrade to a warning rather than
+  // failing the build.
+  onBrokenAnchors: 'warn',
   markdown: {
     hooks: {
       onBrokenMarkdownLinks: 'warn',
@@ -42,6 +47,37 @@ const config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  // Geist (UI/body) + Instrument Serif (display) — used by the landing
+  // page design. Preconnect first so the font CSS request starts early.
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossorigin: 'anonymous',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'stylesheet',
+        href:
+          'https://fonts.googleapis.com/css2?' +
+          'family=Instrument+Serif:ital@0;1&' +
+          'family=Geist:wght@300;400;500;600;700&' +
+          'family=Geist+Mono:wght@400;500&display=swap',
+      },
+    },
+  ],
 
   presets: [
     [
@@ -74,7 +110,10 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       image: 'img/docusaurus-social-card.jpg',
+      // Dark first so the "magical" aurora reads strongest on first paint.
+      // Honors the OS preference for repeat visitors.
       colorMode: {
+        defaultMode: 'dark',
         respectPrefersColorScheme: true,
       },
       navbar: {
@@ -84,22 +123,55 @@ const config = {
           src: 'img/logo.svg',
         },
         items: [
+          // In-page anchors on `/`. Docusaurus resolves these to the
+          // homepage from any other route.
+          {to: '/#cross', label: 'Cross-platform', position: 'left'},
+          {to: '/#how', label: 'How it works', position: 'left'},
+          {to: '/#features', label: 'Features', position: 'left'},
           {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'Documentation',
+            label: 'Docs',
           },
           {
             href: 'https://github.com/mekedron/MagicShare',
-            label: 'GitHub',
             position: 'right',
+            className: 'header-github-link',
+            'aria-label': 'GitHub repository',
+            label: 'GitHub',
+          },
+          {
+            href: 'https://buymeacoffee.com/mekedron',
+            position: 'right',
+            className: 'navbar-donate-link',
+            label: 'Donate',
+          },
+          {
+            to: '/#download',
+            position: 'right',
+            className: 'navbar-cta-link',
+            label: 'Get the app',
           },
         ],
       },
       footer: {
         style: 'dark',
+        logo: {
+          alt: 'MagicShare logo',
+          src: 'img/logo.svg',
+          width: 32,
+          height: 32,
+        },
         links: [
+          {
+            title: 'Product',
+            items: [
+              {label: 'How it works', to: '/#how'},
+              {label: 'Features', to: '/#features'},
+              {label: 'Download', to: '/#download'},
+            ],
+          },
           {
             title: 'Documentation',
             items: [
@@ -117,10 +189,19 @@ const config = {
                 label: 'Upstream (LocalSend)',
                 href: 'https://github.com/localsend/localsend',
               },
+              {
+                label: '☕ Donate',
+                href: 'https://buymeacoffee.com/mekedron',
+              },
+              {
+                label: 'License',
+                href:
+                  'https://github.com/mekedron/MagicShare/blob/main/LICENSE',
+              },
             ],
           },
         ],
-        copyright: `MagicShare — a fork of LocalSend with cloud-assisted device wake-up. © ${new Date().getFullYear()}.`,
+        copyright: `© ${new Date().getFullYear()} MagicShare contributors. Apache License 2.0. Built on the LocalSend protocol.`,
       },
       prism: {
         theme: prismThemes.github,
