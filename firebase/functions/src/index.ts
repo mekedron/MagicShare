@@ -20,4 +20,4 @@ export const health = onCall(() => {
 });
 
 export { createAccount, deleteAccount } from './accounts';
-export { registerDevice } from './devices';
+export { registerDevice, updateDevicePresence } from './devices';

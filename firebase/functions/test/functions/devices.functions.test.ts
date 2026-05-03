@@ -3,9 +3,9 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { getDb } from '../../src/admin';
-import { registerDeviceLogic } from '../../src/devices';
+import { registerDeviceLogic, updateDevicePresenceLogic } from '../../src/devices';
 
-import { clearEmulator, readAccount, readDevice, seedAccount } from './_helpers';
+import { clearEmulator, readAccount, readDevice, seedAccount, seedDevice } from './_helpers';
 
 const UID = 'devicesTester';
 const DEVICE_A = 'device-a';
@@ -74,5 +74,59 @@ describe('registerDeviceLogic', () => {
     await expect(
       registerDeviceLogic(getDb(), UID, baseRegisterInput(DEVICE_A)),
     ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+});
+
+describe('updateDevicePresenceLogic', () => {
+  beforeEach(async () => {
+    await clearEmulator();
+  });
+
+  it('throws not-found when the device does not exist', async () => {
+    await seedAccount(UID);
+    await expect(
+      updateDevicePresenceLogic(getDb(), UID, { deviceId: DEVICE_A, presence: 'online' }),
+    ).rejects.toMatchObject({ code: 'not-found' });
+  });
+
+  it('rejects a second update inside the 60 s window with resource-exhausted', async () => {
+    await seedAccount(UID, { deviceCount: 1 });
+    // Register stamps lastSeenAt = now, so the next presence update lands
+    // inside the rate-limit window.
+    await registerDeviceLogic(getDb(), UID, baseRegisterInput(DEVICE_A));
+    await expect(
+      updateDevicePresenceLogic(getDb(), UID, { deviceId: DEVICE_A, presence: 'offline' }),
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+  });
+
+  it('accepts an update once the 60 s window has passed', async () => {
+    await seedAccount(UID, { deviceCount: 1 });
+    // Seed lastSeenAt 90 s in the past so we are past the rate-limit window.
+    const stale = Timestamp.fromMillis(Date.now() - 90_000);
+    await seedDevice(UID, DEVICE_A, { lastSeenAt: stale, presence: 'online' });
+
+    const result = await updateDevicePresenceLogic(getDb(), UID, {
+      deviceId: DEVICE_A,
+      presence: 'offline',
+    });
+
+    expect(result).toEqual({ updated: true });
+    const device = await readDevice(UID, DEVICE_A);
+    expect(device?.presence).toBe('offline');
+    expect(device?.lastSeenAt.toMillis()).toBeGreaterThan(stale.toMillis());
+  });
+
+  it('bumps account.lastActiveAt on a successful update', async () => {
+    await seedAccount(UID, {
+      deviceCount: 1,
+      lastActiveAt: Timestamp.fromMillis(Date.now() - 90_000),
+    });
+    const stale = Timestamp.fromMillis(Date.now() - 90_000);
+    await seedDevice(UID, DEVICE_A, { lastSeenAt: stale });
+
+    await updateDevicePresenceLogic(getDb(), UID, { deviceId: DEVICE_A, presence: 'online' });
+
+    const account = await readAccount(UID);
+    expect(account?.lastActiveAt.toMillis()).toBeGreaterThan(stale.toMillis());
   });
 });
