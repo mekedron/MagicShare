@@ -1,0 +1,8 @@
+{
+  "label": "Development",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Cloud sync feature spec and implementation checklist."
+  }
+}

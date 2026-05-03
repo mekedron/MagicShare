@@ -1,4 +1,4 @@
-# MagicShare — Cloud Sync Technical Specification
+# Spec
 
 **Status:** Draft
 **Owner:** Product (Nikita)

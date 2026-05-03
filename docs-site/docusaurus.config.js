@@ -57,6 +57,10 @@ const config = {
           sidebarPath: './sidebars.js',
           editUrl:
             'https://github.com/mekedron/MagicShare/tree/main/docs/',
+          // Files that live in `docs/` but are not meant for the
+          // public site (e.g. agent prompts copied into Claude Code
+          // sessions).
+          exclude: ['**/ai-agent.md'],
         },
         blog: false,
         theme: {
