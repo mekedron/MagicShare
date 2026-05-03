@@ -27,4 +27,4 @@ export {
   setDeviceIcon,
   updateDevicePresence,
 } from './devices';
-export { createJoinToken, previewJoinToken } from './pairing';
+export { createJoinToken, joinNetwork, previewJoinToken } from './pairing';

@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto';
 
-import { Firestore, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Firestore, Timestamp } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { getDb } from './admin';
 import { requireAuth } from './auth';
 import {
+  type AccountDoc,
   ACCOUNTS_COLLECTION,
   accountPath,
   type DeviceDoc,
@@ -19,7 +20,9 @@ import {
 } from './models';
 import {
   type CreateJoinTokenInput,
+  type JoinNetworkInput,
   parseCreateJoinTokenInput,
+  parseJoinNetworkInput,
   parsePreviewJoinTokenInput,
   type PreviewJoinTokenInput,
 } from './validation';
@@ -175,13 +178,7 @@ export async function previewJoinTokenLogic(
     throw new HttpsError('failed-precondition', 'Join token expired.');
   }
 
-  const devicesSnap = await db
-    .collection(`${ACCOUNTS_COLLECTION}/${token.accountId}/${DEVICES_SUBCOLLECTION}`)
-    .get();
-  const devices: JoinTokenPreviewDevice[] = devicesSnap.docs
-    .map((d) => projectDeviceForPreview(d.id, d.data() as DeviceDoc))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
-
+  const devices = await listGroupDevicesForPreview(db, token.accountId);
   return {
     accountId: token.accountId,
     issuingDeviceId: token.issuingDeviceId,
@@ -197,3 +194,139 @@ export const previewJoinToken = onCall<unknown, Promise<PreviewJoinTokenResult>>
     return previewJoinTokenLogic(getDb(), input);
   },
 );
+
+async function listGroupDevicesForPreview(
+  db: Firestore,
+  accountId: string,
+): Promise<JoinTokenPreviewDevice[]> {
+  const snap = await db
+    .collection(`${ACCOUNTS_COLLECTION}/${accountId}/${DEVICES_SUBCOLLECTION}`)
+    .get();
+  return snap.docs
+    .map((d) => projectDeviceForPreview(d.id, d.data() as DeviceDoc))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+export interface JoinNetworkResult {
+  accountId: string;
+  oldAccountDeleted: boolean;
+  devices: JoinTokenPreviewDevice[];
+}
+
+/**
+ * Atomically move the caller's device into the device group named by
+ * the join token. If the source account was the moving device's only
+ * home, the source account is destroyed in the same transaction.
+ *
+ * Behaviour:
+ *
+ * - Reads the token, source account/device, and target account inside
+ *   one Firestore transaction (all reads before any writes per
+ *   transactional integrity).
+ * - Self-join (`sourceUid === token.accountId`) is rejected before any
+ *   write so the token stays valid for a correct retry.
+ * - Consumes the token (`consumedAt = now`) atomically with the move,
+ *   making concurrent join attempts on the same token safe — the
+ *   second attempt's transaction either retries and sees the
+ *   non-null `consumedAt`, or sees the source device already missing.
+ *   Either way it rejects with `failed-precondition`.
+ * - Resets the moved device's `presence` to `offline`. The device
+ *   cannot decrypt wakes encrypted with the new group key until the
+ *   LAN handshake (Epic 11) lands the new key, so showing it `online`
+ *   to the new group invites premature wake attempts.
+ * - Out-of-transaction `recursiveDelete` sweeps subcollections that
+ *   transactions can't (the moved device's old inbox on the
+ *   surviving-source branch, or the entire source account subtree on
+ *   the last-device branch). Mirrors `removeDeviceLogic`.
+ *
+ * Returns the post-move target device list (public-safe projection)
+ * so the joining client can render the new group state without doing
+ * a Firestore read it can't yet authorize — its auth UID still
+ * matches the now-deleted source account; custom-token re-auth lands
+ * in Epic 11.
+ */
+export async function joinNetworkLogic(
+  db: Firestore,
+  sourceUid: string,
+  input: JoinNetworkInput,
+): Promise<JoinNetworkResult> {
+  const tokenRef = db.doc(joinTokenPath(input.tokenId));
+  const sourceAccountRef = db.doc(accountPath(sourceUid));
+  const sourceDeviceRef = db.doc(devicePath(sourceUid, input.deviceId));
+
+  const result = await db.runTransaction(async (tx) => {
+    const tokenSnap = await tx.get(tokenRef);
+    if (!tokenSnap.exists) {
+      throw new HttpsError('not-found', 'Join token not found.');
+    }
+    const token = tokenSnap.data() as JoinTokenDoc;
+    if (token.consumedAt !== null) {
+      throw new HttpsError('failed-precondition', 'Join token already consumed.');
+    }
+    if (token.expiresAt.toMillis() <= Date.now()) {
+      throw new HttpsError('failed-precondition', 'Join token expired.');
+    }
+    if (sourceUid === token.accountId) {
+      throw new HttpsError('failed-precondition', 'Cannot join your own group.');
+    }
+
+    const targetAccountRef = db.doc(accountPath(token.accountId));
+    const targetDeviceRef = db.doc(devicePath(token.accountId, input.deviceId));
+
+    const [sourceAccountSnap, sourceDeviceSnap, targetAccountSnap] = await Promise.all([
+      tx.get(sourceAccountRef),
+      tx.get(sourceDeviceRef),
+      tx.get(targetAccountRef),
+    ]);
+    if (!sourceAccountSnap.exists) {
+      throw new HttpsError('failed-precondition', 'Source account not found.');
+    }
+    if (!sourceDeviceSnap.exists) {
+      throw new HttpsError('failed-precondition', 'Source device not found.');
+    }
+    if (!targetAccountSnap.exists) {
+      throw new HttpsError('failed-precondition', 'Target account not found.');
+    }
+
+    const sourceAccount = sourceAccountSnap.data() as AccountDoc;
+    const sourceDevice = sourceDeviceSnap.data() as DeviceDoc;
+    const now = Timestamp.now();
+
+    tx.update(tokenRef, { consumedAt: now });
+    tx.delete(sourceDeviceRef);
+    const movedDevice: DeviceDoc = {
+      ...sourceDevice,
+      presence: 'offline',
+    };
+    tx.set(targetDeviceRef, movedDevice);
+    tx.update(targetAccountRef, {
+      deviceCount: FieldValue.increment(1),
+      lastActiveAt: now,
+    });
+
+    if (sourceAccount.deviceCount > 1) {
+      tx.update(sourceAccountRef, {
+        deviceCount: FieldValue.increment(-1),
+        lastActiveAt: now,
+      });
+      return { accountId: token.accountId, oldAccountDeleted: false };
+    }
+    tx.delete(sourceAccountRef);
+    return { accountId: token.accountId, oldAccountDeleted: true };
+  });
+
+  if (result.oldAccountDeleted) {
+    await db.recursiveDelete(sourceAccountRef);
+  } else {
+    await db.recursiveDelete(sourceDeviceRef);
+  }
+
+  const devices = await listGroupDevicesForPreview(db, result.accountId);
+  return { ...result, devices };
+}
+
+export const joinNetwork = onCall<unknown, Promise<JoinNetworkResult>>(async (request) => {
+  const uid = requireAuth(request);
+  const input = parseJoinNetworkInput(request.data);
+  return joinNetworkLogic(getDb(), uid, input);
+});

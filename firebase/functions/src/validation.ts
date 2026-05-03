@@ -107,6 +107,11 @@ export interface PreviewJoinTokenInput {
   tokenId: string;
 }
 
+export interface JoinNetworkInput {
+  tokenId: string;
+  deviceId: string;
+}
+
 function asObject(raw: unknown): Record<string, unknown> {
   if (!isPlainObject(raw)) {
     throw new HttpsError('invalid-argument', 'Expected a JSON object payload.');
@@ -167,5 +172,13 @@ export function parsePreviewJoinTokenInput(raw: unknown): PreviewJoinTokenInput 
   const obj = asObject(raw);
   return {
     tokenId: assertTokenId(obj.tokenId),
+  };
+}
+
+export function parseJoinNetworkInput(raw: unknown): JoinNetworkInput {
+  const obj = asObject(raw);
+  return {
+    tokenId: assertTokenId(obj.tokenId),
+    deviceId: assertDeviceId(obj.deviceId),
   };
 }
