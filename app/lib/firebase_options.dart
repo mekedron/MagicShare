@@ -50,7 +50,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '31893954334',
     projectId: 'magic-share-backend',
     storageBucket: 'magic-share-backend.firebasestorage.app',
-    iosBundleId: 'org.localsend.localsendApp',
+    iosBundleId: 'com.magicshare.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -59,7 +59,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '31893954334',
     projectId: 'magic-share-backend',
     storageBucket: 'magic-share-backend.firebasestorage.app',
-    iosBundleId: 'org.localsend.localsendApp',
+    iosBundleId: 'com.magicshare.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
