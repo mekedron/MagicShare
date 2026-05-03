@@ -1,11 +1,11 @@
 {
-  "name": "localsend_app",
-  "short_name": "localsend_app",
+  "name": "MagicShare",
+  "short_name": "MagicShare",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0175C2",
   "theme_color": "#0175C2",
-  "description": "A new Flutter project.",
+  "description": "Cloud-assisted device sync and push-triggered transfers, built on LocalSend's peer-to-peer protocol.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [
