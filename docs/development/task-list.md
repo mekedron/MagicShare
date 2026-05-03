@@ -48,7 +48,7 @@ lands.
     `npm run dev` brings up all emulators; CI passes on a PR
     touching `firebase/functions/`.
 
-- [ ] **Epic 2 — Rebrand to MagicShare.** Rename every code-level
+- [x] **Epic 2 — Rebrand to MagicShare.** Rename every code-level
   reference (Dart package, application IDs, display names, classes,
   user-visible strings) from LocalSend to MagicShare. Keep upstream
   attribution: do not touch the `LICENSE`, source-header copyrights,
@@ -229,6 +229,15 @@ lands.
   into the Flutter app on every supported platform (Android, iOS,
   macOS, Windows, Linux).
 
+  - **Prerequisite (carry-over from Epic 2):** rename the Android,
+    iOS, and macOS apps in the Firebase Console to the new bundle
+    IDs (`com.magicshare.app`) and re-run `flutterfire configure`
+    so `firebase_options.dart`, `google-services.json`, and the iOS /
+    macOS `GoogleService-Info.plist` files regenerate against the
+    renamed Console apps. Until this happens, Firebase init will
+    succeed locally (the per-platform config files were patched
+    in place during Epic 2) but real cloud calls will fail because
+    the project still has the old bundle ids registered.
   - Add Firebase Flutter dependencies (`firebase_core`,
     `firebase_auth`, `cloud_firestore`, `cloud_functions`,
     `firebase_messaging`) to `app/pubspec.yaml`. Initialize
