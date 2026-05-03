@@ -145,7 +145,7 @@ lands.
     locally and in CI; schema doc and TypeScript types stay in
     sync.
 
-- [ ] **Epic 4 — Account and device callables.** Implement the
+- [x] **Epic 4 — Account and device callables.** Implement the
   cloud functions that create and manage accounts and devices.
 
   - `createAccount` (idempotent; creates `accounts/{uid}` if
