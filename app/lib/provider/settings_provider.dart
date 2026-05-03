@@ -70,6 +70,7 @@ class SettingsService extends PureNotifier<SettingsState> {
     shareViaLinkAutoAccept: _persistence.getShareViaLinkAutoAccept(),
     discoveryTimeout: _persistence.getDiscoveryTimeout(),
     advancedSettings: _persistence.getAdvancedSettingsEnabled(),
+    cloudSyncEnabled: _persistence.getCloudSyncEnabled(),
   );
 
   Future<void> setAlias(String alias) async {
@@ -245,6 +246,13 @@ class SettingsService extends PureNotifier<SettingsState> {
 
     state = state.copyWith(
       shareViaLinkAutoAccept: shareViaLinkAutoAccept,
+    );
+  }
+
+  Future<void> setCloudSyncEnabled(bool isEnabled) async {
+    await _persistence.setCloudSyncEnabled(isEnabled);
+    state = state.copyWith(
+      cloudSyncEnabled: isEnabled,
     );
   }
 }

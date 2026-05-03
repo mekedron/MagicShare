@@ -90,6 +90,7 @@ const _deviceType = 'ls_device_type';
 const _deviceModel = 'ls_device_model';
 const _shareViaLinkAutoAccept = 'ls_share_via_link_auto_accept';
 const _advancedSettingsKey = 'ls_advanced_settings';
+const _cloudSyncEnabledKey = 'ls_cloud_sync_enabled';
 
 final persistenceProvider = Provider<PersistenceService>((ref) {
   throw Exception('persistenceProvider not initialized');
@@ -409,6 +410,14 @@ class PersistenceService {
 
   Future<void> setAdvancedSettingsEnabled(bool isEnabled) async {
     await _prefs.setBool(_advancedSettingsKey, isEnabled);
+  }
+
+  bool getCloudSyncEnabled() {
+    return _prefs.getBool(_cloudSyncEnabledKey) ?? true;
+  }
+
+  Future<void> setCloudSyncEnabled(bool isEnabled) async {
+    await _prefs.setBool(_cloudSyncEnabledKey, isEnabled);
   }
 
   bool isQuickSave() {
