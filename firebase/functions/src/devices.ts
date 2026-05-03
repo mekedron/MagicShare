@@ -6,8 +6,12 @@ import { requireAuth } from './auth';
 import { accountPath, type DeviceDoc, devicePath } from './models';
 import {
   parseRegisterDeviceInput,
+  parseRenameDeviceInput,
+  parseSetDeviceIconInput,
   parseUpdatePresenceInput,
   type RegisterDeviceInput,
+  type RenameDeviceInput,
+  type SetDeviceIconInput,
   type UpdatePresenceInput,
 } from './validation';
 
@@ -117,3 +121,51 @@ export const updateDevicePresence = onCall<unknown, Promise<UpdatePresenceResult
     return updateDevicePresenceLogic(getDb(), uid, input);
   },
 );
+
+async function patchDeviceField(
+  db: Firestore,
+  uid: string,
+  deviceId: string,
+  patch: Partial<DeviceDoc>,
+): Promise<void> {
+  const accountRef = db.doc(accountPath(uid));
+  const deviceRef = db.doc(devicePath(uid, deviceId));
+  await db.runTransaction(async (tx) => {
+    const deviceSnap = await tx.get(deviceRef);
+    if (!deviceSnap.exists) {
+      throw new HttpsError('not-found', 'Device not found.');
+    }
+    tx.update(deviceRef, patch);
+    tx.update(accountRef, { lastActiveAt: Timestamp.now() });
+  });
+}
+
+export async function renameDeviceLogic(
+  db: Firestore,
+  uid: string,
+  input: RenameDeviceInput,
+): Promise<void> {
+  await patchDeviceField(db, uid, input.deviceId, { displayName: input.displayName });
+}
+
+export async function setDeviceIconLogic(
+  db: Firestore,
+  uid: string,
+  input: SetDeviceIconInput,
+): Promise<void> {
+  await patchDeviceField(db, uid, input.deviceId, { icon: input.icon });
+}
+
+export const renameDevice = onCall<unknown, Promise<{ ok: true }>>(async (request) => {
+  const uid = requireAuth(request);
+  const input = parseRenameDeviceInput(request.data);
+  await renameDeviceLogic(getDb(), uid, input);
+  return { ok: true };
+});
+
+export const setDeviceIcon = onCall<unknown, Promise<{ ok: true }>>(async (request) => {
+  const uid = requireAuth(request);
+  const input = parseSetDeviceIconInput(request.data);
+  await setDeviceIconLogic(getDb(), uid, input);
+  return { ok: true };
+});

@@ -3,7 +3,13 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { getDb } from '../../src/admin';
-import { registerDeviceLogic, updateDevicePresenceLogic } from '../../src/devices';
+import {
+  registerDeviceLogic,
+  renameDeviceLogic,
+  setDeviceIconLogic,
+  updateDevicePresenceLogic,
+} from '../../src/devices';
+import { parseRenameDeviceInput, parseSetDeviceIconInput } from '../../src/validation';
 
 import { clearEmulator, readAccount, readDevice, seedAccount, seedDevice } from './_helpers';
 
@@ -128,5 +134,70 @@ describe('updateDevicePresenceLogic', () => {
 
     const account = await readAccount(UID);
     expect(account?.lastActiveAt.toMillis()).toBeGreaterThan(stale.toMillis());
+  });
+});
+
+describe('renameDeviceLogic', () => {
+  beforeEach(async () => {
+    await clearEmulator();
+  });
+
+  it('updates displayName on an existing device', async () => {
+    await seedAccount(UID, { deviceCount: 1 });
+    await seedDevice(UID, DEVICE_A, { displayName: 'Old Name' });
+
+    await renameDeviceLogic(getDb(), UID, { deviceId: DEVICE_A, displayName: 'New Name' });
+
+    const device = await readDevice(UID, DEVICE_A);
+    expect(device?.displayName).toBe('New Name');
+  });
+
+  it('throws not-found when the device does not exist', async () => {
+    await seedAccount(UID);
+    await expect(
+      renameDeviceLogic(getDb(), UID, { deviceId: DEVICE_A, displayName: 'Nope' }),
+    ).rejects.toMatchObject({ code: 'not-found' });
+  });
+
+  it('rejects an empty displayName during input parsing', () => {
+    expect(() => parseRenameDeviceInput({ deviceId: DEVICE_A, displayName: '   ' })).toThrow(
+      HttpsError,
+    );
+  });
+
+  it('rejects a displayName longer than 80 characters', () => {
+    const oversized = 'x'.repeat(81);
+    expect(() => parseRenameDeviceInput({ deviceId: DEVICE_A, displayName: oversized })).toThrow(
+      HttpsError,
+    );
+  });
+});
+
+describe('setDeviceIconLogic', () => {
+  beforeEach(async () => {
+    await clearEmulator();
+  });
+
+  it('updates the icon on an existing device', async () => {
+    await seedAccount(UID, { deviceCount: 1 });
+    await seedDevice(UID, DEVICE_A, { icon: 'laptop' });
+
+    await setDeviceIconLogic(getDb(), UID, { deviceId: DEVICE_A, icon: 'phone' });
+
+    const device = await readDevice(UID, DEVICE_A);
+    expect(device?.icon).toBe('phone');
+  });
+
+  it('throws not-found when the device does not exist', async () => {
+    await seedAccount(UID);
+    await expect(
+      setDeviceIconLogic(getDb(), UID, { deviceId: DEVICE_A, icon: 'phone' }),
+    ).rejects.toMatchObject({ code: 'not-found' });
+  });
+
+  it('rejects an unknown icon during input parsing', () => {
+    expect(() => parseSetDeviceIconInput({ deviceId: DEVICE_A, icon: 'spaceship' })).toThrow(
+      HttpsError,
+    );
   });
 });
