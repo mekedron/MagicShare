@@ -481,8 +481,11 @@ export default function Hero() {
 
       <style>{`
         @media (max-width: 900px) {
-          .hero-grid { grid-template-columns: 1fr !important; gap: 24px !important; padding-top: 24px !important; }
-          .hero-anim { order: -1; max-width: 480px; margin: 0 auto; width: 100%; }
+          .hero-grid { grid-template-columns: 1fr !important; gap: 32px !important; padding-top: 16px !important; }
+          /* Headline first, animation second — flipping the order on mobile
+             made the page open with a wall of empty space above an unlabelled
+             diagram, hiding what the product even is until you scrolled. */
+          .hero-anim { max-width: 420px; margin: 0 auto; width: 100%; }
         }
       `}</style>
     </header>
