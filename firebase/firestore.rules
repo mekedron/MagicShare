@@ -1,14 +1,46 @@
 rules_version = '2';
 
-// Default-deny baseline for the MagicShare cloud-sync backend.
+// Security rules for the MagicShare cloud-sync backend.
 //
-// Real per-collection rules land in Epic 2 ("Schema and security rules"),
-// alongside `@firebase/rules-unit-testing` cases. Until then, all client
-// reads and writes are rejected; only the Admin SDK (i.e. Cloud Functions)
-// can mutate Firestore.
+// Schema and field semantics live in `firebase/SCHEMA.md`, with matching
+// TypeScript types in `firebase/functions/src/models.ts`. Rules tests
+// live in `firebase/functions/test/firestore.rules.test.ts` and run
+// against the Firestore emulator on every PR.
+//
+// All writes are server-only: Cloud Functions mutate Firestore through
+// the Admin SDK, which bypasses these rules. Clients only ever read
+// — and only their own data.
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
+
+    // accounts/{uid}: a device group keyed by anonymous-auth UID.
+    // The owning user can read; nobody can write directly (callables only).
+    match /accounts/{accountId} {
+      allow read:  if request.auth != null && request.auth.uid == accountId;
+      allow write: if false;
+
+      // accounts/{uid}/devices/{deviceId}: per-device documents under
+      // the same account. Same access pattern as the parent account.
+      match /devices/{deviceId} {
+        allow read:  if request.auth != null && request.auth.uid == accountId;
+        allow write: if false;
+
+        // accounts/{uid}/devices/{deviceId}/inbox/{itemId}: Linux-only
+        // polling fallback. Items are produced and consumed exclusively
+        // by Cloud Functions (`sendWake`, `pollPendingWakes` in Epic 6),
+        // so clients never touch this subcollection directly.
+        match /inbox/{itemId} {
+          allow read, write: if false;
+        }
+      }
+    }
+
+    // joinTokens/{tokenId}: one-time pairing tokens. Issued by
+    // `createJoinToken`, validated by `previewJoinToken`, and consumed
+    // by `joinNetwork` — all server-side. Clients never read or write
+    // this collection directly.
+    match /joinTokens/{tokenId} {
       allow read, write: if false;
     }
   }
