@@ -12,6 +12,9 @@ import {
   devicePath,
   inboxItemPath,
   type InboxItemDoc,
+  JOIN_TOKENS_COLLECTION,
+  type JoinTokenDoc,
+  joinTokenPath,
 } from '../../src/models';
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT ?? 'demo-magicshare-functions';
@@ -116,5 +119,38 @@ export async function listInboxIds(uid: string, deviceId: string): Promise<strin
   const snap = await getDb()
     .collection(`${devicePath(uid, deviceId)}/inbox`)
     .get();
+  return snap.docs.map((d) => d.id);
+}
+
+export interface SeedJoinTokenOverrides {
+  accountId?: string;
+  issuingDeviceId?: string;
+  createdAt?: Timestamp;
+  expiresAt?: Timestamp;
+  consumedAt?: Timestamp | null;
+}
+
+export async function seedJoinToken(
+  tokenId: string,
+  overrides: SeedJoinTokenOverrides = {},
+): Promise<void> {
+  const now = Timestamp.now();
+  const doc: JoinTokenDoc = {
+    accountId: overrides.accountId ?? 'seedAccount',
+    issuingDeviceId: overrides.issuingDeviceId ?? 'seedDevice',
+    createdAt: overrides.createdAt ?? now,
+    expiresAt: overrides.expiresAt ?? Timestamp.fromMillis(now.toMillis() + 5 * 60_000),
+    consumedAt: overrides.consumedAt ?? null,
+  };
+  await getDb().doc(joinTokenPath(tokenId)).set(doc);
+}
+
+export async function readJoinToken(tokenId: string): Promise<JoinTokenDoc | null> {
+  const snap = await getDb().doc(joinTokenPath(tokenId)).get();
+  return snap.exists ? (snap.data() as JoinTokenDoc) : null;
+}
+
+export async function listJoinTokenIds(): Promise<string[]> {
+  const snap = await getDb().collection(JOIN_TOKENS_COLLECTION).get();
   return snap.docs.map((d) => d.id);
 }

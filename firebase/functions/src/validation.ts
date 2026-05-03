@@ -94,6 +94,10 @@ export interface RemoveDeviceInput {
   deviceId: string;
 }
 
+export interface CreateJoinTokenInput {
+  issuingDeviceId: string;
+}
+
 function asObject(raw: unknown): Record<string, unknown> {
   if (!isPlainObject(raw)) {
     throw new HttpsError('invalid-argument', 'Expected a JSON object payload.');
@@ -140,5 +144,12 @@ export function parseRemoveDeviceInput(raw: unknown): RemoveDeviceInput {
   const obj = asObject(raw);
   return {
     deviceId: assertDeviceId(obj.deviceId),
+  };
+}
+
+export function parseCreateJoinTokenInput(raw: unknown): CreateJoinTokenInput {
+  const obj = asObject(raw);
+  return {
+    issuingDeviceId: assertNonEmptyString(obj.issuingDeviceId, 'issuingDeviceId', DEVICE_ID_MAX),
   };
 }
