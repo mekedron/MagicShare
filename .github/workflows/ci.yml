@@ -3,8 +3,22 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'docs-site/**'
+      - 'readme_i18n/**'
+      - 'README.md'
+      - '.github/workflows/deploy-docs.yml'
+      - '.github/workflows/test-deploy-docs.yml'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'docs-site/**'
+      - 'readme_i18n/**'
+      - 'README.md'
+      - '.github/workflows/deploy-docs.yml'
+      - '.github/workflows/test-deploy-docs.yml'
 
 env:
   FLUTTER_VERSION: "3.38.10"
