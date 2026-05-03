@@ -1,6 +1,7 @@
 import { FieldValue, Firestore, Timestamp } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
+import { assertSameAccountTx } from './account-access';
 import { getDb } from './admin';
 import { requireAuth } from './auth';
 import { type AccountDoc, accountPath, type DeviceDoc, devicePath } from './models';
@@ -96,13 +97,8 @@ export async function updateDevicePresenceLogic(
   input: UpdatePresenceInput,
 ): Promise<UpdatePresenceResult> {
   const accountRef = db.doc(accountPath(uid));
-  const deviceRef = db.doc(devicePath(uid, input.deviceId));
   return db.runTransaction(async (tx) => {
-    const deviceSnap = await tx.get(deviceRef);
-    if (!deviceSnap.exists) {
-      throw new HttpsError('not-found', 'Device not found.');
-    }
-    const device = deviceSnap.data() as DeviceDoc;
+    const { ref: deviceRef, doc: device } = await assertSameAccountTx(tx, db, uid, input.deviceId);
     const now = Timestamp.now();
     if (now.toMillis() - device.lastSeenAt.toMillis() < PRESENCE_RATE_LIMIT_MS) {
       throw new HttpsError('resource-exhausted', 'Presence update rate limit exceeded.');
@@ -131,12 +127,8 @@ async function patchDeviceField(
   patch: Partial<DeviceDoc>,
 ): Promise<void> {
   const accountRef = db.doc(accountPath(uid));
-  const deviceRef = db.doc(devicePath(uid, deviceId));
   await db.runTransaction(async (tx) => {
-    const deviceSnap = await tx.get(deviceRef);
-    if (!deviceSnap.exists) {
-      throw new HttpsError('not-found', 'Device not found.');
-    }
+    const { ref: deviceRef } = await assertSameAccountTx(tx, db, uid, deviceId);
     tx.update(deviceRef, patch);
     tx.update(accountRef, { lastActiveAt: Timestamp.now() });
   });
@@ -198,14 +190,14 @@ export async function removeDeviceLogic(
   const deviceRef = db.doc(devicePath(uid, input.deviceId));
 
   const result = await db.runTransaction(async (tx) => {
+    // Read account first so we know whether this is the last-device branch.
+    // `assertSameAccountTx` then validates the device and gives us the
+    // `not-found` rejection if the caller doesn't own it.
     const accountSnap = await tx.get(accountRef);
     if (!accountSnap.exists) {
       throw new HttpsError('not-found', 'Account not found.');
     }
-    const deviceSnap = await tx.get(deviceRef);
-    if (!deviceSnap.exists) {
-      throw new HttpsError('not-found', 'Device not found.');
-    }
+    await assertSameAccountTx(tx, db, uid, input.deviceId);
     const currentCount = (accountSnap.data() as AccountDoc).deviceCount;
     const now = Timestamp.now();
     if (currentCount > 1) {
