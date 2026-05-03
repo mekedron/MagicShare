@@ -11,6 +11,7 @@ import {
 const DEVICE_ID_MAX = 128;
 const DISPLAY_NAME_MAX = 80;
 const FCM_TOKEN_MAX = 4096;
+const TOKEN_ID_MAX = 128;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -30,6 +31,10 @@ function assertNonEmptyString(value: unknown, field: string, max: number): strin
 
 function assertDeviceId(value: unknown): string {
   return assertNonEmptyString(value, 'deviceId', DEVICE_ID_MAX);
+}
+
+function assertTokenId(value: unknown): string {
+  return assertNonEmptyString(value, 'tokenId', TOKEN_ID_MAX);
 }
 
 function assertDisplayName(value: unknown): string {
@@ -98,6 +103,10 @@ export interface CreateJoinTokenInput {
   issuingDeviceId: string;
 }
 
+export interface PreviewJoinTokenInput {
+  tokenId: string;
+}
+
 function asObject(raw: unknown): Record<string, unknown> {
   if (!isPlainObject(raw)) {
     throw new HttpsError('invalid-argument', 'Expected a JSON object payload.');
@@ -151,5 +160,12 @@ export function parseCreateJoinTokenInput(raw: unknown): CreateJoinTokenInput {
   const obj = asObject(raw);
   return {
     issuingDeviceId: assertNonEmptyString(obj.issuingDeviceId, 'issuingDeviceId', DEVICE_ID_MAX),
+  };
+}
+
+export function parsePreviewJoinTokenInput(raw: unknown): PreviewJoinTokenInput {
+  const obj = asObject(raw);
+  return {
+    tokenId: assertTokenId(obj.tokenId),
   };
 }

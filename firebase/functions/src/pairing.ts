@@ -5,8 +5,24 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { getDb } from './admin';
 import { requireAuth } from './auth';
-import { accountPath, devicePath, type JoinTokenDoc, joinTokenPath } from './models';
-import { type CreateJoinTokenInput, parseCreateJoinTokenInput } from './validation';
+import {
+  ACCOUNTS_COLLECTION,
+  accountPath,
+  type DeviceDoc,
+  type DeviceIcon,
+  DEVICES_SUBCOLLECTION,
+  type DevicePlatform,
+  type DevicePresence,
+  devicePath,
+  type JoinTokenDoc,
+  joinTokenPath,
+} from './models';
+import {
+  type CreateJoinTokenInput,
+  parseCreateJoinTokenInput,
+  parsePreviewJoinTokenInput,
+  type PreviewJoinTokenInput,
+} from './validation';
 
 /**
  * Pairing callables. Implement the cloud-side of MagicShare's pairing
@@ -100,3 +116,84 @@ export const createJoinToken = onCall<unknown, Promise<CreateJoinTokenResult>>(a
   const input = parseCreateJoinTokenInput(request.data);
   return createJoinTokenLogic(getDb(), uid, input);
 });
+
+/**
+ * Public-safe view of a device, returned by `previewJoinToken` so a
+ * joining device can render the target group's device list before
+ * confirming. `fcmToken` and `lastSeenAt` are intentionally absent —
+ * `fcmToken` would let a leaker push directly, and `lastSeenAt` exposes
+ * activity-pattern information the joining user has no need to see
+ * before joining.
+ */
+export interface JoinTokenPreviewDevice {
+  deviceId: string;
+  displayName: string;
+  icon: DeviceIcon;
+  platform: DevicePlatform;
+  presence: DevicePresence;
+}
+
+export interface PreviewJoinTokenResult {
+  accountId: string;
+  issuingDeviceId: string;
+  expiresAtMs: number;
+  devices: JoinTokenPreviewDevice[];
+}
+
+function projectDeviceForPreview(deviceId: string, doc: DeviceDoc): JoinTokenPreviewDevice {
+  return {
+    deviceId,
+    displayName: doc.displayName,
+    icon: doc.icon,
+    platform: doc.platform,
+    presence: doc.presence,
+  };
+}
+
+/**
+ * Read a join token and return the target group's public-safe device
+ * list, plus token metadata, so the joining device can render a
+ * confirmation UI. Read-only — does not consume the token. Users may
+ * preview, cancel, and preview again until the 5-minute window closes.
+ *
+ * Auth: any authenticated user. The unguessable token is the
+ * authorization; LAN-reachability is enforced client-side (Epic 11).
+ */
+export async function previewJoinTokenLogic(
+  db: Firestore,
+  input: PreviewJoinTokenInput,
+): Promise<PreviewJoinTokenResult> {
+  const tokenSnap = await db.doc(joinTokenPath(input.tokenId)).get();
+  if (!tokenSnap.exists) {
+    throw new HttpsError('not-found', 'Join token not found.');
+  }
+  const token = tokenSnap.data() as JoinTokenDoc;
+  if (token.consumedAt !== null) {
+    throw new HttpsError('failed-precondition', 'Join token already consumed.');
+  }
+  if (token.expiresAt.toMillis() <= Date.now()) {
+    throw new HttpsError('failed-precondition', 'Join token expired.');
+  }
+
+  const devicesSnap = await db
+    .collection(`${ACCOUNTS_COLLECTION}/${token.accountId}/${DEVICES_SUBCOLLECTION}`)
+    .get();
+  const devices: JoinTokenPreviewDevice[] = devicesSnap.docs
+    .map((d) => projectDeviceForPreview(d.id, d.data() as DeviceDoc))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  return {
+    accountId: token.accountId,
+    issuingDeviceId: token.issuingDeviceId,
+    expiresAtMs: token.expiresAt.toMillis(),
+    devices,
+  };
+}
+
+export const previewJoinToken = onCall<unknown, Promise<PreviewJoinTokenResult>>(
+  async (request) => {
+    requireAuth(request);
+    const input = parsePreviewJoinTokenInput(request.data);
+    return previewJoinTokenLogic(getDb(), input);
+  },
+);
