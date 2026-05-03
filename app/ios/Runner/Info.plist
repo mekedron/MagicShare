@@ -49,6 +49,12 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
+	<!-- MagicShare cloud sync: receive silent FCM data messages in the background. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
 	<!-- Flag to skip question by Appstore -->
 	<key>ITSAppUsesNonExemptEncryption</key>
     <false/>

@@ -81,6 +81,20 @@
             </intent-filter>
         </service>
 
+        <!-- MagicShare cloud sync: high-priority FCM data channel for wake / link notifications. -->
+        <service
+            android:name=".MagicShareFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Default high-importance notification channel for wake / link. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="magicshare_cloud_sync" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

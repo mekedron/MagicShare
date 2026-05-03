@@ -225,7 +225,7 @@ lands.
     enforced; scheduled jobs execute on schedule; logs are
     structured and PII-free; Linux polling returns inbox items.
 
-- [ ] **Epic 7 — Flutter Firebase integration.** Wire Firebase
+- [x] **Epic 7 — Flutter Firebase integration.** Wire Firebase
   into the Flutter app on every supported platform (Android, iOS,
   macOS, Windows, Linux).
 
@@ -527,3 +527,38 @@ lands.
     Block the release on any red test.
   - **Done when:** the manual QA checklist passes; CI is green
     on the release commit; release notes published.
+
+- [ ] **Epic 16 — Linux/Windows REST cloud client.** FlutterFire
+  ships no native bindings on Linux and only partial coverage on
+  Windows (no `cloud_functions`, no `firebase_messaging`). Epic 7
+  scaffolds the platform predicates and the Linux polling
+  interface; this epic implements the actual transport so both
+  platforms can join the cloud-sync feature set.
+
+  - REST adapter for `FirebaseAuth`: anonymous sign-up via
+    `signupNewUser`, ID-token refresh loop, refresh token persisted
+    in `flutter_secure_storage`. Mirror the Dart-side API surface
+    of `CloudAuthGateway` so `auth_provider.dart` can swap
+    implementations behind a platform check.
+  - REST adapter for the typed `CloudFunctionsClient`: signed
+    callable invocation against
+    `https://europe-west1-magic-share-backend.cloudfunctions.net/<name>`.
+    Wire format mirrors the existing `HttpsCallableInvoker`
+    contract so model encoding and error mapping stay shared.
+  - Linux desktop notification surfacing via
+    `flutter_local_notifications` once `pollPendingWakes` returns
+    inbox items. Wake taps focus the app; URL taps open the
+    system browser.
+  - Windows wake support: same REST poller with a Windows-friendly
+    notification surface (toast via the platform channel).
+  - **Tests:**
+    - Unit (`flutter test`): REST auth adapter (sign-in, refresh,
+      retry); REST callable adapter (signed-request shape, error
+      mapping); inbox-item handler.
+    - Integration (`flutter test` against emulator): REST sign-in
+      reaches a non-null user within ~1 s; a poll cycle decodes
+      mixed encrypted / plaintext inbox items.
+  - **Done when:** the app builds and signs in on Linux + Windows
+    without FlutterFire; a wake sent to a Linux client surfaces
+    a desktop notification within ~30 s; a wake sent to a Windows
+    client surfaces a toast within ~30 s.

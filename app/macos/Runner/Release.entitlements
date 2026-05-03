@@ -18,5 +18,8 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- MagicShare cloud sync: APNs entitlement for FCM data messages on macOS. -->
+	<key>com.apple.developer.aps-environment</key>
+	<string>production</string>
 </dict>
 </plist>
