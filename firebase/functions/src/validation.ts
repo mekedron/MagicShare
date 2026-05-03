@@ -1,0 +1,144 @@
+import { HttpsError } from 'firebase-functions/v2/https';
+
+import {
+  DEVICE_ICONS,
+  DEVICE_PLATFORMS,
+  type DeviceIcon,
+  type DevicePlatform,
+  type DevicePresence,
+} from './models';
+
+const DEVICE_ID_MAX = 128;
+const DISPLAY_NAME_MAX = 80;
+const FCM_TOKEN_MAX = 4096;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function fail(field: string, reason: string): never {
+  throw new HttpsError('invalid-argument', `Invalid value for "${field}": ${reason}.`);
+}
+
+function assertNonEmptyString(value: unknown, field: string, max: number): string {
+  if (typeof value !== 'string') fail(field, `expected a string`);
+  const trimmed = (value as string).trim();
+  if (trimmed.length === 0) fail(field, `must not be empty`);
+  if ((value as string).length > max) fail(field, `must be ${max} characters or fewer`);
+  return value as string;
+}
+
+function assertDeviceId(value: unknown): string {
+  return assertNonEmptyString(value, 'deviceId', DEVICE_ID_MAX);
+}
+
+function assertDisplayName(value: unknown): string {
+  return assertNonEmptyString(value, 'displayName', DISPLAY_NAME_MAX);
+}
+
+function assertDeviceIcon(value: unknown): DeviceIcon {
+  if (typeof value !== 'string' || !(DEVICE_ICONS as readonly string[]).includes(value)) {
+    fail('icon', `expected one of ${DEVICE_ICONS.join(', ')}`);
+  }
+  return value as DeviceIcon;
+}
+
+function assertDevicePlatform(value: unknown): DevicePlatform {
+  if (typeof value !== 'string' || !(DEVICE_PLATFORMS as readonly string[]).includes(value)) {
+    fail('platform', `expected one of ${DEVICE_PLATFORMS.join(', ')}`);
+  }
+  return value as DevicePlatform;
+}
+
+function assertPresence(value: unknown): DevicePresence {
+  if (value !== 'online' && value !== 'offline') {
+    fail('presence', `expected "online" or "offline"`);
+  }
+  return value;
+}
+
+function assertFcmToken(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string') fail('fcmToken', `expected a string or null`);
+  if ((value as string).length === 0) fail('fcmToken', `must not be empty`);
+  if ((value as string).length > FCM_TOKEN_MAX) {
+    fail('fcmToken', `must be ${FCM_TOKEN_MAX} characters or fewer`);
+  }
+  return value as string;
+}
+
+export interface RegisterDeviceInput {
+  deviceId: string;
+  displayName: string;
+  icon: DeviceIcon;
+  fcmToken: string | null;
+  platform: DevicePlatform;
+}
+
+export interface UpdatePresenceInput {
+  deviceId: string;
+  presence: DevicePresence;
+}
+
+export interface RenameDeviceInput {
+  deviceId: string;
+  displayName: string;
+}
+
+export interface SetDeviceIconInput {
+  deviceId: string;
+  icon: DeviceIcon;
+}
+
+export interface RemoveDeviceInput {
+  deviceId: string;
+}
+
+function asObject(raw: unknown): Record<string, unknown> {
+  if (!isPlainObject(raw)) {
+    throw new HttpsError('invalid-argument', 'Expected a JSON object payload.');
+  }
+  return raw;
+}
+
+export function parseRegisterDeviceInput(raw: unknown): RegisterDeviceInput {
+  const obj = asObject(raw);
+  return {
+    deviceId: assertDeviceId(obj.deviceId),
+    displayName: assertDisplayName(obj.displayName),
+    icon: assertDeviceIcon(obj.icon),
+    fcmToken: assertFcmToken(obj.fcmToken),
+    platform: assertDevicePlatform(obj.platform),
+  };
+}
+
+export function parseUpdatePresenceInput(raw: unknown): UpdatePresenceInput {
+  const obj = asObject(raw);
+  return {
+    deviceId: assertDeviceId(obj.deviceId),
+    presence: assertPresence(obj.presence),
+  };
+}
+
+export function parseRenameDeviceInput(raw: unknown): RenameDeviceInput {
+  const obj = asObject(raw);
+  return {
+    deviceId: assertDeviceId(obj.deviceId),
+    displayName: assertDisplayName(obj.displayName),
+  };
+}
+
+export function parseSetDeviceIconInput(raw: unknown): SetDeviceIconInput {
+  const obj = asObject(raw);
+  return {
+    deviceId: assertDeviceId(obj.deviceId),
+    icon: assertDeviceIcon(obj.icon),
+  };
+}
+
+export function parseRemoveDeviceInput(raw: unknown): RemoveDeviceInput {
+  const obj = asObject(raw);
+  return {
+    deviceId: assertDeviceId(obj.deviceId),
+  };
+}
