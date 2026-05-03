@@ -1,4 +1,4 @@
-import 'package:localsend_app/util/native/content_uri_helper.dart';
+import 'package:magicshare_app/util/native/content_uri_helper.dart';
 import 'package:test/test.dart';
 
 void main() {

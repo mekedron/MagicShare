@@ -10,13 +10,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
-import 'package:localsend_app/rust/api/crypto.dart';
-import 'package:localsend_app/rust/api/http.dart';
-import 'package:localsend_app/rust/api/logging.dart';
-import 'package:localsend_app/rust/api/model.dart';
-import 'package:localsend_app/rust/api/stream.dart';
-import 'package:localsend_app/rust/api/webrtc.dart';
-import 'package:localsend_app/rust/frb_generated.dart';
+import 'package:magicshare_app/rust/api/crypto.dart';
+import 'package:magicshare_app/rust/api/http.dart';
+import 'package:magicshare_app/rust/api/logging.dart';
+import 'package:magicshare_app/rust/api/model.dart';
+import 'package:magicshare_app/rust/api/stream.dart';
+import 'package:magicshare_app/rust/api/webrtc.dart';
+import 'package:magicshare_app/rust/frb_generated.dart';
 import 'package:uuid/uuid.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {

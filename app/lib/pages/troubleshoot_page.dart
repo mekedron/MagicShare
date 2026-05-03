@@ -2,15 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/provider/settings_provider.dart';
-import 'package:localsend_app/util/native/cmd_helper.dart';
-import 'package:localsend_app/util/native/macos_channel.dart' as macos_channel;
-import 'package:localsend_app/util/native/platform_check.dart';
-import 'package:localsend_app/widget/custom_basic_appbar.dart';
-import 'package:localsend_app/widget/custom_icon_button.dart';
-import 'package:localsend_app/widget/dialogs/not_available_on_platform_dialog.dart';
-import 'package:localsend_app/widget/responsive_list_view.dart';
+import 'package:magicshare_app/gen/strings.g.dart';
+import 'package:magicshare_app/provider/settings_provider.dart';
+import 'package:magicshare_app/util/native/cmd_helper.dart';
+import 'package:magicshare_app/util/native/macos_channel.dart' as macos_channel;
+import 'package:magicshare_app/util/native/platform_check.dart';
+import 'package:magicshare_app/widget/custom_basic_appbar.dart';
+import 'package:magicshare_app/widget/custom_icon_button.dart';
+import 'package:magicshare_app/widget/dialogs/not_available_on_platform_dialog.dart';
+import 'package:magicshare_app/widget/responsive_list_view.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 class TroubleshootPage extends StatelessWidget {

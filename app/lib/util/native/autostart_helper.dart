@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:localsend_app/util/native/macos_channel.dart';
 import 'package:logging/logging.dart';
+import 'package:magicshare_app/util/native/macos_channel.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:win32_registry/win32_registry.dart';
 

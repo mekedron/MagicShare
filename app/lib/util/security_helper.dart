@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:common/model/stored_security_context.dart';
 import 'package:convert/convert.dart';
-import 'package:localsend_app/rust/api/crypto.dart' as rust;
+import 'package:magicshare_app/rust/api/crypto.dart' as rust;
 
 /// Generates a random [SecurityContextResult].
 StoredSecurityContext generateSecurityContext([AsymmetricKeyPair? keyPair]) {

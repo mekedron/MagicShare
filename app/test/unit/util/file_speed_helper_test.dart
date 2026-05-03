@@ -1,4 +1,4 @@
-import 'package:localsend_app/util/file_speed_helper.dart';
+import 'package:magicshare_app/util/file_speed_helper.dart';
 import 'package:test/test.dart';
 
 void main() {

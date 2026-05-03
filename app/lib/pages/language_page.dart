@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/provider/settings_provider.dart';
-import 'package:localsend_app/widget/custom_basic_appbar.dart';
-import 'package:localsend_app/widget/responsive_list_view.dart';
+import 'package:magicshare_app/gen/strings.g.dart';
+import 'package:magicshare_app/provider/settings_provider.dart';
+import 'package:magicshare_app/widget/custom_basic_appbar.dart';
+import 'package:magicshare_app/widget/responsive_list_view.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 class LanguagePage extends StatefulWidget {

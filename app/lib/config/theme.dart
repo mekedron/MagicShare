@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/model/persistence/color_mode.dart';
-import 'package:localsend_app/provider/device_info_provider.dart';
-import 'package:localsend_app/util/native/platform_check.dart';
-import 'package:localsend_app/util/ui/dynamic_colors.dart';
+import 'package:magicshare_app/gen/strings.g.dart';
+import 'package:magicshare_app/model/persistence/color_mode.dart';
+import 'package:magicshare_app/provider/device_info_provider.dart';
+import 'package:magicshare_app/util/native/platform_check.dart';
+import 'package:magicshare_app/util/ui/dynamic_colors.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:yaru/yaru.dart' as yaru;
 

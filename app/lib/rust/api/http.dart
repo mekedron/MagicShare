@@ -5,9 +5,9 @@
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
-import 'package:localsend_app/rust/api/model.dart';
-import 'package:localsend_app/rust/api/stream.dart';
-import 'package:localsend_app/rust/frb_generated.dart';
+import 'package:magicshare_app/rust/api/model.dart';
+import 'package:magicshare_app/rust/api/stream.dart';
+import 'package:magicshare_app/rust/frb_generated.dart';
 
 part 'http.freezed.dart';
 

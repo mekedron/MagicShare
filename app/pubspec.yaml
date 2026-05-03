@@ -1,6 +1,6 @@
-name: localsend_app
-description: An open source cross-platform alternative to AirDrop
-homepage: https://localsend.org/
+name: magicshare_app
+description: Cloud-assisted device sync built on top of LocalSend's peer-to-peer transfer protocol.
+homepage: https://github.com/mekedron/MagicShare
 publish_to: "none"
 
 version: 1.17.0+58

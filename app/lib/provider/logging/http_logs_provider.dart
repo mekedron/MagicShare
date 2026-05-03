@@ -1,5 +1,5 @@
-import 'package:localsend_app/model/log_entry.dart';
 import 'package:logging/logging.dart';
+import 'package:magicshare_app/model/log_entry.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 final _logger = Logger('HTTP');

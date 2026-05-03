@@ -4,6 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:localsend_app/rust/frb_generated.dart';
+import 'package:magicshare_app/rust/frb_generated.dart';
 
 Future<void> enableDebugLogging() => RustLib.instance.api.crateApiLoggingEnableDebugLogging();

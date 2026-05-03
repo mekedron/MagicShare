@@ -1,7 +1,7 @@
-import 'package:localsend_app/provider/local_ip_provider.dart';
-import 'package:localsend_app/provider/logging/discovery_logs_provider.dart';
-import 'package:localsend_app/provider/progress_provider.dart';
 import 'package:logging/logging.dart';
+import 'package:magicshare_app/provider/local_ip_provider.dart';
+import 'package:magicshare_app/provider/logging/discovery_logs_provider.dart';
+import 'package:magicshare_app/provider/progress_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:refena_inspector_client/refena_inspector_client.dart';
 

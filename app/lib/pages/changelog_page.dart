@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:localsend_app/gen/assets.gen.dart';
-import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/util/ui/nav_bar_padding.dart';
-import 'package:localsend_app/widget/custom_basic_appbar.dart';
+import 'package:magicshare_app/gen/assets.gen.dart';
+import 'package:magicshare_app/gen/strings.g.dart';
+import 'package:magicshare_app/util/ui/nav_bar_padding.dart';
+import 'package:magicshare_app/widget/custom_basic_appbar.dart';
 
 class ChangelogPage extends StatelessWidget {
   const ChangelogPage();

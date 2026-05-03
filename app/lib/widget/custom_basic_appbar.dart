@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:localsend_app/util/native/platform_check.dart';
+import 'package:magicshare_app/util/native/platform_check.dart';
 
 class CustomBackButton extends StatelessWidget {
   final Color? color;

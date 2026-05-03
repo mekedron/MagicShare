@@ -1,16 +1,16 @@
 import 'package:common/model/device.dart';
 import 'package:flutter/material.dart';
-import 'package:localsend_app/config/theme.dart';
-import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/model/persistence/favorite_device.dart';
-import 'package:localsend_app/provider/device_info_provider.dart';
-import 'package:localsend_app/provider/favorites_provider.dart';
-import 'package:localsend_app/provider/http_provider.dart';
-import 'package:localsend_app/provider/settings_provider.dart';
-import 'package:localsend_app/rust/api/model.dart';
-import 'package:localsend_app/util/rust.dart';
-import 'package:localsend_app/widget/dialogs/error_dialog.dart';
-import 'package:localsend_app/widget/dialogs/favorite_edit_dialog.dart';
+import 'package:magicshare_app/config/theme.dart';
+import 'package:magicshare_app/gen/strings.g.dart';
+import 'package:magicshare_app/model/persistence/favorite_device.dart';
+import 'package:magicshare_app/provider/device_info_provider.dart';
+import 'package:magicshare_app/provider/favorites_provider.dart';
+import 'package:magicshare_app/provider/http_provider.dart';
+import 'package:magicshare_app/provider/settings_provider.dart';
+import 'package:magicshare_app/rust/api/model.dart';
+import 'package:magicshare_app/util/rust.dart';
+import 'package:magicshare_app/widget/dialogs/error_dialog.dart';
+import 'package:magicshare_app/widget/dialogs/favorite_edit_dialog.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
 

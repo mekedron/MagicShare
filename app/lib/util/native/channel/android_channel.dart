@@ -1,7 +1,7 @@
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/services.dart';
-import 'package:localsend_app/util/native/content_uri_helper.dart';
 import 'package:logging/logging.dart';
+import 'package:magicshare_app/util/native/content_uri_helper.dart';
 
 part 'android_channel.mapper.dart';
 

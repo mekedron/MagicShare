@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/model/state/purchase_state.dart';
-import 'package:localsend_app/pages/donation/donation_page_vm.dart';
+import 'package:magicshare_app/gen/strings.g.dart';
+import 'package:magicshare_app/model/state/purchase_state.dart';
+import 'package:magicshare_app/pages/donation/donation_page_vm.dart';
 // [FOSS_REMOVE_START]
-import 'package:localsend_app/provider/purchase_provider.dart';
+import 'package:magicshare_app/provider/purchase_provider.dart';
 // [FOSS_REMOVE_END]
-import 'package:localsend_app/widget/custom_basic_appbar.dart';
-import 'package:localsend_app/widget/responsive_list_view.dart';
+import 'package:magicshare_app/widget/custom_basic_appbar.dart';
+import 'package:magicshare_app/widget/responsive_list_view.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
