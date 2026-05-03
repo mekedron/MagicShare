@@ -31,7 +31,7 @@ class AboutPage extends StatelessWidget {
           const SizedBox(height: 20),
           const LocalSendLogo(withText: true),
           Text(
-            '© ${DateTime.now().year} Tien Do Nam',
+            '© ${DateTime.now().year} MagicShare contributors. Built on LocalSend (© Tien Do Nam).',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
