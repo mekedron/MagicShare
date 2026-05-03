@@ -46,8 +46,8 @@ class Translations implements BaseTranslations<AppLocale, Translations> {
   /// en: 'English'
   String get locale => 'English';
 
-  /// en: 'LocalSend'
-  String get appName => 'LocalSend';
+  /// en: 'MagicShare'
+  String get appName => 'MagicShare';
 
   late final TranslationsGeneralEn general = TranslationsGeneralEn.internal(_root);
   late final TranslationsReceiveTabEn receiveTab = TranslationsReceiveTabEn.internal(_root);
@@ -64,6 +64,7 @@ class Translations implements BaseTranslations<AppLocale, Translations> {
   late final TranslationsProgressPageEn progressPage = TranslationsProgressPageEn.internal(_root);
   late final TranslationsWebSharePageEn webSharePage = TranslationsWebSharePageEn.internal(_root);
   late final TranslationsAboutPageEn aboutPage = TranslationsAboutPageEn.internal(_root);
+  late final TranslationsAboutMagicShareEn aboutMagicShare = TranslationsAboutMagicShareEn.internal(_root);
   late final TranslationsDonationPageEn donationPage = TranslationsDonationPageEn.internal(_root);
   late final TranslationsChangelogPageEn changelogPage = TranslationsChangelogPageEn.internal(_root);
   late final TranslationsAliasGeneratorEn aliasGenerator = TranslationsAliasGeneratorEn.internal(_root);
@@ -313,9 +314,9 @@ class TranslationsNetworkInterfacesPageEn {
   /// en: 'Network Interfaces'
   String get title => 'Network Interfaces';
 
-  /// en: 'By default, LocalSend uses all available network interfaces. You can exclude unwanted networks here. You need to restart the server to apply the changes.'
+  /// en: 'By default, MagicShare uses all available network interfaces. You can exclude unwanted networks here. You need to restart the server to apply the changes.'
   String get info =>
-      'By default, LocalSend uses all available network interfaces. You can exclude unwanted networks here. You need to restart the server to apply the changes.';
+      'By default, MagicShare uses all available network interfaces. You can exclude unwanted networks here. You need to restart the server to apply the changes.';
 
   /// en: 'Preview'
   String get preview => 'Preview';
@@ -392,11 +393,8 @@ class TranslationsReceivePageEn {
   // Translations
 
   /// en: '(one) {wants to send you a file} (other) {wants to send you {n} files}'
-  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(
-    n,
-    one: 'wants to send you a file',
-    other: 'wants to send you ${n} files',
-  );
+  String subTitle({required num n}) =>
+      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'wants to send you a file', other: 'wants to send you ${n} files');
 
   /// en: 'sent you a message:'
   String get subTitleMessage => 'sent you a message:';
@@ -422,8 +420,8 @@ class TranslationsReceiveOptionsPageEn {
   /// en: 'Save to folder'
   String get destination => _root.settingsTab.receive.destination;
 
-  /// en: '(LocalSend folder)'
-  String get appDirectory => '(LocalSend folder)';
+  /// en: '(MagicShare folder)'
+  String get appDirectory => '(MagicShare folder)';
 
   /// en: 'Save media to gallery'
   String get saveToGallery => _root.settingsTab.receive.saveToGallery;
@@ -519,8 +517,8 @@ class TranslationsWebSharePageEn {
   /// en: 'The PIN is "{pin}"'
   String pinHint({required Object pin}) => 'The PIN is "${pin}"';
 
-  /// en: 'LocalSend uses a self-signed certificate. You need to accept it in your browser.'
-  String get encryptionHint => 'LocalSend uses a self-signed certificate. You need to accept it in your browser.';
+  /// en: 'MagicShare uses a self-signed certificate. You need to accept it in your browser.'
+  String get encryptionHint => 'MagicShare uses a self-signed certificate. You need to accept it in your browser.';
 
   /// en: 'Pending requests: {n}'
   String pendingRequests({required Object n}) => 'Pending requests: ${n}';
@@ -534,11 +532,11 @@ class TranslationsAboutPageEn {
 
   // Translations
 
-  /// en: 'About LocalSend'
-  String get title => 'About LocalSend';
+  /// en: 'About MagicShare'
+  String get title => 'About MagicShare';
 
   List<String> get description => [
-    'LocalSend is a free, open-source app that allows you to securely share files and messages with nearby devices over your local network without needing an internet connection.',
+    'MagicShare is a free, open-source app that allows you to securely share files and messages with nearby devices over your local network without needing an internet connection.',
     'This app is available on Android, iOS, macOS, Windows and Linux. You can find all download options on the official homepage.',
   ];
 
@@ -555,6 +553,30 @@ class TranslationsAboutPageEn {
   String get translators => 'Translators';
 }
 
+// Path: aboutMagicShare
+class TranslationsAboutMagicShareEn {
+  TranslationsAboutMagicShareEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'About MagicShare'
+  String get title => 'About MagicShare';
+
+  /// en: 'Version {version}'
+  String version({required Object version}) => 'Version ${version}';
+
+  /// en: 'MagicShare is a fork of LocalSend.'
+  String get forkNotice => 'MagicShare is a fork of LocalSend.';
+
+  /// en: 'Open localsend.org'
+  String get openLocalSend => 'Open localsend.org';
+
+  /// en: 'View license'
+  String get viewLicense => 'View license';
+}
+
 // Path: donationPage
 class TranslationsDonationPageEn {
   TranslationsDonationPageEn.internal(this._root);
@@ -566,8 +588,8 @@ class TranslationsDonationPageEn {
   /// en: 'Donate'
   String get title => 'Donate';
 
-  /// en: 'LocalSend is free, open-source and without any ads. If you like the app, you can support the development with a donation.'
-  String get info => 'LocalSend is free, open-source and without any ads. If you like the app, you can support the development with a donation.';
+  /// en: 'MagicShare is free, open-source and without any ads. If you like the app, you can support the development with a donation.'
+  String get info => 'MagicShare is free, open-source and without any ads. If you like the app, you can support the development with a donation.';
 
   /// en: 'Donate {amount}'
   String donate({required Object amount}) => 'Donate ${amount}';
@@ -734,8 +756,8 @@ class TranslationsTrayEn {
   /// en: 'Open'
   String get open => _root.general.open;
 
-  /// en: 'Quit LocalSend'
-  String get close => 'Quit LocalSend';
+  /// en: 'Quit MagicShare'
+  String get close => 'Quit MagicShare';
 
   /// en: 'Exit'
   String get closeWindows => 'Exit';
@@ -1008,8 +1030,8 @@ class TranslationsSettingsTabGeneralEn {
   /// en: 'Autostart: Start hidden'
   String get launchMinimized => 'Autostart: Start hidden';
 
-  /// en: 'Show LocalSend in context menu'
-  String get showInContextMenu => 'Show LocalSend in context menu';
+  /// en: 'Show MagicShare in context menu'
+  String get showInContextMenu => 'Show MagicShare in context menu';
 
   /// en: 'Animations'
   String get animations => 'Animations';
@@ -1135,8 +1157,8 @@ class TranslationsSettingsTabOtherEn {
   /// en: 'Other'
   String get title => 'Other';
 
-  /// en: 'Support LocalSend'
-  String get support => 'Support LocalSend';
+  /// en: 'Support MagicShare'
+  String get support => 'Support MagicShare';
 
   /// en: 'Donate'
   String get donate => 'Donate';
@@ -1500,9 +1522,9 @@ class TranslationsDialogsLocalNetworkUnauthorizedEn {
   /// en: 'No permission'
   String get title => _root.dialogs.noPermission.title;
 
-  /// en: 'LocalSend can't find other devices without having the permission to scan the local network. Please grant this permission in the settings.'
+  /// en: 'MagicShare can't find other devices without having the permission to scan the local network. Please grant this permission in the settings.'
   String get description =>
-      'LocalSend can\'t find other devices without having the permission to scan the local network. Please grant this permission in the settings.';
+      'MagicShare can\'t find other devices without having the permission to scan the local network. Please grant this permission in the settings.';
 
   /// en: 'Settings'
   String get gotoSettings => 'Settings';
@@ -1669,8 +1691,8 @@ class TranslationsDialogsSendModeHelpEn {
   /// en: 'Sends files to multiple recipients. Selection will not be cleared after finished files transfer.'
   String get multiple => 'Sends files to multiple recipients. Selection will not be cleared after finished files transfer.';
 
-  /// en: 'Recipients who do not have LocalSend installed can download the selected files by opening the link in their browser.'
-  String get link => 'Recipients who do not have LocalSend installed can download the selected files by opening the link in their browser.';
+  /// en: 'Recipients who do not have MagicShare installed can download the selected files by opening the link in their browser.'
+  String get link => 'Recipients who do not have MagicShare installed can download the selected files by opening the link in their browser.';
 }
 
 // Path: dialogs.zoom

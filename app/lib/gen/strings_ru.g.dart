@@ -42,7 +42,7 @@ class TranslationsRu extends Translations {
   @override
   String get locale => 'Русский';
   @override
-  String get appName => 'LocalSend';
+  String get appName => 'MagicShare';
   @override
   late final _TranslationsGeneralRu general = _TranslationsGeneralRu._(_root);
   @override
@@ -350,7 +350,7 @@ class _TranslationsReceiveOptionsPageRu extends TranslationsReceiveOptionsPageEn
   @override
   String get destination => _root.settingsTab.receive.destination;
   @override
-  String get appDirectory => '(Папка LocalSend)';
+  String get appDirectory => '(Папка MagicShare)';
   @override
   String get saveToGallery => _root.settingsTab.receive.saveToGallery;
   @override
@@ -427,7 +427,7 @@ class _TranslationsWebSharePageRu extends TranslationsWebSharePageEn {
   @override
   String pinHint({required Object pin}) => 'PIN-код: "${pin}"';
   @override
-  String get encryptionHint => 'LocalSend использует самоподписанный сертификат. Вам необходимо принять его в браузере.';
+  String get encryptionHint => 'MagicShare использует самоподписанный сертификат. Вам необходимо принять его в браузере.';
   @override
   String pendingRequests({required Object n}) => 'Ожидающие запросы: ${n}';
 }
@@ -440,10 +440,10 @@ class _TranslationsAboutPageRu extends TranslationsAboutPageEn {
 
   // Translations
   @override
-  String get title => 'О LocalSend';
+  String get title => 'О MagicShare';
   @override
   List<String> get description => [
-    'LocalSend — это бесплатное приложение с открытым исходным кодом, которое позволяет вам безопасно обмениваться файлами и сообщениями с находящимися поблизости устройствами через локальную сеть, без необходимости подключения к Интернету.',
+    'MagicShare — это бесплатное приложение с открытым исходным кодом, которое позволяет вам безопасно обмениваться файлами и сообщениями с находящимися поблизости устройствами через локальную сеть, без необходимости подключения к Интернету.',
     'Это приложение доступно для Android, iOS, macOS, Windows и Linux. Вы можете найти все варианты загрузки на официальной домашней странице.',
   ];
   @override
@@ -467,7 +467,7 @@ class _TranslationsDonationPageRu extends TranslationsDonationPageEn {
   String get title => 'Пожертвовать';
   @override
   String get info =>
-      'LocalSend — это бесплатное приложение с открытым исходным кодом и без рекламы. Если оно вам нравится, вы можете поддержать его разработку пожертвованием.';
+      'MagicShare — это бесплатное приложение с открытым исходным кодом и без рекламы. Если оно вам нравится, вы можете поддержать его разработку пожертвованием.';
   @override
   String donate({required Object amount}) => 'Пожертвовать ${amount}';
   @override
@@ -571,7 +571,7 @@ class _TranslationsTrayRu extends TranslationsTrayEn {
   @override
   String get open => _root.general.open;
   @override
-  String get close => 'Выйти из LocalSend';
+  String get close => 'Выйти из MagicShare';
   @override
   String get closeWindows => 'Выйти';
 }
@@ -684,7 +684,7 @@ class _TranslationsNetworkInterfacesPageRu extends TranslationsNetworkInterfaces
   String get blacklist => 'Черный список';
   @override
   String get info =>
-      'По умолчанию, LocalSend использует все доступные сетевые интерфейсы. Вы можете исключить нежелательные сети здесь. Необходимо перезапустить сервер для применения изменений.';
+      'По умолчанию, MagicShare использует все доступные сетевые интерфейсы. Вы можете исключить нежелательные сети здесь. Необходимо перезапустить сервер для применения изменений.';
 }
 
 // Path: receiveTab.infoBox
@@ -800,7 +800,7 @@ class _TranslationsSettingsTabGeneralRu extends TranslationsSettingsTabGeneralEn
   @override
   String get launchMinimized => 'Скрытая автозагрузка';
   @override
-  String get showInContextMenu => 'Отображать LocalSend в контекстном меню';
+  String get showInContextMenu => 'Отображать MagicShare в контекстном меню';
   @override
   String get animations => 'Анимации';
 }
@@ -898,7 +898,7 @@ class _TranslationsSettingsTabOtherRu extends TranslationsSettingsTabOtherEn {
   @override
   String get title => 'Другое';
   @override
-  String get support => 'Поддержать LocalSend';
+  String get support => 'Поддержать MagicShare';
   @override
   String get donate => 'Пожертвовать';
   @override
@@ -1207,7 +1207,7 @@ class _TranslationsDialogsLocalNetworkUnauthorizedRu extends TranslationsDialogs
   String get title => _root.dialogs.noPermission.title;
   @override
   String get description =>
-      'LocalSend не может найти другие устройства без разрешения на сканирование локальной сети. Пожалуйста, предоставьте это разрешение в настройках.';
+      'MagicShare не может найти другие устройства без разрешения на сканирование локальной сети. Пожалуйста, предоставьте это разрешение в настройках.';
   @override
   String get gotoSettings => 'Настройки';
 }
@@ -1352,7 +1352,7 @@ class _TranslationsDialogsSendModeHelpRu extends TranslationsDialogsSendModeHelp
   @override
   String get multiple => 'Отправляет файлы нескольким получателям. Выборка не будет очищена после завершения передачи файлов.';
   @override
-  String get link => 'Получатели, у которых не установлен LocalSend, могут загрузить выбранные файлы, открыв ссылку в своем браузере.';
+  String get link => 'Получатели, у которых не установлен MagicShare, могут загрузить выбранные файлы, открыв ссылку в своем браузере.';
 }
 
 // Path: dialogs.zoom

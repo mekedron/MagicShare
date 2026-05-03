@@ -42,7 +42,7 @@ class TranslationsZhTw extends Translations {
   @override
   String get locale => '繁體中文 (台灣)';
   @override
-  String get appName => 'LocalSend';
+  String get appName => 'MagicShare';
   @override
   late final _TranslationsGeneralZhTw general = _TranslationsGeneralZhTw._(_root);
   @override
@@ -325,11 +325,7 @@ class _TranslationsReceivePageZhTw extends TranslationsReceivePageEn {
 
   // Translations
   @override
-  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('zh'))(
-    n,
-    one: '要傳送一個檔案給您',
-    other: '要傳送 ${n} 個檔案給您',
-  );
+  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('zh'))(n, one: '要傳送一個檔案給您', other: '要傳送 ${n} 個檔案給您');
   @override
   String get subTitleMessage => '已傳送一則訊息給您：';
   @override
@@ -350,7 +346,7 @@ class _TranslationsReceiveOptionsPageZhTw extends TranslationsReceiveOptionsPage
   @override
   String get destination => _root.settingsTab.receive.destination;
   @override
-  String get appDirectory => '(LocalSend 資料夾)';
+  String get appDirectory => '(MagicShare 資料夾)';
   @override
   String get saveToGallery => _root.settingsTab.receive.saveToGallery;
   @override
@@ -409,11 +405,8 @@ class _TranslationsWebSharePageZhTw extends TranslationsWebSharePageEn {
   @override
   String get error => '啟動伺服器時發生錯誤。';
   @override
-  String openLink({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('zh'))(
-    n,
-    one: '在瀏覽器開啟此連結：',
-    other: '在瀏覽器中開啟其中一個連結：',
-  );
+  String openLink({required num n}) =>
+      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('zh'))(n, one: '在瀏覽器開啟此連結：', other: '在瀏覽器中開啟其中一個連結：');
   @override
   String get requests => '要求';
   @override
@@ -427,7 +420,7 @@ class _TranslationsWebSharePageZhTw extends TranslationsWebSharePageEn {
   @override
   String pinHint({required Object pin}) => 'PIN 碼是「${pin}」';
   @override
-  String get encryptionHint => 'LocalSend 使用自簽署憑證。您需要在瀏覽器中接受它。';
+  String get encryptionHint => 'MagicShare 使用自簽署憑證。您需要在瀏覽器中接受它。';
   @override
   String pendingRequests({required Object n}) => '待處理的要求：${n}';
 }
@@ -440,10 +433,10 @@ class _TranslationsAboutPageZhTw extends TranslationsAboutPageEn {
 
   // Translations
   @override
-  String get title => '關於 LocalSend';
+  String get title => '關於 MagicShare';
   @override
   List<String> get description => [
-    'LocalSend 是一款免費的開源應用程式，可讓您透過區域網路與鄰近的裝置安全的分享檔案和訊息，無需網際網路連線。',
+    'MagicShare 是一款免費的開源應用程式，可讓您透過區域網路與鄰近的裝置安全的分享檔案和訊息，無需網際網路連線。',
     '此應用程式可在 Android、iOS、macOS、Windows 和 Linux 上使用。 您可以在官網首頁上找到所有下載選項。',
   ];
   @override
@@ -466,7 +459,7 @@ class _TranslationsDonationPageZhTw extends TranslationsDonationPageEn {
   @override
   String get title => '贊助';
   @override
-  String get info => 'LocalSend 是免費、開源且沒有任何廣告的。如果您喜歡此應用程式，可以透過捐贈來支持開發。';
+  String get info => 'MagicShare 是免費、開源且沒有任何廣告的。如果您喜歡此應用程式，可以透過捐贈來支持開發。';
   @override
   String donate({required Object amount}) => '贊助 ${amount}';
   @override
@@ -569,7 +562,7 @@ class _TranslationsTrayZhTw extends TranslationsTrayEn {
   @override
   String get open => _root.general.open;
   @override
-  String get close => '退出 LocalSend';
+  String get close => '退出 MagicShare';
   @override
   String get closeWindows => '離開';
 }
@@ -672,7 +665,7 @@ class _TranslationsNetworkInterfacesPageZhTw extends TranslationsNetworkInterfac
 
   // Translations
   @override
-  String get info => 'LocalSend 預設使用所有可用的網路介面，您可於此處排除不想使用的網路。您需要重新啟動伺服器以套用變更。';
+  String get info => 'MagicShare 預設使用所有可用的網路介面，您可於此處排除不想使用的網路。您需要重新啟動伺服器以套用變更。';
   @override
   String get title => '網路介面';
   @override
@@ -796,7 +789,7 @@ class _TranslationsSettingsTabGeneralZhTw extends TranslationsSettingsTabGeneral
   @override
   String get launchMinimized => '自動啟動至系統匣';
   @override
-  String get showInContextMenu => '在檔案功能表「傳送到」項目中顯示 LocalSend';
+  String get showInContextMenu => '在檔案功能表「傳送到」項目中顯示 MagicShare';
   @override
   String get animations => '動畫';
 }
@@ -892,7 +885,7 @@ class _TranslationsSettingsTabOtherZhTw extends TranslationsSettingsTabOtherEn {
   @override
   String get title => '其它';
   @override
-  String get support => '支持 LocalSend';
+  String get support => '支持 MagicShare';
   @override
   String get donate => '贊助';
   @override
@@ -1188,7 +1181,7 @@ class _TranslationsDialogsLocalNetworkUnauthorizedZhTw extends TranslationsDialo
   @override
   String get title => _root.dialogs.noPermission.title;
   @override
-  String get description => '在未取得掃描區域網路權限的狀況下 LocalSend 無法找到其他裝置，請在設定中授予此權限。';
+  String get description => '在未取得掃描區域網路權限的狀況下 MagicShare 無法找到其他裝置，請在設定中授予此權限。';
   @override
   String get gotoSettings => '設定';
 }
@@ -1300,11 +1293,7 @@ class _TranslationsDialogsQuickSaveFromFavoritesNoticeZhTw extends TranslationsD
   @override
   String get title => _root.general.quickSaveFromFavorites;
   @override
-  List<String> get content => [
-    '自動接受來自您最愛清單中裝置傳送的檔案。',
-    '警告：目前這並非絕對安全，因為知道您最愛裝置指紋的駭客仍然可以向您傳送檔案。',
-    '但仍然比允許任何裝置更安全。',
-  ];
+  List<String> get content => ['自動接受來自您最愛清單中裝置傳送的檔案。', '警告：目前這並非絕對安全，因為知道您最愛裝置指紋的駭客仍然可以向您傳送檔案。', '但仍然比允許任何裝置更安全。'];
 }
 
 // Path: dialogs.pin
@@ -1332,7 +1321,7 @@ class _TranslationsDialogsSendModeHelpZhTw extends TranslationsDialogsSendModeHe
   @override
   String get multiple => '傳送檔案至多重接收者，選取項目將不會被清除。';
   @override
-  String get link => '未安裝 LocalSend 的接收者可以透過在瀏覽器開啟連結以下載選取的檔案.';
+  String get link => '未安裝 MagicShare 的接收者可以透過在瀏覽器開啟連結以下載選取的檔案.';
 }
 
 // Path: dialogs.zoom

@@ -42,7 +42,7 @@ class TranslationsFi extends Translations {
   @override
   String get locale => 'Finnish';
   @override
-  String get appName => 'LocalSend';
+  String get appName => 'MagicShare';
   @override
   late final _TranslationsGeneralFi general = _TranslationsGeneralFi._(_root);
   @override
@@ -352,7 +352,7 @@ class _TranslationsReceiveOptionsPageFi extends TranslationsReceiveOptionsPageEn
   @override
   String get destination => 'Vastaanottoasetukset';
   @override
-  String get appDirectory => '(LocalSend-kansio)';
+  String get appDirectory => '(MagicShare-kansio)';
   @override
   String get saveToGallery => 'Tallenna galleriaan';
   @override
@@ -429,7 +429,7 @@ class _TranslationsWebSharePageFi extends TranslationsWebSharePageEn {
   @override
   String pinHint({required Object pin}) => 'PIN-koodi on "${pin}"';
   @override
-  String get encryptionHint => 'LocalSend käyttää itse allekirjoitettua sertifikaattia. Sinun on hyväksyttävä se selaimessasi.';
+  String get encryptionHint => 'MagicShare käyttää itse allekirjoitettua sertifikaattia. Sinun on hyväksyttävä se selaimessasi.';
   @override
   String pendingRequests({required Object n}) => 'Odottavat pyynnöt: ${n}';
 }
@@ -442,11 +442,11 @@ class _TranslationsAboutPageFi extends TranslationsAboutPageEn {
 
   // Translations
   @override
-  String get title => 'Tietoja LocalSendista';
+  String get title => 'Tietoja MagicShareista';
   @override
   List<String> get description => [
-    'LocalSend on ilmainen, avoimen lähdekoodin sovellus, jonka avulla voit turvallisesti jakaa tiedostoja ja lähettää viestejä läheisten laitteiden kanssa paikallisessa verkossasi ilman internet-yhteyttä.',
-    'LocalSend on saatavilla Androidille, iOS:lle, Linuxille, macOS:lle ja Windowsille. Kaikki latausvaihtoehdot löytyvät virallisilta kotisivuilta.',
+    'MagicShare on ilmainen, avoimen lähdekoodin sovellus, jonka avulla voit turvallisesti jakaa tiedostoja ja lähettää viestejä läheisten laitteiden kanssa paikallisessa verkossasi ilman internet-yhteyttä.',
+    'MagicShare on saatavilla Androidille, iOS:lle, Linuxille, macOS:lle ja Windowsille. Kaikki latausvaihtoehdot löytyvät virallisilta kotisivuilta.',
   ];
   @override
   String get author => 'Tekijä';
@@ -469,7 +469,7 @@ class _TranslationsDonationPageFi extends TranslationsDonationPageEn {
   String get title => 'Lahjoita';
   @override
   String get info =>
-      'LocalSend on ilmainen, avoimen lähdekoodin sovellus ilman mainoksia. Voit tukea projektia lahjoituksella, jos pidät sovelluksesta.';
+      'MagicShare on ilmainen, avoimen lähdekoodin sovellus ilman mainoksia. Voit tukea projektia lahjoituksella, jos pidät sovelluksesta.';
   @override
   String donate({required Object amount}) => 'Lahjoita ${amount}';
   @override
@@ -663,7 +663,7 @@ class _TranslationsTrayFi extends TranslationsTrayEn {
   @override
   String get open => 'Avaa';
   @override
-  String get close => 'Lopeta LocalSend';
+  String get close => 'Lopeta MagicShare';
   @override
   String get closeWindows => 'Poistu';
 }
@@ -770,7 +770,7 @@ class _TranslationsNetworkInterfacesPageFi extends TranslationsNetworkInterfaces
   String get title => 'Verkkokäyttöliittymät';
   @override
   String get info =>
-      'Oletuksena LocalSend käyttää kaikkia saatavilla olevia verkkoliitäntöjä. Voit sulkea pois verkkoliitännät, joita et halua. Sinun tulee uudelleenkäynnistää LocalSend ottaaksesi muutokset käyttöön.';
+      'Oletuksena MagicShare käyttää kaikkia saatavilla olevia verkkoliitäntöjä. Voit sulkea pois verkkoliitännät, joita et halua. Sinun tulee uudelleenkäynnistää MagicShare ottaaksesi muutokset käyttöön.';
   @override
   String get preview => 'Esikatselu';
   @override
@@ -892,7 +892,7 @@ class _TranslationsSettingsTabGeneralFi extends TranslationsSettingsTabGeneralEn
   @override
   String get launchMinimized => 'Automaattinen käynnistys: Käynnistä piiilotettuna';
   @override
-  String get showInContextMenu => 'Näytä LocalSend kontekstivalikossa';
+  String get showInContextMenu => 'Näytä MagicShare kontekstivalikossa';
   @override
   String get animations => 'Animaatiot';
 }
@@ -947,7 +947,7 @@ class _TranslationsSettingsTabNetworkFi extends TranslationsSettingsTabNetworkEn
   @override
   String get title => 'Verkko';
   @override
-  String get needRestart => 'Käynnistä LocalSend uudelleen saadaksesi muutokset käyttöön!';
+  String get needRestart => 'Käynnistä MagicShare uudelleen saadaksesi muutokset käyttöön!';
   @override
   String get server => 'Palvelin';
   @override
@@ -990,7 +990,7 @@ class _TranslationsSettingsTabOtherFi extends TranslationsSettingsTabOtherEn {
   @override
   String get title => 'Muut';
   @override
-  String get support => 'Tue LocalSendia';
+  String get support => 'Tue MagicShareia';
   @override
   String get donate => 'Lahjoita';
   @override
@@ -1298,7 +1298,7 @@ class _TranslationsDialogsLocalNetworkUnauthorizedFi extends TranslationsDialogs
   @override
   String get title => _root.dialogs.noPermission.title;
   @override
-  String get description => 'LocalSend ei löydä muita laitteita ilman lupaa skannata paikallisverkkoa. Anna tämä lupa asetuksissa.';
+  String get description => 'MagicShare ei löydä muita laitteita ilman lupaa skannata paikallisverkkoa. Anna tämä lupa asetuksissa.';
   @override
   String get gotoSettings => 'Asetukset';
 }
@@ -1442,7 +1442,7 @@ class _TranslationsDialogsSendModeHelpFi extends TranslationsDialogsSendModeHelp
   @override
   String get multiple => 'Lähettää tiedostoja useille vastaanottajille. Valinta ei tyhjene.';
   @override
-  String get link => 'Vastaanottajat, joilla ei ole LocalSendia asennettuna, voivat ladata valitut tiedostot avaamalla linkin selaimessaan.';
+  String get link => 'Vastaanottajat, joilla ei ole MagicShareia asennettuna, voivat ladata valitut tiedostot avaamalla linkin selaimessaan.';
 }
 
 // Path: dialogs.zoom

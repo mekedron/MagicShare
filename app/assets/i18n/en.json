@@ -278,6 +278,13 @@
     "packagers": "Packagers",
     "translators": "Translators"
   },
+  "aboutMagicShare": {
+    "title": "About MagicShare",
+    "version": "Version {version}",
+    "forkNotice": "MagicShare is a fork of LocalSend.",
+    "openLocalSend": "Open localsend.org",
+    "viewLicense": "View license"
+  },
   "donationPage": {
     "title": "Donate",
     "info": "MagicShare is free, open-source and without any ads. If you like the app, you can support the development with a donation.",

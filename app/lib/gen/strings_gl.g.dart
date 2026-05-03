@@ -42,7 +42,7 @@ class TranslationsGl extends Translations {
   @override
   String get locale => 'Galego';
   @override
-  String get appName => 'LocalSend';
+  String get appName => 'MagicShare';
   @override
   late final _TranslationsGeneralGl general = _TranslationsGeneralGl._(_root);
   @override
@@ -304,7 +304,7 @@ class _TranslationsNetworkInterfacesPageGl extends TranslationsNetworkInterfaces
   String get blacklist => 'Lista negra';
   @override
   String get info =>
-      'Por defecto, LocalSend emprega todas as interfaces de rede dispoñíbeis. Eiquí podes desactivar as redes non desexadas. Tes que reiniciar o servidor para aplicar os cambios.';
+      'Por defecto, MagicShare emprega todas as interfaces de rede dispoñíbeis. Eiquí podes desactivar as redes non desexadas. Tes que reiniciar o servidor para aplicar os cambios.';
 }
 
 // Path: receiveHistoryPage
@@ -345,11 +345,8 @@ class _TranslationsReceivePageGl extends TranslationsReceivePageEn {
 
   // Translations
   @override
-  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('gl'))(
-    n,
-    one: 'quere enviarte un ficheiro',
-    other: 'quere enviarte ${n} ficheiros',
-  );
+  String subTitle({required num n}) =>
+      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('gl'))(n, one: 'quere enviarte un ficheiro', other: 'quere enviarte ${n} ficheiros');
   @override
   String get subTitleMessage => 'envioute unha mensaxe:';
   @override
@@ -448,7 +445,7 @@ class _TranslationsWebSharePageGl extends TranslationsWebSharePageEn {
   @override
   String get encryption => _root.settingsTab.network.encryption;
   @override
-  String get encryptionHint => 'LocalSend precisa un certificado autoasinado. Tes que aceptalo no teu navegador.';
+  String get encryptionHint => 'MagicShare precisa un certificado autoasinado. Tes que aceptalo no teu navegador.';
   @override
   String get title => 'Compartir mediante ligazón';
   @override
@@ -505,7 +502,7 @@ class _TranslationsAboutPageGl extends TranslationsAboutPageEn {
   // Translations
   @override
   List<String> get description => [
-    'LocalSend é unha aplicación gratuita, de código aberto, que che permite compartir ficheiros e mensaxes de xeito seguro con dispositivos cercanos a través da túa rede local sen necesidade dunha conexión a internet.',
+    'MagicShare é unha aplicación gratuita, de código aberto, que che permite compartir ficheiros e mensaxes de xeito seguro con dispositivos cercanos a través da túa rede local sen necesidade dunha conexión a internet.',
     'Esta aplicación está dispoñíbel en Android, iOS, macOS, Windows e Linux. Podes atopar todas as opcións de descarga na páxina web oficial.',
   ];
   @override
@@ -517,7 +514,7 @@ class _TranslationsAboutPageGl extends TranslationsAboutPageEn {
   @override
   String get packagers => 'Empaquetadores';
   @override
-  String get title => 'Acerca de LocalSend';
+  String get title => 'Acerca de MagicShare';
 }
 
 // Path: sendPage
@@ -578,7 +575,7 @@ class _TranslationsTrayGl extends TranslationsTrayEn {
   @override
   String get open => _root.general.open;
   @override
-  String get close => 'Saír de LocalSend';
+  String get close => 'Saír de MagicShare';
   @override
   String get closeWindows => 'Saír';
 }
@@ -800,7 +797,7 @@ class _TranslationsSettingsTabGeneralGl extends TranslationsSettingsTabGeneralEn
   @override
   String get launchMinimized => 'Arranque automático: Iniciar minimizada';
   @override
-  String get showInContextMenu => 'Amosar LocalSend no menú contextual';
+  String get showInContextMenu => 'Amosar MagicShare no menú contextual';
   @override
   String get animations => 'Animacións';
 }
@@ -898,7 +895,7 @@ class _TranslationsSettingsTabOtherGl extends TranslationsSettingsTabOtherEn {
   @override
   String get title => 'Outros';
   @override
-  String get support => 'Apoia a LocalSend';
+  String get support => 'Apoia a MagicShare';
   @override
   String get donate => 'Doar';
   @override
@@ -1195,7 +1192,7 @@ class _TranslationsDialogsLocalNetworkUnauthorizedGl extends TranslationsDialogs
   String get title => _root.dialogs.noPermission.title;
   @override
   String get description =>
-      'LocalSend non pode atopar outros dispositivos sen ter permiso para escanear a rede local. Por favor, concede este permiso na configuración.';
+      'MagicShare non pode atopar outros dispositivos sen ter permiso para escanear a rede local. Por favor, concede este permiso na configuración.';
   @override
   String get gotoSettings => 'Axustes';
 }
@@ -1309,7 +1306,7 @@ class _TranslationsDialogsSendModeHelpGl extends TranslationsDialogsSendModeHelp
   String get multiple => 'Envia ficheiros a múltiples receptores. A selección non se borrará unha vez rematada a transferencia de ficheiros.';
   @override
   String get link =>
-      'Os destinatarios que non teñan instalado LocalSend poden descargar os ficheiros seleccionados abrindo a ligazón no seu navegador.';
+      'Os destinatarios que non teñan instalado MagicShare poden descargar os ficheiros seleccionados abrindo a ligazón no seu navegador.';
 }
 
 // Path: dialogs.quickSaveFromFavoritesNotice

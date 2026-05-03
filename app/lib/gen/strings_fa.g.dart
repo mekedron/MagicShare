@@ -42,7 +42,7 @@ class TranslationsFa extends Translations {
   @override
   String get locale => 'فارسی';
   @override
-  String get appName => 'لوکال‌سِند';
+  String get appName => 'MagicShare';
   @override
   late final _TranslationsGeneralFa general = _TranslationsGeneralFa._(_root);
   @override
@@ -409,11 +409,8 @@ class _TranslationsWebSharePageFa extends TranslationsWebSharePageEn {
   @override
   String get error => 'هنگام راه‌اندازی سرور خطایی رخ داد.';
   @override
-  String openLink({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(
-    n,
-    one: 'باز کردن لینک در مرورگر:',
-    other: 'باز کردن لینک‌ها در مرورگر:',
-  );
+  String openLink({required num n}) =>
+      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('fa'))(n, one: 'باز کردن لینک در مرورگر:', other: 'باز کردن لینک‌ها در مرورگر:');
   @override
   String get requests => 'درخواست‌ها';
   @override
@@ -761,7 +758,7 @@ class _TranslationsNetworkInterfacesPageFa extends TranslationsNetworkInterfaces
   String get title => 'رابط‌های شبکه';
   @override
   String get info =>
-      'به طور پیش فرض، LocalSend از تمام رابط های شبکه موجود استفاده می کند. در اینجا می توانید شبکه های ناخواسته را حذف کنید. برای اعمال تغییرات باید سرور را ریستارت کنید.';
+      'به طور پیش فرض، MagicShare از تمام رابط های شبکه موجود استفاده می کند. در اینجا می توانید شبکه های ناخواسته را حذف کنید. برای اعمال تغییرات باید سرور را ریستارت کنید.';
   @override
   String get preview => 'پیشنمایش';
   @override

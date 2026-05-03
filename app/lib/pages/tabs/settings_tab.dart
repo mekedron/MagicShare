@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:common/constants.dart';
 import 'package:common/model/device.dart';
@@ -21,6 +22,7 @@ import 'package:magicshare_app/util/device_type_ext.dart';
 import 'package:magicshare_app/util/native/macos_channel.dart';
 import 'package:magicshare_app/util/native/pick_directory_path.dart';
 import 'package:magicshare_app/util/native/platform_check.dart';
+import 'package:magicshare_app/widget/about_magicshare_card.dart';
 import 'package:magicshare_app/widget/custom_dropdown_button.dart';
 import 'package:magicshare_app/widget/dialogs/encryption_disabled_notice.dart';
 import 'package:magicshare_app/widget/dialogs/pin_dialog.dart';
@@ -529,6 +531,10 @@ class SettingsTab extends StatelessWidget {
                         ),
                     ],
                   ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 15),
+                    child: AboutMagicShareCard(),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -557,7 +563,7 @@ class SettingsTab extends StatelessWidget {
                         orElse: () => Container(),
                       ),
                   Text(
-                    '© ${DateTime.now().year} Tien Do Nam',
+                    '© ${DateTime.now().year} MagicShare contributors. Built on LocalSend (© Tien Do Nam).',
                     textAlign: TextAlign.center,
                   ),
                   Center(

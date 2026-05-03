@@ -42,7 +42,7 @@ class TranslationsSl extends Translations {
   @override
   String get locale => 'Slovenščina';
   @override
-  String get appName => 'LocalSend';
+  String get appName => 'MagicShare';
   @override
   late final _TranslationsGeneralSl general = _TranslationsGeneralSl._(_root);
   @override
@@ -323,11 +323,8 @@ class _TranslationsReceivePageSl extends TranslationsReceivePageEn {
 
   // Translations
   @override
-  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('sl'))(
-    n,
-    one: 'želi poslati datoteko',
-    other: 'želi poslati ${n} datotek',
-  );
+  String subTitle({required num n}) =>
+      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('sl'))(n, one: 'želi poslati datoteko', other: 'želi poslati ${n} datotek');
   @override
   String get subTitleMessage => 'vam je poslal sporočilo:';
   @override
@@ -348,7 +345,7 @@ class _TranslationsReceiveOptionsPageSl extends TranslationsReceiveOptionsPageEn
   @override
   String get destination => _root.settingsTab.receive.destination;
   @override
-  String get appDirectory => '(mapa LocalSend)';
+  String get appDirectory => '(mapa MagicShare)';
   @override
   String get saveToGallery => _root.settingsTab.receive.saveToGallery;
   @override
@@ -423,7 +420,7 @@ class _TranslationsWebSharePageSl extends TranslationsWebSharePageEn {
   @override
   String pinHint({required Object pin}) => 'PIN je "${pin}"';
   @override
-  String get encryptionHint => 'LocalSend uporablja samopodpisano potrdilo. Sprejeti ga morate v svojem brskalniku.';
+  String get encryptionHint => 'MagicShare uporablja samopodpisano potrdilo. Sprejeti ga morate v svojem brskalniku.';
   @override
   String pendingRequests({required Object n}) => 'Čakajoče zahteve: ${n}';
 }
@@ -436,10 +433,10 @@ class _TranslationsAboutPageSl extends TranslationsAboutPageEn {
 
   // Translations
   @override
-  String get title => 'O LocalSend';
+  String get title => 'O MagicShare';
   @override
   List<String> get description => [
-    'LocalSend je brezplačna, odprtokodna aplikacija, ki vam omogoča varno deljenje datotek in sporočil z napravami v bližini prek lokalnega omrežja brez potrebe po internetni povezavi.',
+    'MagicShare je brezplačna, odprtokodna aplikacija, ki vam omogoča varno deljenje datotek in sporočil z napravami v bližini prek lokalnega omrežja brez potrebe po internetni povezavi.',
     'Aplikacija je na voljo za Android, iOS, macOS, Windows in Linux. Vse možnosti prenosa lahko najdete na uradni spletni strani.',
   ];
   @override
@@ -462,7 +459,7 @@ class _TranslationsDonationPageSl extends TranslationsDonationPageEn {
   @override
   String get title => 'Doniraj';
   @override
-  String get info => 'LocalSend je brezplačna, odprtokodna in brez oglasov. Če vam je aplikacija všeč, lahko podprete razvoj z donacijo.';
+  String get info => 'MagicShare je brezplačna, odprtokodna in brez oglasov. Če vam je aplikacija všeč, lahko podprete razvoj z donacijo.';
   @override
   String donate({required Object amount}) => 'Doniraj ${amount}';
   @override
@@ -647,7 +644,7 @@ class _TranslationsTraySl extends TranslationsTrayEn {
   @override
   String get open => _root.general.open;
   @override
-  String get close => 'Zapri LocalSend';
+  String get close => 'Zapri MagicShare';
   @override
   String get closeWindows => 'Izhod';
 }
@@ -841,7 +838,7 @@ class _TranslationsSettingsTabGeneralSl extends TranslationsSettingsTabGeneralEn
   @override
   String get launchMinimized => 'Samodejni zagon: Začni skrito';
   @override
-  String get showInContextMenu => 'Prikaži LocalSend v kontekstnem meniju';
+  String get showInContextMenu => 'Prikaži MagicShare v kontekstnem meniju';
   @override
   String get animations => 'Animacije';
 }
@@ -935,7 +932,7 @@ class _TranslationsSettingsTabOtherSl extends TranslationsSettingsTabOtherEn {
   @override
   String get title => 'Drugo';
   @override
-  String get support => 'Podprite LocalSend';
+  String get support => 'Podprite MagicShare';
   @override
   String get donate => 'Donirajte';
   @override
@@ -1208,7 +1205,7 @@ class _TranslationsDialogsLocalNetworkUnauthorizedSl extends TranslationsDialogs
   String get title => _root.dialogs.noPermission.title;
   @override
   String get description =>
-      'LocalSend ne more najti drugih naprav brez dovoljenja za iskanje v lokalnem omrežju. Prosim, omogočite to dovoljenje v nastavitvah.';
+      'MagicShare ne more najti drugih naprav brez dovoljenja za iskanje v lokalnem omrežju. Prosim, omogočite to dovoljenje v nastavitvah.';
   @override
   String get gotoSettings => 'Nastavitve';
 }
@@ -1346,7 +1343,7 @@ class _TranslationsDialogsSendModeHelpSl extends TranslationsDialogsSendModeHelp
   @override
   String get multiple => 'Pošlje datoteke več prejemnikom. Izbira po končanem prenosu ne bo izbrisana.';
   @override
-  String get link => 'Prejemniki, ki nimajo nameščenega LocalSend, lahko prenesejo izbrane datoteke z odpiranjem povezave v brskalniku.';
+  String get link => 'Prejemniki, ki nimajo nameščenega MagicShare, lahko prenesejo izbrane datoteke z odpiranjem povezave v brskalniku.';
 }
 
 // Path: dialogs.zoom
