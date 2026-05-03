@@ -3,13 +3,15 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { getDb } from './admin';
 import { requireAuth } from './auth';
-import { accountPath, type DeviceDoc, devicePath } from './models';
+import { type AccountDoc, accountPath, type DeviceDoc, devicePath } from './models';
 import {
   parseRegisterDeviceInput,
+  parseRemoveDeviceInput,
   parseRenameDeviceInput,
   parseSetDeviceIconInput,
   parseUpdatePresenceInput,
   type RegisterDeviceInput,
+  type RemoveDeviceInput,
   type RenameDeviceInput,
   type SetDeviceIconInput,
   type UpdatePresenceInput,
@@ -168,4 +170,71 @@ export const setDeviceIcon = onCall<unknown, Promise<{ ok: true }>>(async (reque
   const input = parseSetDeviceIconInput(request.data);
   await setDeviceIconLogic(getDb(), uid, input);
   return { ok: true };
+});
+
+export interface RemoveDeviceResult {
+  accountDeleted: boolean;
+}
+
+/**
+ * Remove one device from the caller's account. If it was the last
+ * device, the entire account subtree (account doc, devices, inbox
+ * items) is destroyed — matching the spec's "removing the last device
+ * in a group destroys the group automatically."
+ *
+ * The transaction picks the branch (decrement vs nuke) atomically.
+ * Subcollection cleanup runs after the transaction: Firestore
+ * transactions can delete docs but not their subcollections, so we
+ * pair the transactional work with `recursiveDelete` to sweep the
+ * device's inbox (or the entire account subtree on the last-device
+ * branch).
+ */
+export async function removeDeviceLogic(
+  db: Firestore,
+  uid: string,
+  input: RemoveDeviceInput,
+): Promise<RemoveDeviceResult> {
+  const accountRef = db.doc(accountPath(uid));
+  const deviceRef = db.doc(devicePath(uid, input.deviceId));
+
+  const result = await db.runTransaction(async (tx) => {
+    const accountSnap = await tx.get(accountRef);
+    if (!accountSnap.exists) {
+      throw new HttpsError('not-found', 'Account not found.');
+    }
+    const deviceSnap = await tx.get(deviceRef);
+    if (!deviceSnap.exists) {
+      throw new HttpsError('not-found', 'Device not found.');
+    }
+    const currentCount = (accountSnap.data() as AccountDoc).deviceCount;
+    const now = Timestamp.now();
+    if (currentCount > 1) {
+      tx.delete(deviceRef);
+      tx.update(accountRef, {
+        deviceCount: FieldValue.increment(-1),
+        lastActiveAt: now,
+      });
+      return { accountDeleted: false };
+    }
+    tx.delete(deviceRef);
+    tx.delete(accountRef);
+    return { accountDeleted: true };
+  });
+
+  // Transactional deletes don't cascade into subcollections. Sweep
+  // those out of band: the device's inbox on the partial path, and the
+  // whole account subtree on the last-device path (which also nukes
+  // any other lingering devices from a partial earlier failure).
+  if (result.accountDeleted) {
+    await db.recursiveDelete(accountRef);
+  } else {
+    await db.recursiveDelete(deviceRef);
+  }
+  return result;
+}
+
+export const removeDevice = onCall<unknown, Promise<RemoveDeviceResult>>(async (request) => {
+  const uid = requireAuth(request);
+  const input = parseRemoveDeviceInput(request.data);
+  return removeDeviceLogic(getDb(), uid, input);
 });
