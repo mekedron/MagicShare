@@ -44,14 +44,15 @@ A single MagicShare installation registered under a device group.
 `deviceId` is a UUID generated on first launch and persisted in
 `flutter_secure_storage` on the device.
 
-| Field         | Type             | Notes                                                                                              |
-|---------------|------------------|----------------------------------------------------------------------------------------------------|
-| `displayName` | `string`         | User-visible name. Default inferred from device hostname.                                          |
-| `icon`        | `DeviceIcon`     | One of `laptop \| desktop \| phone \| tablet \| server \| headless \| other`. Default from `Platform`. |
-| `fcmToken`    | `string \| null` | FCM push token. May be null on platforms without FCM (Linux).                                      |
-| `platform`    | `DevicePlatform` | One of `android \| ios \| macos \| windows \| linux`.                                              |
-| `lastSeenAt`  | `Timestamp`      | Bumped by `updateDevicePresence` (rate-limited to one call per minute per device).                 |
-| `presence`    | `DevicePresence` | `online` while the app is foregrounded; `offline` otherwise.                                       |
+| Field            | Type                | Notes                                                                                                   |
+|------------------|---------------------|---------------------------------------------------------------------------------------------------------|
+| `displayName`    | `string`            | User-visible name. Default inferred from device hostname.                                               |
+| `icon`           | `DeviceIcon`        | One of `laptop \| desktop \| phone \| tablet \| server \| headless \| other`. Default from `Platform`.  |
+| `fcmToken`       | `string \| null`    | FCM push token. May be null on platforms without FCM (Linux).                                           |
+| `platform`       | `DevicePlatform`    | One of `android \| ios \| macos \| windows \| linux`.                                                   |
+| `lastSeenAt`     | `Timestamp`         | Bumped by `updateDevicePresence` (rate-limited to one call per minute per device).                      |
+| `presence`       | `DevicePresence`    | `online` while the app is foregrounded; `offline` otherwise.                                            |
+| `recentSendsAt?` | `Timestamp[]`       | Sliding-window record of recent `sendWake` / `sendLinkNotification` calls (≤ 30 entries, ≤ 1 h old).    |
 
 - **Read:** authenticated user where `request.auth.uid == accountId`.
 - **Write:** Cloud Functions only.

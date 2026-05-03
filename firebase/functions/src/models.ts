@@ -47,6 +47,13 @@ export interface DeviceDoc {
   platform: DevicePlatform;
   lastSeenAt: Timestamp;
   presence: DevicePresence;
+  /**
+   * Sliding-window record of recent `sendWake` / `sendLinkNotification`
+   * timestamps. Used by `src/rate-limit.ts` to enforce the soft
+   * 30-sends-per-hour ceiling. Optional so existing devices migrate in
+   * place — an absent or empty array reads as "no sends yet".
+   */
+  recentSendsAt?: Timestamp[];
 }
 
 /**
