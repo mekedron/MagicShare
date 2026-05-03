@@ -33,3 +33,4 @@ export {
 } from './devices';
 export { pollPendingWakes, sendLinkNotification, sendWake } from './notifications';
 export { createJoinToken, joinNetwork, previewJoinToken } from './pairing';
+export { cleanupExpiredJoinTokens, cleanupInactiveAccounts, markStalePresence } from './scheduled';
