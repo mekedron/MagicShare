@@ -75,25 +75,27 @@ Open [http://127.0.0.1:4000](http://127.0.0.1:4000) for the unified UI — faste
 inspect data, logs, and triggered functions.
 
 FCM has no fully featured emulator; for local push delivery you can stub
-the messaging channel from the Flutter side (see Epic 6 in
+the messaging channel from the Flutter side (see Epic 7 in
 [`task-list.md`](./task-list.md)).
 
 ---
 
-## Pointing the Flutter web build at the emulator
+## Pointing the Flutter app at the emulator
 
-The web build introduced in Epic 1 currently boots a placeholder. Once
-Epic 6 lands the Firebase initialization path, the app will read the
-`USE_FIREBASE_EMULATOR` `--dart-define` flag and route through
+There is no browser build — local testing of cloud-sync code paths
+runs the app on a native target (Android emulator, iOS simulator,
+macOS / Windows / Linux desktop) wired up to the local emulator suite.
+Once Epic 7 lands the Firebase initialization path, the app will read
+the `USE_FIREBASE_EMULATOR` `--dart-define` flag and route through
 `localhost` instead of the real cloud:
 
 ```bash
 cd app
-flutter run -d chrome -t lib/main_web.dart \
-  --dart-define=USE_FIREBASE_EMULATOR=true
+flutter run -d <device> --dart-define=USE_FIREBASE_EMULATOR=true
 ```
 
-Until Epic 6 ships, this flag is documented but not yet wired up.
+Pick the device from `flutter devices`. Until Epic 7 ships, this flag
+is documented but not yet wired up.
 
 ---
 
@@ -138,5 +140,5 @@ emitted via `firebase-functions/logger` are searchable from there.
 `firebase/.gitignore` and `firebase/functions/.gitignore` block
 `*-firebase-adminsdk-*.json`, `service-account*.json`, and
 `*.local`. Never check in real cloud credentials. The
-[deploy story (Epic 14)](./task-list.md) uses GitHub Actions secrets,
+[deploy story (Epic 15)](./task-list.md) uses GitHub Actions secrets,
 not files in the repo.

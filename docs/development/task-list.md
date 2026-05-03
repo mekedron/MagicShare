@@ -20,13 +20,10 @@ have not touched. All tests pass locally and in CI before any commit
 lands.
 
 - [x] **Epic 1 — Project foundations.** Stand up the Firebase
-  project, the Cloud Functions package, the emulator suite, the CI
-  workflow, and the Flutter web build that the agent uses for
-  browser-based smoke tests.
+  project, the Cloud Functions package, the emulator suite, and the
+  CI workflow. Local development and testing of cloud-sync code runs
+  against the Firebase emulator suite — no browser build is shipped.
 
-  - Enable Flutter web for the app. From `app/`, run
-    `flutter create . --platforms=web`. Verify
-    `flutter run -d chrome` boots the existing UI.
   - Create the Firebase project; enable Authentication
     (anonymous), Firestore (production), Cloud Functions, and
     Cloud Messaging. Add `.firebaserc` and `firebase.json` under a
@@ -47,12 +44,82 @@ lands.
     `npm test` (Cloud Functions, even on the empty stub),
     `flutter analyze` and `flutter test` (Flutter), and `dart test`
     (`common/`) on every PR. A no-op PR is green on all of them.
-  - **Done when:** `flutter run -d chrome` opens the app in a
-    browser; `firebase use [project]` works locally;
+  - **Done when:** `firebase use [project]` works locally;
     `npm run dev` brings up all emulators; CI passes on a PR
     touching `firebase/functions/`.
 
-- [ ] **Epic 2 — Schema and security rules.** Lock down the
+- [ ] **Epic 2 — Rebrand to MagicShare.** Rename every code-level
+  reference (Dart package, application IDs, display names, classes,
+  user-visible strings) from LocalSend to MagicShare. Keep upstream
+  attribution: do not touch the `LICENSE`, source-header copyrights,
+  README credits, docs-site landing copy, or protocol-level mentions
+  of LocalSend. Add a settings *About MagicShare* section that names
+  MagicShare as a fork of LocalSend.
+
+  - Pick canonical identifiers and document them in
+    `docs/development/branding.md`: app display name `MagicShare`;
+    Dart package name `magicshare_app`; reverse-DNS application id
+    (e.g. `com.magicshare.app`).
+  - Dart package rename in `app/pubspec.yaml` (`name:` field);
+    rewrite every `package:localsend_app/...` import across `app/`
+    and `common/`. Top-level `LocalSendApp` widget →
+    `MagicShareApp` (rename only the class added on top of the
+    upstream UI; do not rename internal LocalSend identifiers used
+    by upstream code).
+  - Platform identifiers and display names:
+    - Android: `applicationId` in `app/android/app/build.gradle`;
+      `android:label` in `AndroidManifest.xml`; rename Kotlin
+      package directories under `app/android/app/src/`.
+    - iOS: `PRODUCT_BUNDLE_IDENTIFIER` in
+      `app/ios/Runner.xcodeproj/project.pbxproj`;
+      `CFBundleDisplayName` and `CFBundleName` in `Info.plist`.
+    - macOS: bundle identifier and display names in the macOS
+      Xcode project.
+    - Windows: MSIX `Identity Name` and `Publisher`; product name
+      in the Visual Studio project under `app/windows/`; Inno
+      Setup script `scripts/compile_windows_exe-inno.iss`.
+    - Linux: package name in Debian / RPM / AppImage scripts;
+      `Name=` in the generated `.desktop` file.
+  - Default device name and any other branding string visible to
+    LAN peers, in `app/lib/...` and `common/lib/...`.
+  - Localization: replace user-visible `LocalSend` brand strings
+    with `MagicShare`. Preserve `LocalSend` where it refers to the
+    upstream project, the wire protocol, or interop ("compatible
+    with LocalSend").
+  - Firebase apps: rename the registered apps in the Firebase
+    console; update bundle IDs to the new values. Re-run
+    `flutterfire configure` to refresh `firebase_options.dart` and
+    per-platform config files.
+  - Settings *About MagicShare* section appended to
+    `app/lib/pages/tabs/settings_tab.dart`, placed after every
+    existing settings group. Contains: app name and version, the
+    line *"MagicShare is a fork of LocalSend"* with a link to
+    https://localsend.org, and a link to the bundled LICENSE.
+    Localized.
+  - Keep (do **not** touch): `LICENSE`, source-header copyright
+    comments, README credits and the *LocalSend fork* paragraph,
+    docs-site landing copy, and protocol-level mentions of
+    LocalSend in code comments.
+  - **Tests:**
+    - Static / unit: `flutter analyze` and `flutter test` (in
+      `app/`), `dart analyze` / `test` (in `common/`),
+      `npm test` (in `firebase/functions/`) all green after
+      rename.
+    - Widget (`flutter test`): the new *About MagicShare* card
+      renders the LocalSend attribution and the LICENSE link.
+    - Smoke build: `flutter build apk --debug`, plus one desktop
+      target available locally, succeed with the new identifiers.
+    - Manual interop: a stock LocalSend client still sends to and
+      receives from this build.
+  - **Done when:** searching for `localsend_app` and
+    `org.localsend` under `app/`, `common/`, and `firebase/`
+    returns zero hits outside attribution files (`LICENSE`, README
+    credits, source-header copyrights, protocol references); the
+    settings *About MagicShare* card renders with LocalSend
+    attribution; the app installs and runs end-to-end on at least
+    one mobile and one desktop target with the new identifiers.
+
+- [ ] **Epic 3 — Schema and security rules.** Lock down the
   Firestore data model and the rules that protect it before any
   callable functions go in.
 
@@ -77,7 +144,7 @@ lands.
     locally and in CI; schema doc and TypeScript types stay in
     sync.
 
-- [ ] **Epic 3 — Account and device callables.** Implement the
+- [ ] **Epic 4 — Account and device callables.** Implement the
   cloud functions that create and manage accounts and devices.
 
   - `createAccount` (idempotent; creates `accounts/{uid}` if
@@ -102,7 +169,7 @@ lands.
     deletes the account — with Firestore state consistent at
     every step.
 
-- [ ] **Epic 4 — Pairing callables.** Implement the cloud-side of
+- [ ] **Epic 5 — Pairing callables.** Implement the cloud-side of
   the pairing flow. The LAN-side key handshake is a separate epic.
 
   - `createJoinToken` (5 min one-time token in
@@ -123,7 +190,7 @@ lands.
     simulated installations end-to-end (cloud side only) and the
     old account is destroyed when its last device leaves.
 
-- [ ] **Epic 5 — Notifications and maintenance.** Round out the
+- [ ] **Epic 6 — Notifications and maintenance.** Round out the
   backend with notification dispatch, scheduled cleanup, rate
   limiting, structured logging, and the Linux polling fallback.
 
@@ -157,9 +224,9 @@ lands.
     enforced; scheduled jobs execute on schedule; logs are
     structured and PII-free; Linux polling returns inbox items.
 
-- [ ] **Epic 6 — Flutter Firebase integration.** Wire Firebase
+- [ ] **Epic 7 — Flutter Firebase integration.** Wire Firebase
   into the Flutter app on every supported platform (Android, iOS,
-  macOS, Windows, Linux, web).
+  macOS, Windows, Linux).
 
   - Add Firebase Flutter dependencies (`firebase_core`,
     `firebase_auth`, `cloud_firestore`, `cloud_functions`,
@@ -180,10 +247,10 @@ lands.
     `remote-notification` background mode + APNs key upload doc;
     Android high-priority data channel + stub
     `FirebaseMessagingService`.
-  - Desktop notification source: FCM via the Firebase Web
-    Messaging SDK on Windows and macOS; a 30 s polling loop
-    against `pollPendingWakes` on Linux. Document platform
-    decisions in `docs/development/desktop-push.md`.
+  - Desktop notification source: FCM via the Firebase Messaging
+    SDK on Windows and macOS; a 30 s polling loop against
+    `pollPendingWakes` on Linux. Document platform decisions in
+    `docs/development/desktop-push.md`.
   - **Tests:**
     - Unit (`flutter test`): typed Cloud Functions client
       wrappers (mock the underlying `cloud_functions` API);
@@ -192,11 +259,11 @@ lands.
     - Integration (`flutter test` against emulator): app boot
       reaches a non-null current user within ~1 s.
   - **Done when:** the app builds on Android, iOS, macOS,
-    Windows, Linux, and web; an anonymous user is signed in
-    within ~1 s of launch; a test FCM data message reaches the
-    app on at least one mobile platform.
+    Windows, and Linux; an anonymous user is signed in within
+    ~1 s of launch; a test FCM data message reaches the app on
+    at least one mobile platform.
 
-- [ ] **Epic 7 — Account and device state in the app.** Implement
+- [ ] **Epic 8 — Account and device state in the app.** Implement
   the local state and bootstrap path that registers this device
   and keeps it talking to the cloud.
 
@@ -229,7 +296,7 @@ lands.
     foregrounded and offline within 5 min of backgrounding;
     round-trip encryption tests pass.
 
-- [ ] **Epic 8 — LocalSend protocol extension.** Add the optional
+- [ ] **Epic 9 — LocalSend protocol extension.** Add the optional
   `wakeSessionId` field that lets receivers auto-accept transfers
   triggered by a wake notification.
 
@@ -248,7 +315,7 @@ lands.
     receive from a MagicShare client both ways; a request
     carrying a `wakeSessionId` parses correctly on both sides.
 
-- [ ] **Epic 9 — Settings: device group section.** Build the new
+- [ ] **Epic 10 — Settings: device group section.** Build the new
   settings section: list of devices, bottom sheets, icon picker,
   delete-group button, plus localization.
 
@@ -279,7 +346,7 @@ lands.
     wipes Firestore docs and the local app re-creates a fresh
     account.
 
-- [ ] **Epic 10 — Pairing UI and LAN key exchange.** Wire up the
+- [ ] **Epic 11 — Pairing UI and LAN key exchange.** Wire up the
   user-visible pairing flow plus the direct LAN handshake that
   delivers the group's shared key.
 
@@ -321,7 +388,7 @@ lands.
     pairing across different LANs fails fast with the expected
     error.
 
-- [ ] **Epic 11 — Send tab integration.** Make network devices
+- [ ] **Epic 12 — Send tab integration.** Make network devices
   first-class targets in the Send tab.
 
   - Merge LAN-discovered devices with `AccountRepository` devices
@@ -353,7 +420,7 @@ lands.
     fast-path with both setting modes; UX states for waking /
     retrying / error all reachable.
 
-- [ ] **Epic 12 — Notification reception.** Make sure
+- [ ] **Epic 13 — Notification reception.** Make sure
   notifications actually do the right thing on every platform
   when they arrive.
 
@@ -397,7 +464,7 @@ lands.
     URL in the browser without launching the app where
     supported.
 
-- [ ] **Epic 13 — Polish and operability.** Cross-cutting work
+- [ ] **Epic 14 — Polish and operability.** Cross-cutting work
   that ties the feature together.
 
   - *Cloud features* master toggle in the General settings
@@ -429,7 +496,7 @@ lands.
     shows the unavailable banner; the debug page renders real
     values.
 
-- [ ] **Epic 14 — QA and release.** Final verification and
+- [ ] **Epic 15 — QA and release.** Final verification and
   shipping.
 
   - Manual QA checklist at
@@ -439,7 +506,7 @@ lands.
     the README.
   - Confirm every per-epic unit, integration, and E2E suite is
     green in CI on the release branch. The pairing E2E (Epic
-    10) and the wake-and-receive E2E (Epic 12) are the
+    11) and the wake-and-receive E2E (Epic 13) are the
     load-bearing ones for release readiness.
   - Release prep: update the top-level `README.md` and
     `docs-site/` with cloud-feature instructions and a new
