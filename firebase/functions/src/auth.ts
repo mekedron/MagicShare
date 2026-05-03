@@ -8,7 +8,7 @@ import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
  *
  * Throws `HttpsError('unauthenticated', …)` when auth is missing.
  */
-export function requireAuth(request: CallableRequest<unknown>): string {
+export function requireAuth<T>(request: CallableRequest<T>): string {
   const uid = request.auth?.uid;
   if (!uid) {
     throw new HttpsError('unauthenticated', 'Caller must be signed in.');
