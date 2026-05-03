@@ -3,17 +3,17 @@
 ; Copy the contents of the zip to D:\inno, then run this Inno script
 ; Copy app/assets/packaging/logo-256.ico to D:\inno\logo-256.ico
 
-#define MyAppName "LocalSend"
+#define MyAppName "MagicShare"
 #define MyAppVersion "1.17.0"
-#define MyAppPublisher "Tien Do Nam"
-#define MyAppURL "https://localsend.org"
-#define MyAppExeName "localsend_app.exe"
-#define MyAppMsixHelper "localsend_msix_helper.msix"
+#define MyAppPublisher "MagicShare contributors"
+#define MyAppURL "https://github.com/mekedron/MagicShare"
+#define MyAppExeName "magicshare_app.exe"
+#define MyAppMsixHelper "magicshare_msix_helper.msix"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{00809252-FEC6-448E-83B4-E7F55AE7E47D}
+AppId={{4F2B7C3E-9A5D-4E1F-8B2C-6D3F1A0E5C9D}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -27,7 +27,7 @@ DisableProgramGroupPage=yes
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=D:\inno-result
-OutputBaseFilename=localsend
+OutputBaseFilename=magicshare
 SetupIconFile=D:\inno\logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma
@@ -83,7 +83,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command Add-AppxPackage .\localsend_msix_helper.msix -ExternalLocation $(Get-Location)"; WorkingDir: {app}; Flags: nowait postinstall
+Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command Add-AppxPackage .\magicshare_msix_helper.msix -ExternalLocation $(Get-Location)"; WorkingDir: {app}; Flags: nowait postinstall
 
 [UninstallRun]
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command Remove-AppxPackage $(Get-AppxPackage com.flutter.localsendapp)"; WorkingDir: {app}; Flags: nowait
+Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command Remove-AppxPackage $(Get-AppxPackage com.magicshare.app)"; WorkingDir: {app}; Flags: nowait
