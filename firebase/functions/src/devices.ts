@@ -4,6 +4,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { assertSameAccountTx } from './account-access';
 import { getDb } from './admin';
 import { requireAuth } from './auth';
+import { instrument } from './logging';
 import { type AccountDoc, accountPath, type DeviceDoc, devicePath } from './models';
 import {
   parseRegisterDeviceInput,
@@ -76,11 +77,13 @@ export async function registerDeviceLogic(
   });
 }
 
-export const registerDevice = onCall<unknown, Promise<RegisterDeviceResult>>(async (request) => {
-  const uid = requireAuth(request);
-  const input = parseRegisterDeviceInput(request.data);
-  return registerDeviceLogic(getDb(), uid, input);
-});
+export const registerDevice = onCall<unknown, Promise<RegisterDeviceResult>>(
+  instrument('registerDevice', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseRegisterDeviceInput(request.data);
+    return registerDeviceLogic(getDb(), uid, input);
+  }),
+);
 
 /**
  * Heartbeat / presence update. Hard rate-limited to one accepted call
@@ -113,11 +116,11 @@ export async function updateDevicePresenceLogic(
 }
 
 export const updateDevicePresence = onCall<unknown, Promise<UpdatePresenceResult>>(
-  async (request) => {
+  instrument('updateDevicePresence', async (request) => {
     const uid = requireAuth(request);
     const input = parseUpdatePresenceInput(request.data);
     return updateDevicePresenceLogic(getDb(), uid, input);
-  },
+  }),
 );
 
 async function patchDeviceField(
@@ -150,19 +153,23 @@ export async function setDeviceIconLogic(
   await patchDeviceField(db, uid, input.deviceId, { icon: input.icon });
 }
 
-export const renameDevice = onCall<unknown, Promise<{ ok: true }>>(async (request) => {
-  const uid = requireAuth(request);
-  const input = parseRenameDeviceInput(request.data);
-  await renameDeviceLogic(getDb(), uid, input);
-  return { ok: true };
-});
+export const renameDevice = onCall<unknown, Promise<{ ok: true }>>(
+  instrument('renameDevice', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseRenameDeviceInput(request.data);
+    await renameDeviceLogic(getDb(), uid, input);
+    return { ok: true };
+  }),
+);
 
-export const setDeviceIcon = onCall<unknown, Promise<{ ok: true }>>(async (request) => {
-  const uid = requireAuth(request);
-  const input = parseSetDeviceIconInput(request.data);
-  await setDeviceIconLogic(getDb(), uid, input);
-  return { ok: true };
-});
+export const setDeviceIcon = onCall<unknown, Promise<{ ok: true }>>(
+  instrument('setDeviceIcon', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseSetDeviceIconInput(request.data);
+    await setDeviceIconLogic(getDb(), uid, input);
+    return { ok: true };
+  }),
+);
 
 export interface RemoveDeviceResult {
   accountDeleted: boolean;
@@ -225,8 +232,10 @@ export async function removeDeviceLogic(
   return result;
 }
 
-export const removeDevice = onCall<unknown, Promise<RemoveDeviceResult>>(async (request) => {
-  const uid = requireAuth(request);
-  const input = parseRemoveDeviceInput(request.data);
-  return removeDeviceLogic(getDb(), uid, input);
-});
+export const removeDevice = onCall<unknown, Promise<RemoveDeviceResult>>(
+  instrument('removeDevice', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseRemoveDeviceInput(request.data);
+    return removeDeviceLogic(getDb(), uid, input);
+  }),
+);

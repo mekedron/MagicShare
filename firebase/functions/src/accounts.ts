@@ -3,6 +3,7 @@ import { onCall } from 'firebase-functions/v2/https';
 
 import { getDb } from './admin';
 import { requireAuth } from './auth';
+import { instrument } from './logging';
 import { type AccountDoc, accountPath } from './models';
 
 export interface CreateAccountResult {
@@ -63,12 +64,16 @@ export async function touchAccountLastActive(db: Firestore, uid: string): Promis
   await db.doc(accountPath(uid)).update({ lastActiveAt: FieldValue.serverTimestamp() });
 }
 
-export const createAccount = onCall<unknown, Promise<CreateAccountResult>>(async (request) => {
-  const uid = requireAuth(request);
-  return createAccountLogic(getDb(), uid);
-});
+export const createAccount = onCall<unknown, Promise<CreateAccountResult>>(
+  instrument('createAccount', async (request) => {
+    const uid = requireAuth(request);
+    return createAccountLogic(getDb(), uid);
+  }),
+);
 
-export const deleteAccount = onCall<unknown, Promise<DeleteAccountResult>>(async (request) => {
-  const uid = requireAuth(request);
-  return deleteAccountLogic(getDb(), uid);
-});
+export const deleteAccount = onCall<unknown, Promise<DeleteAccountResult>>(
+  instrument('deleteAccount', async (request) => {
+    const uid = requireAuth(request);
+    return deleteAccountLogic(getDb(), uid);
+  }),
+);

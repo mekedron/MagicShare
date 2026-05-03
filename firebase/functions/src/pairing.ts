@@ -5,6 +5,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
 import { getDb } from './admin';
 import { requireAuth } from './auth';
+import { instrument } from './logging';
 import {
   type AccountDoc,
   ACCOUNTS_COLLECTION,
@@ -114,11 +115,13 @@ export async function createJoinTokenLogic(
   return { tokenId, expiresAtMs: expiresAt.toMillis() };
 }
 
-export const createJoinToken = onCall<unknown, Promise<CreateJoinTokenResult>>(async (request) => {
-  const uid = requireAuth(request);
-  const input = parseCreateJoinTokenInput(request.data);
-  return createJoinTokenLogic(getDb(), uid, input);
-});
+export const createJoinToken = onCall<unknown, Promise<CreateJoinTokenResult>>(
+  instrument('createJoinToken', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseCreateJoinTokenInput(request.data);
+    return createJoinTokenLogic(getDb(), uid, input);
+  }),
+);
 
 /**
  * Public-safe view of a device, returned by `previewJoinToken` so a
@@ -188,11 +191,11 @@ export async function previewJoinTokenLogic(
 }
 
 export const previewJoinToken = onCall<unknown, Promise<PreviewJoinTokenResult>>(
-  async (request) => {
+  instrument('previewJoinToken', async (request) => {
     requireAuth(request);
     const input = parsePreviewJoinTokenInput(request.data);
     return previewJoinTokenLogic(getDb(), input);
-  },
+  }),
 );
 
 async function listGroupDevicesForPreview(
@@ -325,8 +328,10 @@ export async function joinNetworkLogic(
   return { ...result, devices };
 }
 
-export const joinNetwork = onCall<unknown, Promise<JoinNetworkResult>>(async (request) => {
-  const uid = requireAuth(request);
-  const input = parseJoinNetworkInput(request.data);
-  return joinNetworkLogic(getDb(), uid, input);
-});
+export const joinNetwork = onCall<unknown, Promise<JoinNetworkResult>>(
+  instrument('joinNetwork', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseJoinNetworkInput(request.data);
+    return joinNetworkLogic(getDb(), uid, input);
+  }),
+);
