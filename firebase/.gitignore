@@ -1,0 +1,16 @@
+# Firebase CLI / emulator state
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
+auth-debug.log
+*-debug.log
+
+# Local-only overrides
+*.local
+.runtimeconfig.json
+
+# Service account credentials must NEVER be committed.
+service-account*.json
+*-firebase-adminsdk-*.json
