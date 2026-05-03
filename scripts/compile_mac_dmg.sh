@@ -11,7 +11,9 @@ fvm flutter build macos
 echo
 echo "Signing the app..."
 echo
-SIGN_ID="Developer ID Application: Tien Do Nam (3W7H4PYMCV)"
+# TODO(packaging): replace with the MagicShare project's own
+# Developer ID Application certificate before shipping a signed DMG.
+SIGN_ID="${SIGN_ID:-Developer ID Application: MagicShare contributors}"
 codesign --deep --force --verbose --options runtime --entitlements macos/Runner/Release.entitlements --sign "$SIGN_ID" build/macos/Build/Products/Release/MagicShare.app
 
 # create dmg
