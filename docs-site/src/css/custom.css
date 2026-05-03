@@ -356,6 +356,21 @@ a.ms-btn-ghost {
   padding: 6px 8px;
 }
 
+/* Suppress the auto-added external-link arrow on our custom navbar
+   buttons — it adds visual noise next to the GitHub icon and donate pill.
+   The class name is hashed by CSS modules, so match by prefix. */
+.header-github-link svg[class*='iconExternalLink'],
+.navbar-donate-link svg[class*='iconExternalLink'],
+.navbar-cta-link svg[class*='iconExternalLink'] {
+  display: none;
+}
+
+/* Breathing room between right-side navbar items so the icon, donate
+   pill, and CTA don't crowd each other. */
+.navbar__items--right {
+  gap: 8px;
+}
+
 /* Donate button (Buy Me a Coffee yellow) */
 .navbar .navbar__item.navbar-donate-link,
 .navbar-donate-link {

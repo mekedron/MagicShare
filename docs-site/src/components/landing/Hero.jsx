@@ -217,7 +217,9 @@ function HeroAnimation() {
             d="M14 36 H50 a8 8 0 0 0 1.4 -15.88 A12 12 0 0 0 12 24 a8 8 0 0 0 2 12 Z"
             fill="color-mix(in oklch, var(--aura) 14%, var(--bg-0))"
           />
-          <path d="M22 30 l5 5 l10 -10" stroke="var(--spark)" strokeWidth="2" />
+          {/* Checkmark sits inside the cloud body (cloud spans roughly
+              y=12..36; this places the tick around the vertical centre). */}
+          <path d="M22 20 l5 5 l10 -10" stroke="var(--spark)" strokeWidth="2" />
         </g>
         <text
           x="300"
@@ -248,17 +250,18 @@ function HeroAnimation() {
                 <rect x="-16" y="5" width="30" height="2" rx="1" fill="color-mix(in oklch, var(--ink-1) 90%, transparent)" />
                 <rect x="-16" y="11" width="22" height="2" rx="1" fill="color-mix(in oklch, var(--ink-2) 70%, transparent)" />
               </g>
-              <g
-                transform="translate(0, -2)"
-                style={{
-                  animation: 'file-received 8s ease-in-out infinite',
-                  transformOrigin: '-16px 12px',
-                  transformBox: 'fill-box',
-                }}>
-                <rect x="-14" y="4" width="14" height="16" rx="2" fill="none" stroke="var(--spark)" strokeWidth="1.4" />
-                <path d="M-6 4 L0 10" stroke="var(--spark)" strokeWidth="1.4" />
-                <rect x="-12" y="10" width="10" height="1.5" rx="0.5" fill="var(--spark)" opacity="0.7" />
-                <rect x="-12" y="14" width="7" height="1.5" rx="0.5" fill="var(--spark)" opacity="0.45" />
+              <g transform="translate(0, -2)">
+                <g
+                  style={{
+                    animation: 'file-received 8s ease-in-out infinite',
+                    transformOrigin: '-16px 12px',
+                    transformBox: 'fill-box',
+                  }}>
+                  <rect x="-14" y="4" width="14" height="16" rx="2" fill="none" stroke="var(--spark)" strokeWidth="1.4" />
+                  <path d="M-6 4 L0 10" stroke="var(--spark)" strokeWidth="1.4" />
+                  <rect x="-12" y="10" width="10" height="1.5" rx="0.5" fill="var(--spark)" opacity="0.7" />
+                  <rect x="-12" y="14" width="7" height="1.5" rx="0.5" fill="var(--spark)" opacity="0.45" />
+                </g>
               </g>
             </g>
             <text
@@ -277,17 +280,22 @@ function HeroAnimation() {
           <g style={{animation: 'float-y 6s ease-in-out infinite'}}>
             <rect x="0" y="0" width="120" height="70" rx="6" fill="var(--device-fill)" stroke="var(--line)" />
             <rect x="6" y="6" width="108" height="54" rx="3" fill="var(--device-screen)" />
-            <g
-              transform="translate(43, 17)"
-              style={{
-                animation: 'file-glow 8s ease-in-out infinite',
-                transformOrigin: '17px 17px',
-                transformBox: 'fill-box',
-              }}>
-              <rect x="0" y="0" width="34" height="34" rx="3" fill="none" stroke="var(--spark)" strokeWidth="1.6" />
-              <path d="M22 0 L34 12" stroke="var(--spark)" strokeWidth="1.6" fill="none" />
-              <rect x="6" y="14" width="22" height="2" rx="1" fill="var(--spark)" opacity="0.7" />
-              <rect x="6" y="20" width="16" height="2" rx="1" fill="var(--spark)" opacity="0.45" />
+            {/* CSS `transform: scale(...)` from `file-glow` would override
+                an SVG `transform="translate(...)"` on the same element and
+                snap the icon to (0,0). Wrap with an outer translate group
+                so positioning survives the animated scale. */}
+            <g transform="translate(43, 17)">
+              <g
+                style={{
+                  animation: 'file-glow 8s ease-in-out infinite',
+                  transformOrigin: '17px 17px',
+                  transformBox: 'fill-box',
+                }}>
+                <rect x="0" y="0" width="34" height="34" rx="3" fill="none" stroke="var(--spark)" strokeWidth="1.6" />
+                <path d="M22 0 L34 12" stroke="var(--spark)" strokeWidth="1.6" fill="none" />
+                <rect x="6" y="14" width="22" height="2" rx="1" fill="var(--spark)" opacity="0.7" />
+                <rect x="6" y="20" width="16" height="2" rx="1" fill="var(--spark)" opacity="0.45" />
+              </g>
             </g>
             <rect x="-14" y="70" width="148" height="5" rx="2.5" fill="var(--device-fill)" stroke="var(--line)" />
             <text
@@ -323,17 +331,18 @@ function HeroAnimation() {
                 <rect x="-9" y="10" width="14" height="2" rx="1" fill="color-mix(in oklch, var(--ink-2) 70%, transparent)" />
                 <rect x="-9" y="14" width="16" height="2" rx="1" fill="color-mix(in oklch, var(--ink-2) 70%, transparent)" />
               </g>
-              <g
-                transform="translate(-10, 32)"
-                style={{
-                  animation: 'file-received 8s ease-in-out infinite',
-                  transformOrigin: 'center',
-                  transformBox: 'fill-box',
-                }}>
-                <rect x="0" y="0" width="20" height="22" rx="2.5" fill="none" stroke="var(--spark)" strokeWidth="1.4" />
-                <path d="M12 0 L20 8" stroke="var(--spark)" strokeWidth="1.4" />
-                <rect x="3" y="11" width="14" height="1.6" rx="0.5" fill="var(--spark)" opacity="0.7" />
-                <rect x="3" y="15" width="10" height="1.6" rx="0.5" fill="var(--spark)" opacity="0.45" />
+              <g transform="translate(-10, 32)">
+                <g
+                  style={{
+                    animation: 'file-received 8s ease-in-out infinite',
+                    transformOrigin: 'center',
+                    transformBox: 'fill-box',
+                  }}>
+                  <rect x="0" y="0" width="20" height="22" rx="2.5" fill="none" stroke="var(--spark)" strokeWidth="1.4" />
+                  <path d="M12 0 L20 8" stroke="var(--spark)" strokeWidth="1.4" />
+                  <rect x="3" y="11" width="14" height="1.6" rx="0.5" fill="var(--spark)" opacity="0.7" />
+                  <rect x="3" y="15" width="10" height="1.6" rx="0.5" fill="var(--spark)" opacity="0.45" />
+                </g>
               </g>
             </g>
             <text
