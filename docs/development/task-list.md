@@ -229,7 +229,7 @@ session.
 
 - [ ] 41. Implement the wake flow for offline network devices. Call
   `sendWake` with an encrypted payload describing the sender's IP,
-  port, and a session nonce. Show a *Waking up <device>…* indicator.
+  port, and a session nonce. Show a *Waking up \[device\]…* indicator.
   Wait up to 60 s. On timeout, show an error.
 
 - [ ] 42. Implement the URL fast-path send and the *Encrypt link

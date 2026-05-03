@@ -1,7 +1,15 @@
 ---
-sidebar_position: 3
 title: AI Agent Prompt
+draft: true
 ---
+
+<!--
+This page is intentionally excluded from the published Docusaurus site
+(draft: true). It documents the operating contract for autonomous
+agents working through the task list. The file is meant to be read in
+the repo / on GitHub, not on the public docs site.
+-->
+
 
 ## Prompt
 
