@@ -588,8 +588,9 @@ class TranslationsDonationPageEn {
   /// en: 'Donate'
   String get title => 'Donate';
 
-  /// en: 'MagicShare is free, open-source and without any ads. If you like the app, you can support the development with a donation.'
-  String get info => 'MagicShare is free, open-source and without any ads. If you like the app, you can support the development with a donation.';
+  /// en: 'MagicShare builds on LocalSend, which is free, open-source and without any ads. Donations from this page go to the upstream LocalSend developer (Tien Do Nam).'
+  String get info =>
+      'MagicShare builds on LocalSend, which is free, open-source and without any ads. Donations from this page go to the upstream LocalSend developer (Tien Do Nam).';
 
   /// en: 'Donate {amount}'
   String donate({required Object amount}) => 'Donate ${amount}';
@@ -1157,8 +1158,8 @@ class TranslationsSettingsTabOtherEn {
   /// en: 'Other'
   String get title => 'Other';
 
-  /// en: 'Support MagicShare'
-  String get support => 'Support MagicShare';
+  /// en: 'Support upstream LocalSend'
+  String get support => 'Support upstream LocalSend';
 
   /// en: 'Donate'
   String get donate => 'Donate';

@@ -149,7 +149,7 @@
     },
     "other": {
       "title": "Other",
-      "support": "Support MagicShare",
+      "support": "Support upstream LocalSend",
       "donate": "Donate",
       "privacyPolicy": "Privacy Policy",
       "termsOfUse": "Terms of Use"
@@ -287,7 +287,7 @@
   },
   "donationPage": {
     "title": "Donate",
-    "info": "MagicShare is free, open-source and without any ads. If you like the app, you can support the development with a donation.",
+    "info": "MagicShare builds on LocalSend, which is free, open-source and without any ads. Donations from this page go to the upstream LocalSend developer (Tien Do Nam).",
     "donate": "Donate {amount}",
     "thanks": "Thank you very much!",
     "restore": "Restore purchase"
