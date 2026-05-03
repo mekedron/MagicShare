@@ -173,8 +173,10 @@ License is unchanged from the upstream project — see [LICENSE](LICENSE).
 
 MagicShare uses the same toolchain as LocalSend.
 
-1. Install Flutter [directly](https://flutter.dev) or via [fvm](https://fvm.app)
-   (see version in [.fvmrc](.fvmrc)).
+1. Install Flutter directly from [flutter.dev](https://flutter.dev), or pin
+   the version with [mise](https://mise.jdx.dev) (`mise use flutter@3.38.10`)
+   or [fvm](https://fvm.app). The expected version lives in
+   [.fvmrc](.fvmrc).
 2. Install [Rust](https://www.rust-lang.org/tools/install).
 3. Clone this repository.
 4. `cd app`
@@ -183,8 +185,9 @@ MagicShare uses the same toolchain as LocalSend.
 
 > [!NOTE]
 > The project pins a specific Flutter version in `.fvmrc`. Using a different
-> system Flutter can cause build errors. Run `fvm flutter ...` instead of
-> `flutter ...` when in doubt.
+> system Flutter can cause build errors. With `mise`, run `mise install` from
+> the project root to pick up the pin; with `fvm`, run `fvm flutter ...`
+> instead of `flutter ...` when in doubt.
 
 ### Platform builds
 
