@@ -8,9 +8,20 @@ import { assertSameAccountTx } from './account-access';
 import { getDb, getMessaging } from './admin';
 import { requireAuth } from './auth';
 import { instrument } from './logging';
-import { accountPath, type DeviceDoc, type InboxItemDoc, inboxItemPath } from './models';
+import {
+  accountPath,
+  type DeviceDoc,
+  type InboxItemDoc,
+  inboxItemPath,
+  type PlaintextLinkPayload,
+} from './models';
 import { consumeSendQuota } from './rate-limit';
-import { parseSendWakeInput, type SendWakeInput } from './validation';
+import {
+  parseSendLinkNotificationInput,
+  parseSendWakeInput,
+  type SendLinkNotificationInput,
+  type SendWakeInput,
+} from './validation';
 
 /**
  * Notification dispatch callables (Epic 6). The cloud's role here is
@@ -50,12 +61,13 @@ interface NoneRoute {
 }
 type Route = FcmRoute | InboxRoute | NoneRoute;
 
-function pickWakeRoute(target: DeviceDoc): Route {
+function pickRoute(target: DeviceDoc): Route {
   // Linux clients have no FCM support per the spec — they pull from
   // the inbox subcollection on a 30 s timer. Routing by platform (not
   // by `fcmToken == null`) makes the decision deterministic even when
   // a misbehaving Linux client registers a token it can't actually
-  // receive on.
+  // receive on. Both sendWake and sendLinkNotification share this
+  // routing — Linux always inbox, non-Linux always FCM if available.
   if (target.platform === 'linux') {
     return { kind: 'inbox' };
   }
@@ -120,7 +132,7 @@ export async function sendWakeLogic(
 
     const now = Timestamp.now();
     const newQuota = consumeSendQuota(source.doc.recentSendsAt, now);
-    const route = pickWakeRoute(target.doc);
+    const route = pickRoute(target.doc);
 
     tx.update(source.ref, { recentSendsAt: newQuota });
     tx.update(accountRef, { lastActiveAt: now });
@@ -155,5 +167,115 @@ export const sendWake = onCall<unknown, Promise<SendWakeResult>>(
     const uid = requireAuth(request);
     const input = parseSendWakeInput(request.data);
     return sendWakeLogic(getDb(), getMessaging(), uid, input);
+  }),
+);
+
+export interface SendLinkNotificationResult {
+  delivered: boolean;
+  channel: 'fcm' | 'inbox' | 'none';
+}
+
+function buildLinkFcmMessage(token: string, input: SendLinkNotificationInput): Message {
+  if (input.mode === 'plaintext') {
+    // Visible notification — tap-to-open in the system browser. The
+    // `data` field carries the URL too so a foreground app can hijack
+    // the tap and open in-app per Epic 13's notification reception.
+    const data: Record<string, string> = { type: 'link', url: input.url };
+    if (input.title !== undefined) {
+      data.title = input.title;
+    }
+    return {
+      token,
+      notification: {
+        title: input.title ?? 'Open link',
+        body: input.url,
+      },
+      data,
+      android: { priority: 'high' },
+    };
+  }
+  // Encrypted mode: data-only, identical wire shape to a wake.
+  return {
+    token,
+    data: { type: 'link', payload: input.payload },
+    android: { priority: 'high' },
+    apns: {
+      headers: { 'apns-priority': '5', 'apns-push-type': 'background' },
+      payload: { aps: { contentAvailable: true } },
+    },
+  };
+}
+
+function buildInboxLinkPayload(input: SendLinkNotificationInput): string | PlaintextLinkPayload {
+  if (input.mode === 'encrypted') {
+    return input.payload;
+  }
+  // Firestore admin SDK rejects undefined values by default, so we
+  // build the object conditionally instead of using
+  // `{ url, title: input.title }`.
+  return input.title !== undefined ? { url: input.url, title: input.title } : { url: input.url };
+}
+
+/**
+ * Authoritative `sendLinkNotification` implementation. Same shape as
+ * `sendWakeLogic` — the only differences are the FCM message
+ * (visible-notification in plaintext mode, data-only in encrypted)
+ * and the inbox payload type (`'link'` plus the matching shape).
+ *
+ * The per-device user toggle "Encrypt link notifications" lives on
+ * the client (Epic 12); the cloud just honours whatever mode the
+ * caller sends. URL-scheme validation already ran in
+ * `parseSendLinkNotificationInput`, so plaintext URLs reaching this
+ * function are guaranteed `http`/`https`.
+ */
+export async function sendLinkNotificationLogic(
+  db: Firestore,
+  messaging: MessagingSender,
+  callerUid: string,
+  input: SendLinkNotificationInput,
+): Promise<SendLinkNotificationResult> {
+  const accountRef = db.doc(accountPath(callerUid));
+
+  const decision = await db.runTransaction(async (tx) => {
+    const source = await assertSameAccountTx(tx, db, callerUid, input.sourceDeviceId);
+    const target = await assertSameAccountTx(tx, db, callerUid, input.targetDeviceId);
+
+    const now = Timestamp.now();
+    const newQuota = consumeSendQuota(source.doc.recentSendsAt, now);
+    const route = pickRoute(target.doc);
+
+    tx.update(source.ref, { recentSendsAt: newQuota });
+    tx.update(accountRef, { lastActiveAt: now });
+
+    if (route.kind === 'inbox') {
+      const itemId = randomUUID();
+      const inboxRef = db.doc(inboxItemPath(callerUid, input.targetDeviceId, itemId));
+      const inboxDoc: InboxItemDoc = {
+        type: 'link',
+        payload: buildInboxLinkPayload(input),
+        createdAt: now,
+        expiresAt: Timestamp.fromMillis(now.toMillis() + INBOX_TTL_MS),
+      };
+      tx.set(inboxRef, inboxDoc);
+    }
+
+    return route;
+  });
+
+  if (decision.kind === 'fcm') {
+    await messaging.send(buildLinkFcmMessage(decision.fcmToken, input));
+    return { delivered: true, channel: 'fcm' };
+  }
+  if (decision.kind === 'inbox') {
+    return { delivered: true, channel: 'inbox' };
+  }
+  return { delivered: false, channel: 'none' };
+}
+
+export const sendLinkNotification = onCall<unknown, Promise<SendLinkNotificationResult>>(
+  instrument('sendLinkNotification', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseSendLinkNotificationInput(request.data);
+    return sendLinkNotificationLogic(getDb(), getMessaging(), uid, input);
   }),
 );

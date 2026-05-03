@@ -31,5 +31,5 @@ export {
   setDeviceIcon,
   updateDevicePresence,
 } from './devices';
-export { sendWake } from './notifications';
+export { sendLinkNotification, sendWake } from './notifications';
 export { createJoinToken, joinNetwork, previewJoinToken } from './pairing';

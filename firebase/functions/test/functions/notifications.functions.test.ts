@@ -3,8 +3,13 @@ import { type Message } from 'firebase-admin/messaging';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDb } from '../../src/admin';
-import { type MessagingSender, sendWakeLogic } from '../../src/notifications';
+import {
+  type MessagingSender,
+  sendLinkNotificationLogic,
+  sendWakeLogic,
+} from '../../src/notifications';
 import { SEND_RATE_LIMIT_PER_HOUR } from '../../src/rate-limit';
+import { parseSendLinkNotificationInput } from '../../src/validation';
 
 import { clearEmulator, listInboxIds, readDevice, seedAccount, seedDevice } from './_helpers';
 
@@ -172,5 +177,174 @@ describe('sendWakeLogic', () => {
       }),
     ).rejects.toMatchObject({ code: 'resource-exhausted' });
     expect(messaging.send).not.toHaveBeenCalled();
+  });
+});
+
+describe('parseSendLinkNotificationInput URL validation', () => {
+  const baseIds = { sourceDeviceId: 'src', targetDeviceId: 'tgt', mode: 'plaintext' };
+
+  it.each([
+    ['https://example.com'],
+    ['http://example.com/path?q=1'],
+    ['https://example.com:8080/with#fragment'],
+  ])('accepts %s', (url) => {
+    expect(() => parseSendLinkNotificationInput({ ...baseIds, url })).not.toThrow();
+  });
+
+  it.each([
+    'javascript:alert(1)',
+    'file:///etc/passwd',
+    'data:text/html,<script>alert(1)</script>',
+    'ftp://example.com',
+    'not a url',
+    '',
+  ])('rejects %s', (url) => {
+    expect(() => parseSendLinkNotificationInput({ ...baseIds, url })).toThrowError();
+  });
+
+  it('rejects URLs over the length cap', () => {
+    const url = 'https://example.com/' + 'x'.repeat(2100);
+    expect(() => parseSendLinkNotificationInput({ ...baseIds, url })).toThrowError();
+  });
+
+  it('rejects an unknown mode value', () => {
+    expect(() =>
+      parseSendLinkNotificationInput({ ...baseIds, mode: 'wat', url: 'https://example.com' }),
+    ).toThrowError();
+  });
+
+  it('requires payload in encrypted mode', () => {
+    expect(() =>
+      parseSendLinkNotificationInput({
+        sourceDeviceId: 'src',
+        targetDeviceId: 'tgt',
+        mode: 'encrypted',
+      }),
+    ).toThrowError();
+  });
+});
+
+describe('sendLinkNotificationLogic', () => {
+  beforeEach(async () => {
+    await clearEmulator();
+    await seedAccount(UID);
+    await seedDevice(UID, SRC, { displayName: 'My laptop', platform: 'macos' });
+    await seedDevice(UID, TGT_ANDROID, {
+      displayName: 'Pixel',
+      platform: 'android',
+      fcmToken: 'fcm-pixel',
+    });
+    await seedDevice(UID, TGT_LINUX, {
+      displayName: 'Linux box',
+      platform: 'linux',
+      fcmToken: null,
+    });
+  });
+
+  it('sends a visible FCM notification in plaintext mode with the URL in body', async () => {
+    const messaging = fakeMessaging();
+
+    const result = await sendLinkNotificationLogic(getDb(), messaging, UID, {
+      mode: 'plaintext',
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_ANDROID,
+      url: 'https://example.com/article',
+      title: 'Cool article',
+    });
+
+    expect(result).toEqual({ delivered: true, channel: 'fcm' });
+    const sent = messaging.send.mock.calls[0]?.[0] as Message;
+    expect(sent.token).toBe('fcm-pixel');
+    expect(sent.notification).toEqual({
+      title: 'Cool article',
+      body: 'https://example.com/article',
+    });
+    expect(sent.data).toEqual({
+      type: 'link',
+      url: 'https://example.com/article',
+      title: 'Cool article',
+    });
+  });
+
+  it("uses 'Open link' as default title when none is provided", async () => {
+    const messaging = fakeMessaging();
+    await sendLinkNotificationLogic(getDb(), messaging, UID, {
+      mode: 'plaintext',
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_ANDROID,
+      url: 'https://example.com/x',
+    });
+    const sent = messaging.send.mock.calls[0]?.[0] as Message;
+    expect(sent.notification?.title).toBe('Open link');
+  });
+
+  it('sends a data-only FCM message in encrypted mode (no notification field)', async () => {
+    const messaging = fakeMessaging();
+
+    await sendLinkNotificationLogic(getDb(), messaging, UID, {
+      mode: 'encrypted',
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_ANDROID,
+      payload: 'opaque-link-blob',
+    });
+
+    const sent = messaging.send.mock.calls[0]?.[0] as Message;
+    expect(sent.notification).toBeUndefined();
+    expect(sent.data).toEqual({ type: 'link', payload: 'opaque-link-blob' });
+  });
+
+  it('writes a Linux inbox item with the plaintext object payload', async () => {
+    const messaging = fakeMessaging();
+
+    await sendLinkNotificationLogic(getDb(), messaging, UID, {
+      mode: 'plaintext',
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_LINUX,
+      url: 'https://example.com/path',
+      title: 'Hi',
+    });
+
+    expect(messaging.send).not.toHaveBeenCalled();
+    const inbox = await listInboxIds(UID, TGT_LINUX);
+    expect(inbox).toHaveLength(1);
+    const data = (
+      await getDb().doc(`accounts/${UID}/devices/${TGT_LINUX}/inbox/${inbox[0]}`).get()
+    ).data() as { type: string; payload: { url: string; title?: string } };
+    expect(data.type).toBe('link');
+    expect(data.payload).toEqual({ url: 'https://example.com/path', title: 'Hi' });
+  });
+
+  it('writes a Linux inbox item with the encrypted blob payload', async () => {
+    const messaging = fakeMessaging();
+
+    await sendLinkNotificationLogic(getDb(), messaging, UID, {
+      mode: 'encrypted',
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_LINUX,
+      payload: 'opaque-link-blob',
+    });
+
+    const inbox = await listInboxIds(UID, TGT_LINUX);
+    const data = (
+      await getDb().doc(`accounts/${UID}/devices/${TGT_LINUX}/inbox/${inbox[0]}`).get()
+    ).data() as { type: string; payload: string };
+    expect(data.payload).toBe('opaque-link-blob');
+  });
+
+  it('shares the rate-limit window with sendWake', async () => {
+    const messaging = fakeMessaging();
+    await sendLinkNotificationLogic(getDb(), messaging, UID, {
+      mode: 'plaintext',
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_ANDROID,
+      url: 'https://example.com',
+    });
+    await sendWakeLogic(getDb(), messaging, UID, {
+      sourceDeviceId: SRC,
+      targetDeviceId: TGT_ANDROID,
+      payload: 'wake-blob',
+    });
+    const src = await readDevice(UID, SRC);
+    expect(src?.recentSendsAt).toHaveLength(2);
   });
 });
