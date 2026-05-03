@@ -19,7 +19,7 @@ flow. We do **not** retroactively cover upstream LocalSend code we
 have not touched. All tests pass locally and in CI before any commit
 lands.
 
-- [ ] **Epic 1 — Project foundations.** Stand up the Firebase
+- [x] **Epic 1 — Project foundations.** Stand up the Firebase
   project, the Cloud Functions package, the emulator suite, the CI
   workflow, and the Flutter web build that the agent uses for
   browser-based smoke tests.
