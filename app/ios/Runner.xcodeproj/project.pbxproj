@@ -12,6 +12,7 @@
 		28D9F9A829638D5E0028B96E /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 28D9F9A629638D5E0028B96E /* MainInterface.storyboard */; };
 		28D9F9AC29638D5E0028B96E /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 28D9F9A229638D5E0028B96E /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		4269D01D8E4206151AB9B6C9 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 0548FF09924DF375EFEA8377 /* GoogleService-Info.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7DA3203436DA0EAD484C6129 /* Pods_ShareExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 052009B9C8E63670A6F30787 /* Pods_ShareExtension.framework */; };
 		840EA3FC2B0910B000C0FED7 /* MyLocalSendStoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 840EA3FB2B0910B000C0FED7 /* MyLocalSendStoreKit.storekit */; };
@@ -58,6 +59,7 @@
 /* Begin PBXFileReference section */
 		0007FA5526976D661EA80645 /* Pods-ShareExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ShareExtension.release.xcconfig"; path = "Target Support Files/Pods-ShareExtension/Pods-ShareExtension.release.xcconfig"; sourceTree = "<group>"; };
 		052009B9C8E63670A6F30787 /* Pods_ShareExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ShareExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		0548FF09924DF375EFEA8377 /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		0628E22A788D91D99A60B3EB /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A5D3B0265815538882A3116 /* Pods-ShareExtension.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ShareExtension.profile.xcconfig"; path = "Target Support Files/Pods-ShareExtension/Pods-ShareExtension.profile.xcconfig"; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
@@ -152,6 +154,7 @@
 				97C146EF1CF9000F007C117D /* Products */,
 				59B9B2A902E417D8EA9C7BB8 /* Pods */,
 				C869F3F44E625CCF2D1A5B44 /* Frameworks */,
+				0548FF09924DF375EFEA8377 /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -292,6 +295,7 @@
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				840EA3FC2B0910B000C0FED7 /* MyLocalSendStoreKit.storekit in Resources */,
+				4269D01D8E4206151AB9B6C9 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "31893954334",
+    "project_id": "magic-share-backend",
+    "storage_bucket": "magic-share-backend.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31893954334:android:3b0c7ff8546e138078330f",
+        "android_client_info": {
+          "package_name": "org.localsend.localsend_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGMC9I1YQ_bBj_OT44DWcipZ8K621O6fY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
