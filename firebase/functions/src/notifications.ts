@@ -12,13 +12,17 @@ import {
   accountPath,
   type DeviceDoc,
   type InboxItemDoc,
+  type InboxItemType,
   inboxItemPath,
+  inboxPath,
   type PlaintextLinkPayload,
 } from './models';
 import { consumeSendQuota } from './rate-limit';
 import {
+  parsePollPendingWakesInput,
   parseSendLinkNotificationInput,
   parseSendWakeInput,
+  type PollPendingWakesInput,
   type SendLinkNotificationInput,
   type SendWakeInput,
 } from './validation';
@@ -277,5 +281,70 @@ export const sendLinkNotification = onCall<unknown, Promise<SendLinkNotification
     const uid = requireAuth(request);
     const input = parseSendLinkNotificationInput(request.data);
     return sendLinkNotificationLogic(getDb(), getMessaging(), uid, input);
+  }),
+);
+
+export interface PollPendingWakesItem {
+  id: string;
+  type: InboxItemType;
+  payload: string | PlaintextLinkPayload;
+  createdAtMs: number;
+  expiresAtMs: number;
+}
+
+export interface PollPendingWakesResult {
+  items: PollPendingWakesItem[];
+}
+
+/**
+ * Linux clients call this every ~30 s (Epic 7's polling loop) to
+ * pull and atomically consume their `inbox` queue. The transaction
+ * reads every pending item then deletes them in the same commit, so
+ * concurrent polls cannot double-deliver: the loser's transaction
+ * retries against the post-commit snapshot and finds an empty inbox.
+ *
+ * Items are returned in `createdAt` order so the client processes
+ * them in the same sequence the sender produced them. Timestamps
+ * cross the wire as ms-since-epoch (callable JSON has no native
+ * Timestamp encoding) — the client converts back to a `DateTime`.
+ */
+export async function pollPendingWakesLogic(
+  db: Firestore,
+  callerUid: string,
+  input: PollPendingWakesInput,
+): Promise<PollPendingWakesResult> {
+  const inboxColl = db.collection(inboxPath(callerUid, input.deviceId));
+
+  return db.runTransaction(async (tx) => {
+    await assertSameAccountTx(tx, db, callerUid, input.deviceId);
+
+    const snap = await tx.get(inboxColl);
+
+    const items: PollPendingWakesItem[] = snap.docs.map((d) => {
+      const data = d.data() as InboxItemDoc;
+      return {
+        id: d.id,
+        type: data.type,
+        payload: data.payload,
+        createdAtMs: data.createdAt.toMillis(),
+        expiresAtMs: data.expiresAt.toMillis(),
+      };
+    });
+
+    items.sort((a, b) => a.createdAtMs - b.createdAtMs);
+
+    for (const docSnap of snap.docs) {
+      tx.delete(docSnap.ref);
+    }
+
+    return { items };
+  });
+}
+
+export const pollPendingWakes = onCall<unknown, Promise<PollPendingWakesResult>>(
+  instrument('pollPendingWakes', async (request) => {
+    const uid = requireAuth(request);
+    const input = parsePollPendingWakesInput(request.data);
+    return pollPendingWakesLogic(getDb(), uid, input);
   }),
 );

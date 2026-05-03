@@ -5,13 +5,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '../../src/admin';
 import {
   type MessagingSender,
+  pollPendingWakesLogic,
   sendLinkNotificationLogic,
   sendWakeLogic,
 } from '../../src/notifications';
 import { SEND_RATE_LIMIT_PER_HOUR } from '../../src/rate-limit';
 import { parseSendLinkNotificationInput } from '../../src/validation';
 
-import { clearEmulator, listInboxIds, readDevice, seedAccount, seedDevice } from './_helpers';
+import {
+  clearEmulator,
+  listInboxIds,
+  readDevice,
+  seedAccount,
+  seedDevice,
+  seedInboxItem,
+} from './_helpers';
 
 const UID = 'wakeUser';
 const OTHER_UID = 'otherUser';
@@ -346,5 +354,81 @@ describe('sendLinkNotificationLogic', () => {
     });
     const src = await readDevice(UID, SRC);
     expect(src?.recentSendsAt).toHaveLength(2);
+  });
+});
+
+describe('pollPendingWakesLogic', () => {
+  const LINUX_DEVICE = 'linux-poller';
+  const SIBLING_DEVICE = 'sibling';
+
+  beforeEach(async () => {
+    await clearEmulator();
+    await seedAccount(UID);
+    await seedDevice(UID, LINUX_DEVICE, { platform: 'linux', fcmToken: null });
+    await seedDevice(UID, SIBLING_DEVICE, { platform: 'macos' });
+  });
+
+  it('returns an empty list when the inbox is empty', async () => {
+    const result = await pollPendingWakesLogic(getDb(), UID, { deviceId: LINUX_DEVICE });
+    expect(result).toEqual({ items: [] });
+  });
+
+  it('returns all pending items in createdAt order and clears the inbox', async () => {
+    const t0 = Timestamp.fromMillis(Date.now() - 30_000);
+    const t1 = Timestamp.fromMillis(Date.now() - 10_000);
+    const t2 = Timestamp.fromMillis(Date.now() - 5_000);
+    // Seed deliberately out of insertion order so the sort path is exercised.
+    await seedInboxItem(UID, LINUX_DEVICE, 'middle', { createdAt: t1, payload: 'b' });
+    await seedInboxItem(UID, LINUX_DEVICE, 'oldest', { createdAt: t0, payload: 'a' });
+    await seedInboxItem(UID, LINUX_DEVICE, 'newest', { createdAt: t2, payload: 'c' });
+
+    const result = await pollPendingWakesLogic(getDb(), UID, { deviceId: LINUX_DEVICE });
+
+    expect(result.items.map((i) => i.id)).toEqual(['oldest', 'middle', 'newest']);
+    expect(result.items.map((i) => i.payload)).toEqual(['a', 'b', 'c']);
+    expect(result.items[0].createdAtMs).toBe(t0.toMillis());
+    expect(await listInboxIds(UID, LINUX_DEVICE)).toEqual([]);
+  });
+
+  it('does not touch sibling devices’ inboxes', async () => {
+    await seedInboxItem(UID, LINUX_DEVICE, 'mine');
+    await seedInboxItem(UID, SIBLING_DEVICE, 'theirs');
+
+    const result = await pollPendingWakesLogic(getDb(), UID, { deviceId: LINUX_DEVICE });
+
+    expect(result.items.map((i) => i.id)).toEqual(['mine']);
+    expect(await listInboxIds(UID, LINUX_DEVICE)).toEqual([]);
+    expect(await listInboxIds(UID, SIBLING_DEVICE)).toEqual(['theirs']);
+  });
+
+  it('rejects with not-found when the caller does not own the device', async () => {
+    await seedAccount(OTHER_UID);
+    await seedDevice(OTHER_UID, LINUX_DEVICE, { platform: 'linux', fcmToken: null });
+    await seedInboxItem(OTHER_UID, LINUX_DEVICE, 'theirs');
+
+    await expect(
+      pollPendingWakesLogic(getDb(), UID, { deviceId: 'no-such-device' }),
+    ).rejects.toMatchObject({ code: 'not-found' });
+    // The other account's inbox stays untouched.
+    expect(await listInboxIds(OTHER_UID, LINUX_DEVICE)).toEqual(['theirs']);
+  });
+
+  it('does not double-deliver under concurrent polls', async () => {
+    // Seed multiple items, then race two polls against the same device.
+    const ids = Array.from({ length: 5 }, (_, i) => `item-${i}`);
+    for (let i = 0; i < ids.length; i++) {
+      await seedInboxItem(UID, LINUX_DEVICE, ids[i], {
+        createdAt: Timestamp.fromMillis(Date.now() - 10_000 + i),
+      });
+    }
+
+    const [a, b] = await Promise.all([
+      pollPendingWakesLogic(getDb(), UID, { deviceId: LINUX_DEVICE }),
+      pollPendingWakesLogic(getDb(), UID, { deviceId: LINUX_DEVICE }),
+    ]);
+
+    const seen = [...a.items.map((i) => i.id), ...b.items.map((i) => i.id)].sort();
+    expect(seen).toEqual([...ids].sort());
+    expect(await listInboxIds(UID, LINUX_DEVICE)).toEqual([]);
   });
 });

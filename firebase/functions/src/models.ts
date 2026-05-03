@@ -88,7 +88,10 @@ export const accountPath = (accountId: string): string => `${ACCOUNTS_COLLECTION
 export const devicePath = (accountId: string, deviceId: string): string =>
   `${accountPath(accountId)}/${DEVICES_SUBCOLLECTION}/${deviceId}`;
 
+export const inboxPath = (accountId: string, deviceId: string): string =>
+  `${devicePath(accountId, deviceId)}/${INBOX_SUBCOLLECTION}`;
+
 export const inboxItemPath = (accountId: string, deviceId: string, itemId: string): string =>
-  `${devicePath(accountId, deviceId)}/${INBOX_SUBCOLLECTION}/${itemId}`;
+  `${inboxPath(accountId, deviceId)}/${itemId}`;
 
 export const joinTokenPath = (tokenId: string): string => `${JOIN_TOKENS_COLLECTION}/${tokenId}`;

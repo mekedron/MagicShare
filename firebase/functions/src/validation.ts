@@ -295,3 +295,14 @@ export function parseSendLinkNotificationInput(raw: unknown): SendLinkNotificati
   }
   fail('mode', "expected 'plaintext' or 'encrypted'");
 }
+
+export interface PollPendingWakesInput {
+  deviceId: string;
+}
+
+export function parsePollPendingWakesInput(raw: unknown): PollPendingWakesInput {
+  const obj = asObject(raw);
+  return {
+    deviceId: assertDeviceId(obj.deviceId),
+  };
+}
