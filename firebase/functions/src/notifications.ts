@@ -1,0 +1,159 @@
+import { randomUUID } from 'node:crypto';
+
+import { Firestore, Timestamp } from 'firebase-admin/firestore';
+import { type Message, type Messaging } from 'firebase-admin/messaging';
+import { onCall } from 'firebase-functions/v2/https';
+
+import { assertSameAccountTx } from './account-access';
+import { getDb, getMessaging } from './admin';
+import { requireAuth } from './auth';
+import { instrument } from './logging';
+import { accountPath, type DeviceDoc, type InboxItemDoc, inboxItemPath } from './models';
+import { consumeSendQuota } from './rate-limit';
+import { parseSendWakeInput, type SendWakeInput } from './validation';
+
+/**
+ * Notification dispatch callables (Epic 6). The cloud's role here is
+ * narrow: verify the caller owns both source and target devices,
+ * apply the soft per-source rate limit, and route the encrypted
+ * payload to the target — over FCM for platforms that support it,
+ * via the per-device `inbox` subcollection for Linux clients.
+ *
+ * Spec ref: `docs/development/cloud-sync-spec.md` §5.3 Notifications.
+ */
+
+/** Minimal slice of the admin Messaging API we depend on. Tests pass
+ *  an in-memory stub that records calls. */
+export type MessagingSender = Pick<Messaging, 'send'>;
+
+const INBOX_TTL_MS = 5 * 60_000;
+
+export interface SendWakeResult {
+  /** True iff a wake reached the target's delivery channel. False is
+   *  not an error — the spec tolerates "device has not registered for
+   *  push yet" silently. */
+  delivered: boolean;
+  /** Which channel actually carried the wake. `none` means the target
+   *  has no FCM token registered and isn't a Linux device. */
+  channel: 'fcm' | 'inbox' | 'none';
+}
+
+interface FcmRoute {
+  kind: 'fcm';
+  fcmToken: string;
+}
+interface InboxRoute {
+  kind: 'inbox';
+}
+interface NoneRoute {
+  kind: 'none';
+}
+type Route = FcmRoute | InboxRoute | NoneRoute;
+
+function pickWakeRoute(target: DeviceDoc): Route {
+  // Linux clients have no FCM support per the spec — they pull from
+  // the inbox subcollection on a 30 s timer. Routing by platform (not
+  // by `fcmToken == null`) makes the decision deterministic even when
+  // a misbehaving Linux client registers a token it can't actually
+  // receive on.
+  if (target.platform === 'linux') {
+    return { kind: 'inbox' };
+  }
+  if (!target.fcmToken) {
+    return { kind: 'none' };
+  }
+  return { kind: 'fcm', fcmToken: target.fcmToken };
+}
+
+function buildWakeFcmMessage(token: string, payload: string): Message {
+  // Wake notifications are silent: data-only on Android, and rely on
+  // APNs `content-available: 1` on iOS so the system delivers the
+  // payload to a backgrounded app without surfacing UI. The
+  // foreground/background dispatch lives in Epic 13.
+  return {
+    token,
+    data: { type: 'wake', payload },
+    android: { priority: 'high' },
+    apns: {
+      headers: { 'apns-priority': '5', 'apns-push-type': 'background' },
+      payload: { aps: { contentAvailable: true } },
+    },
+  };
+}
+
+/**
+ * Authoritative `sendWake` implementation. Exported for the tests in
+ * `test/functions/notifications.functions.test.ts` to call directly
+ * against the emulator with a stub `Messaging`. The `onCall` wrapper
+ * below threads the production singletons and structured logging
+ * through.
+ *
+ * Design:
+ *
+ * - Both source and target must live under `accounts/{callerUid}` —
+ *   the cross-account guard from `assertSameAccountTx`.
+ * - The rate limit is per source device, shared with
+ *   `sendLinkNotification`: a single device that fans out 30 wakes
+ *   in 60 minutes pays the limit even if each wake targets a
+ *   different sibling.
+ * - For Linux targets, the inbox write is part of the same
+ *   transaction as the quota debit, so a successful return guarantees
+ *   the item is visible to the next `pollPendingWakes`.
+ * - For non-Linux targets, the FCM call runs after the transaction.
+ *   Worst case (FCM fails after the transaction commits) we leak one
+ *   unit of quota for that source device. That's acceptable for a
+ *   soft limit and avoids the much worse alternative of two-phase
+ *   commit between Firestore and FCM.
+ */
+export async function sendWakeLogic(
+  db: Firestore,
+  messaging: MessagingSender,
+  callerUid: string,
+  input: SendWakeInput,
+): Promise<SendWakeResult> {
+  const accountRef = db.doc(accountPath(callerUid));
+
+  const decision = await db.runTransaction(async (tx) => {
+    // All reads first per Firestore transaction rules.
+    const source = await assertSameAccountTx(tx, db, callerUid, input.sourceDeviceId);
+    const target = await assertSameAccountTx(tx, db, callerUid, input.targetDeviceId);
+
+    const now = Timestamp.now();
+    const newQuota = consumeSendQuota(source.doc.recentSendsAt, now);
+    const route = pickWakeRoute(target.doc);
+
+    tx.update(source.ref, { recentSendsAt: newQuota });
+    tx.update(accountRef, { lastActiveAt: now });
+
+    if (route.kind === 'inbox') {
+      const itemId = randomUUID();
+      const inboxRef = db.doc(inboxItemPath(callerUid, input.targetDeviceId, itemId));
+      const inboxDoc: InboxItemDoc = {
+        type: 'wake',
+        payload: input.payload,
+        createdAt: now,
+        expiresAt: Timestamp.fromMillis(now.toMillis() + INBOX_TTL_MS),
+      };
+      tx.set(inboxRef, inboxDoc);
+    }
+
+    return route;
+  });
+
+  if (decision.kind === 'fcm') {
+    await messaging.send(buildWakeFcmMessage(decision.fcmToken, input.payload));
+    return { delivered: true, channel: 'fcm' };
+  }
+  if (decision.kind === 'inbox') {
+    return { delivered: true, channel: 'inbox' };
+  }
+  return { delivered: false, channel: 'none' };
+}
+
+export const sendWake = onCall<unknown, Promise<SendWakeResult>>(
+  instrument('sendWake', async (request) => {
+    const uid = requireAuth(request);
+    const input = parseSendWakeInput(request.data);
+    return sendWakeLogic(getDb(), getMessaging(), uid, input);
+  }),
+);

@@ -12,6 +12,15 @@ const DEVICE_ID_MAX = 128;
 const DISPLAY_NAME_MAX = 80;
 const FCM_TOKEN_MAX = 4096;
 const TOKEN_ID_MAX = 128;
+/**
+ * Encrypted wake/link payloads are AES-GCM ciphertext over a small
+ * JSON envelope, base64-encoded by the client. 16 KiB is comfortable
+ * headroom over the LocalSend wake metadata + nonce; well below FCM's
+ * 4 KiB data-message limit on the wire because that limit is the
+ * decoded message size, but storing oversize blobs in `inbox` would
+ * still be wasteful.
+ */
+const ENCRYPTED_PAYLOAD_MAX = 16 * 1024;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -180,5 +189,37 @@ export function parseJoinNetworkInput(raw: unknown): JoinNetworkInput {
   return {
     tokenId: assertTokenId(obj.tokenId),
     deviceId: assertDeviceId(obj.deviceId),
+  };
+}
+
+function assertEncryptedPayload(value: unknown, field: string): string {
+  if (typeof value !== 'string') fail(field, 'expected a string');
+  if ((value as string).length === 0) fail(field, 'must not be empty');
+  if ((value as string).length > ENCRYPTED_PAYLOAD_MAX) {
+    fail(field, `must be ${ENCRYPTED_PAYLOAD_MAX} characters or fewer`);
+  }
+  return value as string;
+}
+
+function assertSourceDeviceId(value: unknown): string {
+  return assertNonEmptyString(value, 'sourceDeviceId', DEVICE_ID_MAX);
+}
+
+function assertTargetDeviceId(value: unknown): string {
+  return assertNonEmptyString(value, 'targetDeviceId', DEVICE_ID_MAX);
+}
+
+export interface SendWakeInput {
+  sourceDeviceId: string;
+  targetDeviceId: string;
+  payload: string;
+}
+
+export function parseSendWakeInput(raw: unknown): SendWakeInput {
+  const obj = asObject(raw);
+  return {
+    sourceDeviceId: assertSourceDeviceId(obj.sourceDeviceId),
+    targetDeviceId: assertTargetDeviceId(obj.targetDeviceId),
+    payload: assertEncryptedPayload(obj.payload, 'payload'),
   };
 }
