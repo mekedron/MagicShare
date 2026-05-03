@@ -1,7 +1,7 @@
-display_name: LocalSend
-packager: Tienisto
-packagerEmail: dev.tien.donam@gmail.com
-url: https://localsend.org
+display_name: MagicShare
+packager: MagicShare contributors
+packagerEmail: noreply@magicshare.invalid
+url: https://github.com/mekedron/MagicShare
 buildArch: x86_64
 license: MIT
 
@@ -16,8 +16,8 @@ keywords:
   - LAN
   - Files
 
-generic_name: An open source cross-platform alternative to AirDrop
-summary: Share files easily with LocalSend
+generic_name: Cloud-assisted device sync built on top of LocalSend.
+summary: Share files easily with MagicShare
 group: Applications/Utilities
 
 categories:

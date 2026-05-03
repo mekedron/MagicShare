@@ -1,11 +1,8 @@
-display_name: LocalSend
-package_name: localsend
+display_name: MagicShare
+package_name: magicshare
 maintainer:
-  name: Tienisto
-  email: dev.tien.donam@gmail.com
-co_authors:
-  - name: TheGB0077
-    email: gb.lima.dev@gmail.com
+  name: MagicShare contributors
+  email: noreply@magicshare.invalid
 priority: optional
 section: x11
 installed_size: 30600
@@ -22,7 +19,7 @@ dependencies:
   - xdg-user-dirs
 
 postinstall_scripts:
-  - echo "Installed Localsend successfully"
+  - echo "Installed MagicShare successfully"
 postuninstall_scripts:
   - echo "Sorry to see you go :("
 
@@ -31,7 +28,7 @@ keywords:
   - LAN
   - Files
 
-generic_name: An open source cross-platform alternative to AirDrop
+generic_name: Cloud-assisted device sync built on top of LocalSend.
 
 categories:
   - GTK
