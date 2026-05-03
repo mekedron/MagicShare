@@ -37,6 +37,31 @@ You can help in translating this app to other languages!
 
 Thanks to all [translators](https://github.com/localsend/localsend/tree/main/app/lib/pages/about/translators.dart)!
 
+## Brand mentions
+
+This repository is **MagicShare**, a fork of LocalSend. When you write
+or rename code, decide deliberately which brand a string belongs to:
+
+- **Use `MagicShare`** for the product itself: app display name, package
+  identifiers, the device name shown to LAN peers, user-facing copy
+  ("Open MagicShare on the other device"), the *About MagicShare*
+  settings card, the docs-site landing copy.
+- **Keep `LocalSend`** where the string refers to the upstream project
+  or the wire protocol: `LICENSE` and source-header copyrights, README
+  credits and the *fork of LocalSend* paragraph, protocol-level mentions
+  in code comments, on-the-wire JSON keys and constant strings exchanged
+  with stock LocalSend clients (e.g. `localsend.org` URLs in mDNS / API
+  descriptors), and localized strings such as *"compatible with
+  LocalSend"*.
+
+Canonical identifiers in use today: app display name `MagicShare`, Dart
+package name `magicshare_app`, reverse-DNS application id
+`com.magicshare.app`, Linux package name `magicshare`.
+
+When in doubt: if the string says *"this product is called X"*, use
+MagicShare; if it says *"this product talks to / is forked from
+LocalSend"*, keep LocalSend.
+
 ## Contributing Guidelines
 
 Before you submit a pull request to LocalSend, please ensure that you have followed these guidelines:

@@ -56,10 +56,11 @@ lands.
   of LocalSend. Add a settings *About MagicShare* section that names
   MagicShare as a fork of LocalSend.
 
-  - Pick canonical identifiers and document them in
-    `docs/development/branding.md`: app display name `MagicShare`;
-    Dart package name `magicshare_app`; reverse-DNS application id
-    (e.g. `com.magicshare.app`).
+  - Adopt canonical identifiers — app display name `MagicShare`,
+    Dart package name `magicshare_app`, reverse-DNS application id
+    `com.magicshare.app`. Document the brand-mention policy (where
+    LocalSend stays vs gets rebranded) as a *Brand mentions*
+    section in `CONTRIBUTING.md`.
   - Dart package rename in `app/pubspec.yaml` (`name:` field);
     rewrite every `package:localsend_app/...` import across `app/`
     and `common/`. Top-level `LocalSendApp` widget →
