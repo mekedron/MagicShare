@@ -121,7 +121,7 @@ class _HomePageState extends State<HomePage> with Refena {
                                         SizedBox(height: 40)
                                       : SizedBox(height: 20),
                                   const Text(
-                                    'LocalSend',
+                                    'MagicShare',
                                     style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                                     textAlign: TextAlign.center,
                                   ),
