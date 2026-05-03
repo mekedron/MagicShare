@@ -120,7 +120,7 @@ lands.
     attribution; the app installs and runs end-to-end on at least
     one mobile and one desktop target with the new identifiers.
 
-- [ ] **Epic 3 — Schema and security rules.** Lock down the
+- [x] **Epic 3 — Schema and security rules.** Lock down the
   Firestore data model and the rules that protect it before any
   callable functions go in.
 
