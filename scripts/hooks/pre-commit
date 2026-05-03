@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# MagicShare pre-commit hook.
+#
+# Auto-formats staged Dart files in app/ and common/ so commits never fail
+# CI's `dart format --set-exit-if-changed lib test` step (.github/workflows/ci.yml).
+#
+# Set SKIP_DART_FORMAT_HOOK=1 to bypass for a single commit without --no-verify.
+
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+if [ "${SKIP_DART_FORMAT_HOOK:-}" = "1" ]; then
+  exit 0
+fi
+
+staged=()
+while IFS= read -r line; do
+  [ -n "$line" ] && staged+=("$line")
+done < <(
+  git diff --cached --name-only --diff-filter=ACMR \
+    | { grep -E '^(app|common)/.*\.dart$' || true; }
+)
+
+if [ ${#staged[@]} -eq 0 ]; then
+  exit 0
+fi
+
+if ! command -v dart >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+pre-commit: 'dart' is not on PATH.
+
+Install the Dart/Flutter toolchain (e.g. `mise install` from the repo root)
+or set SKIP_DART_FORMAT_HOOK=1 to bypass this hook for one commit.
+EOF
+  exit 1
+fi
+
+existing=()
+for f in "${staged[@]}"; do
+  [ -f "$f" ] && existing+=("$f")
+done
+
+if [ ${#existing[@]} -eq 0 ]; then
+  exit 0
+fi
+
+if dart format --set-exit-if-changed --output=write "${existing[@]}"; then
+  exit 0
+fi
+
+git add -- "${existing[@]}"
+echo
+echo "pre-commit: dart format reformatted the files above and re-staged them."

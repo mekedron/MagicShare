@@ -71,6 +71,21 @@ Before you submit a pull request to LocalSend, please ensure that you have follo
 - Commits should be well-written and descriptive, with a clear summary of the changes made and any relevant context.
 - Pull requests should target the `main` branch and include a clear summary of the changes made.
 
+### Git hooks
+
+Run the installer once after cloning so commits get auto-formatted before
+they reach CI:
+
+```shell
+./scripts/hooks/install.sh
+```
+
+This sets `core.hooksPath` to `scripts/hooks/`. The pre-commit hook runs
+`dart format` on staged Dart files in `app/` and `common/` and re-stages the
+result, mirroring the `dart format --set-exit-if-changed` step in
+`.github/workflows/ci.yml`. Set `SKIP_DART_FORMAT_HOOK=1` to bypass for one
+commit.
+
 ## Bug Reports and Feature Requests
 
 If you encounter a bug in LocalSend or have a feature request, please submit an issue to the [issue tracker](https://github.com/localsend/localsend/issues). Please be sure to provide a clear description of the problem or feature request, along with any relevant context or steps to reproduce the issue.
