@@ -1,263 +1,233 @@
-# LocalSend
+# MagicShare
 
-[![CI status][ci-badge]][ci-workflow]
-[![Translations][translate-badge]][translate-link]
-[![Packaging status][packaging-badge]][packaging-link]
+> Send a file or open a link on any device you own — even when it's offline,
+> on a different platform, or signed into a different account.
 
-[ci-badge]: https://github.com/localsend/localsend/actions/workflows/ci.yml/badge.svg
-[ci-workflow]: https://github.com/localsend/localsend/actions/workflows/ci.yml
-[translate-badge]: https://hosted.weblate.org/widget/localsend/app/svg-badge.svg
-[translate-link]: https://hosted.weblate.org/engage/localsend/
-[packaging-badge]: https://repology.org/badge/tiny-repos/localsend.svg
-[packaging-link]: https://repology.org/project/localsend/versions
+MagicShare is a fork of [LocalSend](https://github.com/localsend/localsend)
+that adds **cloud-assisted device wake-up** and a **friction-free UX** on top
+of LocalSend's proven peer-to-peer transfer protocol.
 
-[Homepage][homepage] • [Discord][discord] • [GitHub][github] • [Codeberg][codeberg]
+LocalSend already solves the hard part: secure, encrypted, cross-platform
+transfers without third-party servers. MagicShare keeps all of that and fixes
+the workflow problems that show up when you actually use it daily across many
+devices.
 
-[English (Default)](README.md) • [Español](readme_i18n/README_ES.md) • [فارسی](readme_i18n/README_FA.md) • [Filipino](readme_i18n/README_PH.md) • [Français](readme_i18n/README_FR.md) • [Indonesia](readme_i18n/README_ID.md) • [Italiano](readme_i18n/README_IT.md) • [日本語](readme_i18n/README_JA.md) • [ភាសាខ្មែរ](readme_i18n/README_KM.md) • [한국어](readme_i18n/README_KO.md) • [Polski](readme_i18n/README_PL.md) • [Português Brasil](readme_i18n/README_PT_BR.md) • [Русский](readme_i18n/README_RU.md) • [ภาษาไทย](readme_i18n/README_TH.md) • [Türkçe](readme_i18n/README_TR.md) • [Українська](readme_i18n/README_UK.md) • [Tiếng Việt](readme_i18n/README_VI.md) • [中文](readme_i18n/README_ZH.md)
+---
 
-[homepage]: https://localsend.org
-[discord]: https://discord.gg/GSRWmQNP87
-[github]: https://github.com/localsend/localsend
-[codeberg]: https://codeberg.org/localsend/localsend
+## The Problem
 
-LocalSend is a free, open-source app that allows you to securely share files and messages with nearby devices over your local network without needing an internet connection.
+If you regularly hop between several devices — phones, tablets, laptops on
+different operating systems and different accounts — there is no good way to
+just *get a thing onto another device*.
 
-- [About](#about)
-- [Sponsors](#sponsors)
-- [Screenshots](#screenshots)
-- [Download](#download)
-- [How It Works](#how-it-works)
-- [Getting Started](#getting-started)
-- [Contributing](#contributing)
-  - [Translation](#translation)
-  - [Bug Fixes and Improvements](#bug-fixes-and-improvements)
-- [Troubleshooting](#troubleshooting)
-- [Building](#building)
-  - [Android](#android)
-  - [iOS](#ios)
-  - [macOS](#macos)
-  - [Windows](#windows)
-  - [Linux](#linux)
+Today the options are all bad:
 
-## About
+- **Email yourself.** Slow, leaves a trail, breaks for big files.
+- **Custom QR code generators.** Works for tiny links, painful for long URLs,
+  useless for files.
+- **Messenger / chat apps.** Pollutes chat history, file size limits, requires
+  accounts on both ends.
+- **AirDrop / Quick Share / etc.** Only works inside one ecosystem.
+- **LocalSend.** Solves the transfer cleanly, but the *workflow* is heavy:
+  open LocalSend on the source device, open LocalSend on the target device,
+  wait for discovery, pick the device, paste the content, send.
 
-LocalSend is a cross-platform app that enables secure communication between devices using a REST API and HTTPS encryption. Unlike other messaging apps that rely on external servers, LocalSend doesn't require an internet connection or third-party servers, making it a fast and reliable solution for local communication.
+The recurring cost is opening the app on the *receiving* device every single
+time. That's the friction MagicShare removes.
 
-## Sponsors
+---
 
-Browser testing via
+## The Idea
 
-<a href="https://www.testmuai.com/?utm_medium=sponsor&utm_source=localsend" target="_blank">
-    <img src="https://localsend.org/img/sponsors/tesmu.svg" style="vertical-align: middle;" width="250" height="45" />
-</a>
+Each device installs MagicShare once and signs in with an **anonymous
+Firebase account**. The device registers its identifier under that account
+and stores its push notification token.
 
-## Screenshots
+From then on, sending to one of your devices works like this:
 
-<img src="https://localsend.org/img/screenshot-iphone.webp" alt="iPhone screenshot" height="300"/> <img src="https://localsend.org/img/screenshot-pc.webp" alt="PC screenshot" height="300"/>
+1. On the source device, drop a file onto the MagicShare window (or a screen
+   corner hot zone), or paste a link.
+2. Pick one or more target devices from your account.
+3. MagicShare sends a **push notification** containing only encrypted
+   metadata — the source device ID, the payload reference, and the target
+   device name. No file content goes through the cloud.
+4. The target device receives the notification, decrypts the metadata, and
+   uses LocalSend's existing transfer protocol to fetch the payload directly
+   from the source device.
+5. For files: download starts automatically and the user is prompted when
+   it finishes. For links: the URL opens in the default browser.
 
-## Download
+The cloud is used only as a **wake-up channel and address book**. The actual
+data transfer stays peer-to-peer and end-to-end encrypted, exactly like
+LocalSend today.
 
-[![Packaging status](https://repology.org/badge/tiny-repos/localsend.svg)](https://repology.org/project/localsend/versions)
+---
 
-It is recommended to download the app either from an app store or from a package manager because the app does not have an auto-update.
+## Goals
 
-| Windows                 | macOS                   | Linux              | Android        | iOS           | Fire OS    |
-|-------------------------|-------------------------|--------------------|----------------|---------------|------------|
-| [Winget][]              | [App Store][]           | [Flathub][]        | [Play Store][] | [App Store][] | [Amazon][] |
-| [Scoop][]               | [Homebrew][]            | [Nixpkgs][]        | [F-Droid][]    |               |            |
-| [Chocolatey][]          | [DMG Installer][latest] | [Snap][]           | [APK][latest]  |               |            |
-| [EXE Installer][latest] |                         | [AUR][]            |                |               |            |
-| [Portable ZIP][latest]  |                         | [TAR][latest]      |                |               |            |
-|                         |                         | [DEB][latest]      |                |               |            |
-|                         |                         | [AppImage][latest] |                |               |            |
+### 1. Cloud-assisted device discovery
 
-Read more about [distribution channels][].
+- Anonymous Firebase auth — no email, no phone number, no personal data.
+- Devices register themselves under an account ID and store a push token.
+- A user can list, rename, and revoke their own devices from any of them.
+- Only metadata flows through Firebase. Payloads stay peer-to-peer.
 
-> [!CAUTION]
-> **Unofficial MSIX preview:** you can try builds from the latest commits at [localsend.ob-buff.dev](https://localsend.ob-buff.dev/). Stability is not guaranteed and all custom code tweaks are listed on that site.
+### 2. Push-triggered transfers
 
-[windows store]: https://www.microsoft.com/store/apps/9NCB4Z0TZ6RR
-[app store]: https://apps.apple.com/us/app/localsend/id1661733229
-[play store]: https://play.google.com/store/apps/details?id=org.localsend.localsend_app
-[f-droid]: https://f-droid.org/packages/org.localsend.localsend_app
-[amazon]: https://www.amazon.com/dp/B0BW6MP732
-[winget]: https://github.com/microsoft/winget-pkgs/tree/master/manifests/l/LocalSend/LocalSend
-[scoop]: https://scoop.sh/#/apps?s=0&d=1&o=true&q=localsend&id=fb88113be361ca32c0dcac423cb4afdeda0b0c66
-[chocolatey]: https://community.chocolatey.org/packages/localsend
-[homebrew]: https://formulae.brew.sh/cask/localsend
-[flathub]: https://flathub.org/apps/details/org.localsend.localsend_app
-[nixpkgs]: https://search.nixos.org/packages?show=localsend
-[snap]: https://snapcraft.io/localsend
-[aur]: https://aur.archlinux.org/packages/localsend-bin
-[latest]: https://github.com/localsend/localsend/releases/latest
-[distribution channels]: https://github.com/localsend/localsend/blob/main/CONTRIBUTING.md#distribution
+- The receiving device does not need to have MagicShare in the foreground.
+- A push notification wakes the app, which then connects to the sender via
+  the LocalSend protocol and starts the transfer.
+- Notification payloads are encrypted with a key shared only between the
+  user's own devices — Firebase cannot read what is being sent or to whom.
 
-**Compatibility**
+### 3. One-step UX
 
-| Platform | Minimum Version | Note                                                                                                                        |
-|----------|-----------------|-----------------------------------------------------------------------------------------------------------------------------|
-| Android  | 5.0             | -                                                                                                                           |
-| iOS      | 12.0            | -                                                                                                                           |
-| macOS    | 11 Big Sur      | Use OpenCore Legacy Patcher 2.0.2 (See [#1005](https://github.com/localsend/localsend/issues/1005#issuecomment-2449899384)) |
-| Windows  | 10              | The last version to support Windows 7 is v1.15.4. There might be backports of newer versions for Windows 7 in the future.   |
-| Linux    | N.A.            | Deps: Gnome: `xdg-desktop-portal` and `xdg-desktop-portal-gtk`, KDE: `xdg-desktop-portal` and `xdg-desktop-portal-kde`      |
+- **Drag and drop** anywhere onto the MagicShare window, or onto a
+  configurable **screen-corner hot zone**, to start a send.
+- A single prompt: pick one or many target devices, hit send.
+- **Multi-device fan-out** in one action.
+- **Link sending**: paste a URL, pick a device, the link opens on the
+  target device after one tap on the notification.
 
-## Setup
+### 4. Stay compatible with LocalSend
 
-In most cases, LocalSend should work out of the box. However, if you are having trouble sending or receiving files, you may need to configure your firewall to allow LocalSend to communicate over your local network.
+- The on-the-wire transfer protocol stays the same. A MagicShare device can
+  still send to and receive from a stock LocalSend device on the same
+  network.
+- Cloud features are strictly additive and can be disabled.
+
+---
+
+## Use Cases
+
+These are the everyday flows MagicShare is designed to make trivial:
+
+- **Open a link on another device.** Copy URL on Mac, paste into MagicShare,
+  pick "Pixel 8", tap notification on the phone — link opens in the browser.
+  No QR code, no email.
+- **Move a screenshot to your phone.** Drag it onto the corner hot zone,
+  pick the phone, done.
+- **Push the same file to multiple devices.** One send, many receivers,
+  parallel transfers.
+- **Cross-ecosystem sharing.** macOS to Android, Windows to iPhone, Linux
+  to Fire tablet — same flow on every platform.
+- **Devices on different networks.** As long as both devices can reach the
+  internet for the wake-up push, the transfer can fall back through a
+  relay (planned) when direct LAN connection isn't possible.
+
+---
+
+## Status
+
+Early work in progress. The fork currently mirrors LocalSend; cloud-assisted
+features are being designed and implemented. Expect breaking changes.
+
+Track progress in:
+
+- [`docs/`](docs) — design notes (planned)
+- Issues and project board on GitHub
+
+---
+
+## Architecture (Planned)
+
+```
+┌──────────────────┐      push (encrypted metadata)      ┌──────────────────┐
+│  Source device   │ ───────────────────────────────────▶│  Target device   │
+│  (MagicShare)    │      via Firebase Cloud Messaging   │  (MagicShare)    │
+└────────┬─────────┘                                     └─────────┬────────┘
+         │                                                         │
+         │           direct P2P transfer (LocalSend protocol,      │
+         └────────────  HTTPS, on-the-fly TLS certs)  ─────────────┘
+                              encrypted payload
+```
+
+Firebase responsibilities (and *only* these):
+
+- Anonymous account creation.
+- Per-account device registry (device ID, name, push token, public key).
+- Delivery of opaque, encrypted metadata pushes between a user's own devices.
+
+Everything else — payload, file content, link content — never leaves the
+two devices involved in the transfer.
+
+---
+
+## Relationship to LocalSend
+
+MagicShare is a respectful fork. LocalSend is a great app and the team
+behind it has done excellent work. The goal here is not to replace it but
+to explore a different point in the design space: trading "no servers at
+all" for "minimal server, much better UX" while keeping the security
+properties intact.
+
+If you don't need cross-network sending or notification-driven receive,
+[LocalSend](https://github.com/localsend/localsend) is probably what you
+want.
+
+License is unchanged from the upstream project — see [LICENSE](LICENSE).
+
+---
+
+## Building
+
+MagicShare uses the same toolchain as LocalSend.
+
+1. Install Flutter [directly](https://flutter.dev) or via [fvm](https://fvm.app)
+   (see version in [.fvmrc](.fvmrc)).
+2. Install [Rust](https://www.rust-lang.org/tools/install).
+3. Clone this repository.
+4. `cd app`
+5. `flutter pub get`
+6. `flutter run`
+
+> [!NOTE]
+> The project pins a specific Flutter version in `.fvmrc`. Using a different
+> system Flutter can cause build errors. Run `fvm flutter ...` instead of
+> `flutter ...` when in doubt.
+
+### Platform builds
+
+Run from the `app` directory.
+
+| Platform | Command                                            |
+|----------|----------------------------------------------------|
+| Android  | `flutter build apk` / `flutter build appbundle`    |
+| iOS      | `flutter build ipa`                                |
+| macOS    | `flutter build macos`                              |
+| Windows  | `flutter build windows` / `flutter pub run msix:create` |
+| Linux    | `flutter build linux`                              |
+
+---
+
+## Network requirements
+
+For the LAN transfer leg, the same firewall rules as LocalSend apply:
 
 | Traffic Type | Protocol | Port  | Action |
 |--------------|----------|-------|--------|
 | Incoming     | TCP, UDP | 53317 | Allow  |
 | Outgoing     | TCP, UDP | Any   | Allow  |
 
-Also make sure to disable AP isolation on your router. It should be usually disabled by default but some routers may have it enabled (especially guest networks).
-See [troubleshooting](#troubleshooting) for more information.
+Disable AP isolation on your router. Some guest networks have it on by
+default, which prevents devices from reaching each other.
 
-**Portable Mode**
+For the cloud wake-up leg, devices need outbound HTTPS to Firebase.
 
-(Introduced in v1.13.0)
-
-Create a file named `settings.json` located in the same directory as the executable.
-This file can be empty.
-The app will use this file to store settings instead of the default location.
-
-**Start hidden**
-
-(Updated in v1.15.0)
-
-To start the app hidden (only in tray), use the `--hidden` flag (example: `localsend_app.exe --hidden`).
-
-On v1.14.0 and earlier, the app starts hidden if `autostart` flag is set, and the hidden setting is enabled.
-
-## How It Works
-
-LocalSend uses a secure communication protocol that allows devices to communicate with each other using a REST API. All data is sent securely over HTTPS, and the TLS/SSL certificate is generated on the fly on each device, ensuring maximum security.
-
-For more information on the LocalSend Protocol, see the [documentation](https://github.com/localsend/protocol).
-
-## Getting Started
-
-To compile LocalSend from the source code, follow these steps:
-
-1. Install Flutter [directly](https://flutter.dev) or using [fvm](https://fvm.app) (see [version required](.fvmrc))
-2. Install [Rust](https://www.rust-lang.org/tools/install)
-3. Clone the `LocalSend` repository
-4. Run `cd app` to enter the app directory
-5. Run `flutter pub get` to download dependencies
-6. Run `flutter run` to start the app
-
-> [!NOTE]
-> LocalSend currently requires an older Flutter version (specified in [.fvmrc](.fvmrc))
-> and thus build issues may be caused by a mismatch between the required and the (system-wide) installed Flutter version.  
-> To make development more consistent, LocalSend uses [fvm](https://fvm.app) to manage the project Flutter version.
-> After installing `fvm`, run `fvm flutter` instead of `flutter`.
+---
 
 ## Contributing
 
-We welcome contributions from anyone interested in helping improve LocalSend. If you'd like to contribute, there are a few ways to get involved:
+Contributions are welcome, but the project is in heavy flux right now.
+Open an issue first to discuss any non-trivial change so we don't both
+build the same thing two different ways.
 
-### Translation
+For the underlying transfer protocol, see the
+[LocalSend protocol docs](https://github.com/localsend/protocol).
 
-You can help translate LocalSend into other languages. We use the [Weblate](https://hosted.weblate.org/projects/localsend/app) platform to manage translations.
+---
 
-Alternatively, you can also contribute by forking this repository and adding translations manually.
+## Credits
 
-The translations are located in the [app/assets/i18n](https://github.com/localsend/localsend/tree/main/app/assets/i18n) directory. Edit the `_missing_translations_<locale>.json` or `strings_<locale>.i18n.json` file to add or update translations.
-
-<a href="https://hosted.weblate.org/engage/localsend/">
-<img src="https://hosted.weblate.org/widget/localsend/app/multi-auto.svg" alt="Translation status" />
-</a>
-
-**_Take note:_ Fields decorated with `@` are not meant to be translated; they are not used in the app in any way, being merely informative text about the file or to give context to the translator.**
-
-### Bug Fixes and Improvements
-
-- **Bug Fixes:** If you find a bug, please create a pull request with a clear description of the issue and how to fix it.
-- **Improvements:** Have an idea for how to improve LocalSend? Please create an issue first to discuss why the improvement is needed.
-
-For more information, see the [contributing guide](https://github.com/localsend/localsend/blob/main/CONTRIBUTING.md).
-
-## Troubleshooting
-
-| Issue              | Platform (Sending) | Platform (Receiving) | Solution                                                                                                                                |
-|--------------------|--------------------|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| Device not visible | Any                | Any                  | Make sure to disable AP-Isolation on your router. If it is enabled, connections between devices are forbidden.                          |
-| Device not visible | Any                | Windows              | Make sure to configure your network as a "private" network. Windows might be more restrictive when the network is configured as public. |
-| Device not visible | macOS, iOS         | Any                  | You can try to toggle the "Local Network" permission under "Privacy" in the OS settings.                                                |
-| Speed too slow     | Any                | Any                  | Use 5 Ghz; Disable encryption on both devices                                                                                           |
-| Speed too slow     | Any                | Android              | Known issue. https://github.com/flutter-cavalry/saf_stream/issues/4                                                                     |
-
-## Building
-
-These commands are intended for maintainers only. Make sure to run them from the `app` directory.
-
-### Android
-
-Traditional APK
-
-```bash
-flutter build apk
-```
-
-AppBundle for Google Play
-
-```bash
-flutter build appbundle
-```
-
-### iOS
-
-```bash
-flutter build ipa
-```
-
-### macOS
-
-```bash
-flutter build macos
-```
-
-### Windows
-
-**Traditional**
-
-```bash
-flutter build windows
-```
-
-**Local MSIX App**
-
-```bash
-flutter pub run msix:create
-```
-
-**Store ready**
-
-```bash
-flutter pub run msix:create --store
-```
-
-### Linux
-
-**Traditional**
-
-```bash
-flutter build linux
-```
-
-**AppImage**
-
-```bash
-appimage-builder --recipe AppImageBuilder.yml
-```
-
-**Snap**
-
-Instructions in [localsend/snap/README.md](https://github.com/localsend/snap/blob/main/README.md)
-
-## Contributors
-
-<a href="https://github.com/localsend/localsend/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=localsend/localsend"  alt="Localsend Contributors"/>
-</a>
+- [LocalSend](https://github.com/localsend/localsend) and its contributors
+  for the original app, protocol, and codebase this fork is built on.
