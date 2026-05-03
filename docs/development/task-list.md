@@ -170,7 +170,7 @@ lands.
     deletes the account — with Firestore state consistent at
     every step.
 
-- [ ] **Epic 5 — Pairing callables.** Implement the cloud-side of
+- [x] **Epic 5 — Pairing callables.** Implement the cloud-side of
   the pairing flow. The LAN-side key handshake is a separate epic.
 
   - `createJoinToken` (5 min one-time token in
