@@ -13,10 +13,29 @@ PODS:
     - FlutterMacOS
   - file_selector_macos (0.0.1):
     - FlutterMacOS
+  - Firebase/CoreOnly (11.15.0):
+    - FirebaseCore (~> 11.15.0)
+  - firebase_core (3.15.2):
+    - Firebase/CoreOnly (~> 11.15.0)
+    - FlutterMacOS
+  - FirebaseCore (11.15.0):
+    - FirebaseCoreInternal (~> 11.15.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GoogleUtilities/Logger (~> 8.1)
+  - FirebaseCoreInternal (11.15.0):
+    - "GoogleUtilities/NSData+zlib (~> 8.1)"
   - FlutterMacOS (1.0.0)
   - gal (1.0.0):
     - Flutter
     - FlutterMacOS
+  - GoogleUtilities/Environment (8.1.0):
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Logger (8.1.0):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Privacy
+  - "GoogleUtilities/NSData+zlib (8.1.0)":
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/Privacy (8.1.0)
   - in_app_purchase_storekit (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -65,6 +84,7 @@ DEPENDENCIES:
   - device_info_plus (from `Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos`)
   - dynamic_color (from `Flutter/ephemeral/.symlinks/plugins/dynamic_color/macos`)
   - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
+  - firebase_core (from `Flutter/ephemeral/.symlinks/plugins/firebase_core/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - gal (from `Flutter/ephemeral/.symlinks/plugins/gal/darwin`)
   - in_app_purchase_storekit (from `Flutter/ephemeral/.symlinks/plugins/in_app_purchase_storekit/darwin`)
@@ -88,6 +108,10 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - Defaults
+    - Firebase
+    - FirebaseCore
+    - FirebaseCoreInternal
+    - GoogleUtilities
 
 EXTERNAL SOURCES:
   bitsdojo_window_macos:
@@ -102,6 +126,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/dynamic_color/macos
   file_selector_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
+  firebase_core:
+    :path: Flutter/ephemeral/.symlinks/plugins/firebase_core/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   gal:
@@ -149,8 +175,13 @@ SPEC CHECKSUMS:
   device_info_plus: 4fb280989f669696856f8b129e4a5e3cd6c48f76
   dynamic_color: cb7c2a300ee67ed3bd96c3e852df3af0300bf610
   file_selector_macos: 6280b52b459ae6c590af5d78fc35c7267a3c4b31
+  Firebase: d99ac19b909cd2c548339c2241ecd0d1599ab02e
+  firebase_core: 7667f880631ae8ad10e3d6567ab7582fe0682326
+  FirebaseCore: efb3893e5b94f32b86e331e3bd6dadf18b66568e
+  FirebaseCoreInternal: 9afa45b1159304c963da48addb78275ef701c6b4
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   gal: 44e5b10dbd347c8247a2851acee6c1fbe282c1d3
+  GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   in_app_purchase_storekit: e126ef1b89e4a9fdf07e28f005f82632b4609437
   network_info_plus: 21d1cd6a015ccb2fdff06a1fbfa88d54b4e92f61
   open_dir_macos: 79810d7921d777f8732bf6358b3a0839a8fad9b5
