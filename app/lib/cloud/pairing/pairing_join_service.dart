@@ -69,6 +69,25 @@ class PairingJoinService {
     );
     if (!reachable) return const PairingPreviewLanUnreachable();
 
+    // Anonymous sign-in if not already signed in. previewJoinToken
+    // requires an authenticated caller (the unguessable tokenId is
+    // the actual authorisation, but the cloud function gates the
+    // call on `request.auth` being present). The welcome-card
+    // route lands here without an account / device — so a fresh
+    // anon UID is the only thing that lets the cloud function read
+    // back the target group's preview. completePairing does the
+    // same check; this mirrors it so previews work too.
+    if (authGateway.currentUserId() == null) {
+      try {
+        await authGateway.signInAnonymously();
+      } catch (e, st) {
+        _logger.warning('Pre-preview anonymous sign-in failed', e, st);
+        return const PairingPreviewCloudFailure(
+          PairingCloudFailureReason.unauthorized,
+        );
+      }
+    }
+
     try {
       final preview = await cloudFunctionsClient.previewJoinToken(tokenId: payload.tokenId);
       return PairingPreviewSuccess(preview);
