@@ -1204,6 +1204,9 @@ class TranslationsSettingsTabDeviceGroupEn {
 
   /// en: 'Coming soon'
   String get comingSoon => 'Coming soon';
+
+  late final TranslationsSettingsTabDeviceGroupWelcomeEn welcome = TranslationsSettingsTabDeviceGroupWelcomeEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupCloudOffEn cloudOff = TranslationsSettingsTabDeviceGroupCloudOffEn.internal(_root);
 }
 
 // Path: settingsTab.other
@@ -1968,6 +1971,67 @@ class TranslationsSettingsTabDeviceGroupErrorsEn {
 
   /// en: 'Something went wrong. Try again.'
   String get generic => 'Something went wrong. Try again.';
+}
+
+// Path: settingsTab.deviceGroup.welcome
+class TranslationsSettingsTabDeviceGroupWelcomeEn {
+  TranslationsSettingsTabDeviceGroupWelcomeEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Set up your device group'
+  String get title => 'Set up your device group';
+
+  /// en: 'MagicShare can wake your other devices over a push notification when you send a file or link. Pick how you'd like to start — you can change this later in Settings.'
+  String get body =>
+      'MagicShare can wake your other devices over a push notification when you send a file or link. Pick how you\'d like to start — you can change this later in Settings.';
+
+  /// en: 'Create a new group'
+  String get createNewGroup => 'Create a new group';
+
+  /// en: 'This device becomes the first member. Add more devices by inviting them.'
+  String get createNewGroupHint => 'This device becomes the first member. Add more devices by inviting them.';
+
+  /// en: 'Join an existing group'
+  String get joinExistingGroup => _root.settingsTab.deviceGroup.joinExistingGroup;
+
+  /// en: 'Scan a QR code from another device that's already set up.'
+  String get joinExistingGroupHint => 'Scan a QR code from another device that\'s already set up.';
+
+  /// en: 'Use without cloud'
+  String get useWithoutCloud => 'Use without cloud';
+
+  /// en: 'Skip the cloud features. The app keeps working over local Wi-Fi like vanilla LocalSend.'
+  String get useWithoutCloudHint => 'Skip the cloud features. The app keeps working over local Wi-Fi like vanilla LocalSend.';
+
+  /// en: 'Creating your device group…'
+  String get creating => 'Creating your device group…';
+
+  /// en: 'Couldn't create the device group. Try again?'
+  String get createFailed => 'Couldn\'t create the device group. Try again?';
+
+  /// en: 'Retry'
+  String get retry => 'Retry';
+}
+
+// Path: settingsTab.deviceGroup.cloudOff
+class TranslationsSettingsTabDeviceGroupCloudOffEn {
+  TranslationsSettingsTabDeviceGroupCloudOffEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Cloud sync is off'
+  String get title => 'Cloud sync is off';
+
+  /// en: 'Local Wi-Fi transfers still work. Re-enable cloud sync to wake other devices over push.'
+  String get body => 'Local Wi-Fi transfers still work. Re-enable cloud sync to wake other devices over push.';
+
+  /// en: 'Turn on cloud sync'
+  String get enable => 'Turn on cloud sync';
 }
 
 // Path: progressPage.total.title

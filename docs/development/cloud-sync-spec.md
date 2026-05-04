@@ -108,8 +108,15 @@ maintenance. Cost target: well under \$1/month per active user.
 
 #### Account & Device Lifecycle
 
-- On first launch, the app creates an anonymous Firebase account and
-  registers the current device under it.
+- On first launch, the device-group settings section shows a welcome
+  card with three options: **Create a new group** (creates the
+  anonymous Firebase account and registers this device under it),
+  **Join an existing group** (pairing flow — see below), or **Use
+  without cloud** (sets the cloud-sync master toggle off; the app
+  behaves like stock LocalSend). Anonymous-account creation is
+  deferred until the user explicitly picks *Create* or *Join* — this
+  avoids leaving an orphaned account behind whenever a new install
+  pairs straight into an existing group.
 - The app stores the account ID and a per-group shared encryption key
   locally in secure storage.
 - A user can rename their own device. The new name propagates to other

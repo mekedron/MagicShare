@@ -7,8 +7,12 @@ import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
+import 'package:magicshare_app/provider/persistence_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_group_section.dart';
+import 'package:mockito/mockito.dart';
 import 'package:refena_flutter/refena_flutter.dart';
+
+import '../../mocks.mocks.dart';
 
 /// Subclass of [AccountRepository] whose init() short-circuits to the
 /// supplied state so we can render any branch of the section under test.
@@ -32,6 +36,43 @@ class _FakeAccountRepository extends AccountRepository {
   AccountState init() => _initial;
 }
 
+/// Subclass of [CloudAuthService] whose init() returns a fixed state and
+/// whose [signInForNewGroup] just records the call. Real Firebase Auth is
+/// never reached because the gateway streams are stubs.
+class _FakeAuthService extends CloudAuthService {
+  _FakeAuthService(this._initial)
+    : super(
+        gateway: CloudAuthGateway(
+          userIdChanges: () => const Stream<String?>.empty(),
+          signInAnonymously: () async => 'fake-uid',
+          currentUserId: () => null,
+          deleteCurrentUser: () async {},
+        ),
+      );
+
+  final CloudAuthState _initial;
+  int signInForNewGroupCalls = 0;
+
+  @override
+  CloudAuthState init() => _initial;
+
+  @override
+  Future<void> signInForNewGroup() async {
+    signInForNewGroupCalls++;
+  }
+}
+
+MockPersistenceService _stubPersistence({required bool cloudSyncEnabled}) {
+  final mock = MockPersistenceService();
+  when(mock.getShowToken()).thenReturn('token');
+  when(mock.getAlias()).thenReturn('alias');
+  when(mock.getMulticastGroup()).thenReturn('224.0.0.0');
+  when(mock.getPort()).thenReturn(53317);
+  when(mock.getDiscoveryTimeout()).thenReturn(500);
+  when(mock.getCloudSyncEnabled()).thenReturn(cloudSyncEnabled);
+  return mock;
+}
+
 CloudDevice _device({
   required String id,
   required String name,
@@ -49,11 +90,21 @@ CloudDevice _device({
   );
 }
 
-Future<void> _pump(WidgetTester tester, AccountState state) async {
+Future<_FakeAuthService> _pump(
+  WidgetTester tester,
+  AccountState state, {
+  CloudAuthState authState = const CloudAuthAuthenticated('fake-uid'),
+  bool cloudSyncEnabled = true,
+}) async {
   LocaleSettings.setLocaleSync(AppLocale.en);
+  final auth = _FakeAuthService(authState);
   await tester.pumpWidget(
     RefenaScope(
       overrides: [
+        persistenceProvider.overrideWithValue(
+          _stubPersistence(cloudSyncEnabled: cloudSyncEnabled),
+        ),
+        cloudAuthProvider.overrideWithNotifier((ref) => auth),
         accountRepositoryProvider.overrideWithNotifier((ref) => _FakeAccountRepository(state)),
       ],
       child: TranslationProvider(
@@ -69,6 +120,7 @@ Future<void> _pump(WidgetTester tester, AccountState state) async {
   );
   await tester.pump();
   await tester.pump();
+  return auth;
 }
 
 void main() {
@@ -249,6 +301,97 @@ void main() {
 
       expect(find.text('Delete this device group?'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Delete group'), findsOneWidget);
+    });
+  });
+
+  group('welcome card', () {
+    testWidgets('renders three CTAs when auth state is AwaitingChoice', (tester) async {
+      await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAwaitingChoice(),
+      );
+
+      expect(find.text('Set up your device group'), findsOneWidget);
+      expect(find.text('Create a new group'), findsOneWidget);
+      expect(find.text('Join an existing group'), findsOneWidget);
+      expect(find.text('Use without cloud'), findsOneWidget);
+      // No loading spinner.
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('tapping Create a new group calls signInForNewGroup', (tester) async {
+      final auth = await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAwaitingChoice(),
+      );
+
+      await tester.tap(find.text('Create a new group'));
+      await tester.pump();
+
+      expect(auth.signInForNewGroupCalls, 1);
+    });
+
+    testWidgets('tapping Join an existing group surfaces the coming-soon snackbar', (tester) async {
+      await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAwaitingChoice(),
+      );
+
+      // The Join CTA shares its label with the AccountReady card's button —
+      // here the AccountReady branch isn't rendered so the welcome instance
+      // is the only match.
+      await tester.tap(find.text('Join an existing group'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Coming soon'), findsOneWidget);
+    });
+
+    testWidgets('tapping Use without cloud flips cloudSyncEnabled and hides the card', (tester) async {
+      await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAwaitingChoice(),
+      );
+
+      expect(find.text('Set up your device group'), findsOneWidget);
+      await tester.tap(find.text('Use without cloud'));
+      await tester.pump();
+      await tester.pump();
+
+      // Section disappears entirely once cloud sync is off.
+      expect(find.text('Set up your device group'), findsNothing);
+      expect(find.text('Device group'), findsNothing);
+    });
+
+    testWidgets('renders an inline error banner when auth state is Failed', (tester) async {
+      await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthFailed(message: 'boom', error: 'boom'),
+      );
+
+      expect(find.text('Set up your device group'), findsOneWidget);
+      expect(find.text("Couldn't create the device group. Try again?"), findsOneWidget);
+      // Primary CTA flips to "Retry".
+      expect(find.text('Retry'), findsOneWidget);
+    });
+  });
+
+  group('cloud-sync-off rendering', () {
+    testWidgets('hides the section when cloudSyncEnabled is false', (tester) async {
+      await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAwaitingChoice(),
+        cloudSyncEnabled: false,
+      );
+
+      expect(find.text('Device group'), findsNothing);
+      expect(find.text('Set up your device group'), findsNothing);
     });
   });
 }

@@ -72,18 +72,47 @@ void main() {
       await backend.dispose();
     });
 
-    test('signs in anonymously when no UID exists', () async {
+    test('rests in AwaitingChoice when no UID exists; no auto sign-in', () async {
       final backend = _FakeAuthBackend();
       final tester = Notifier.test<CloudAuthService, CloudAuthState>(
         notifier: CloudAuthService(gateway: backend.gateway()),
       );
 
-      // The transition through SigningIn is racy with microtask scheduling
-      // — assert the eventual outcome rather than the intermediate state.
       await pumpEventQueue();
+      expect(tester.state, isA<CloudAuthAwaitingChoice>());
+      expect(backend.signInCallCount, 0);
+      await backend.dispose();
+    });
+  });
+
+  group('CloudAuthService.signInForNewGroup', () {
+    test('triggers anonymous sign-in and lands in Authenticated', () async {
+      final backend = _FakeAuthBackend()..nextSignInUid = 'fresh-uid';
+      final tester = Notifier.test<CloudAuthService, CloudAuthState>(
+        notifier: CloudAuthService(gateway: backend.gateway()),
+      );
+      expect(tester.state, isA<CloudAuthAwaitingChoice>());
+
+      await tester.notifier.signInForNewGroup();
+      await pumpEventQueue();
+
       expect(backend.signInCallCount, 1);
       expect(tester.state, isA<CloudAuthAuthenticated>());
-      expect((tester.state as CloudAuthAuthenticated).uid, 'anon-uid-1');
+      expect((tester.state as CloudAuthAuthenticated).uid, 'fresh-uid');
+      await backend.dispose();
+    });
+
+    test('is a no-op when already authenticated', () async {
+      final backend = _FakeAuthBackend()..currentUid = 'existing';
+      final tester = Notifier.test<CloudAuthService, CloudAuthState>(
+        notifier: CloudAuthService(gateway: backend.gateway()),
+      );
+
+      await tester.notifier.signInForNewGroup();
+      await pumpEventQueue();
+
+      expect(backend.signInCallCount, 0);
+      expect(tester.state, isA<CloudAuthAuthenticated>());
       await backend.dispose();
     });
   });
@@ -103,7 +132,7 @@ void main() {
       await backend.dispose();
     });
 
-    test('signs back in when stream emits null mid-session', () async {
+    test('drops to AwaitingChoice when stream emits null mid-session', () async {
       final backend = _FakeAuthBackend()..currentUid = 'existing';
       final tester = Notifier.test<CloudAuthService, CloudAuthState>(
         notifier: CloudAuthService(gateway: backend.gateway()),
@@ -112,13 +141,11 @@ void main() {
 
       backend.emit(null);
       await Future<void>.delayed(Duration.zero);
-      // SigningIn observed transiently — then anon-uid-1 emitted via the
-      // sign-in path's emit().
-      await Future<void>.delayed(Duration.zero);
 
-      expect(backend.signInCallCount, 1);
-      expect(tester.state, isA<CloudAuthAuthenticated>());
-      expect((tester.state as CloudAuthAuthenticated).uid, 'anon-uid-1');
+      // Sign-out / external user deletion no longer auto-creates a fresh
+      // anonymous account; the user lands at the welcome card instead.
+      expect(backend.signInCallCount, 0);
+      expect(tester.state, isA<CloudAuthAwaitingChoice>());
       await backend.dispose();
     });
 
@@ -143,8 +170,10 @@ void main() {
         notifier: CloudAuthService(gateway: backend.gateway()),
       );
 
-      expect(tester.state, isA<CloudAuthSigningIn>());
-      await Future<void>.delayed(Duration.zero);
+      // No auto-sign-in: starts at AwaitingChoice. Trigger explicitly.
+      expect(tester.state, isA<CloudAuthAwaitingChoice>());
+      await tester.notifier.signInForNewGroup();
+      await pumpEventQueue();
 
       expect(tester.state, isA<CloudAuthFailed>());
       expect((tester.state as CloudAuthFailed).message, contains('sign-in unavailable'));
@@ -156,12 +185,13 @@ void main() {
       final tester = Notifier.test<CloudAuthService, CloudAuthState>(
         notifier: CloudAuthService(gateway: backend.gateway()),
       );
-      await Future<void>.delayed(Duration.zero);
+      await tester.notifier.signInForNewGroup();
+      await pumpEventQueue();
       expect(tester.state, isA<CloudAuthFailed>());
 
       backend.signInThrows = null;
       await tester.notifier.retrySignIn();
-      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
 
       expect(backend.signInCallCount, 2);
       expect(tester.state, isA<CloudAuthAuthenticated>());

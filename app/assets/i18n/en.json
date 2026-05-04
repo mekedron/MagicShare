@@ -205,7 +205,25 @@
       "errors": {
         "generic": "Something went wrong. Try again."
       },
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "welcome": {
+        "title": "Set up your device group",
+        "body": "MagicShare can wake your other devices over a push notification when you send a file or link. Pick how you'd like to start — you can change this later in Settings.",
+        "createNewGroup": "Create a new group",
+        "createNewGroupHint": "This device becomes the first member. Add more devices by inviting them.",
+        "joinExistingGroup": "@:settingsTab.deviceGroup.joinExistingGroup",
+        "joinExistingGroupHint": "Scan a QR code from another device that's already set up.",
+        "useWithoutCloud": "Use without cloud",
+        "useWithoutCloudHint": "Skip the cloud features. The app keeps working over local Wi-Fi like vanilla LocalSend.",
+        "creating": "Creating your device group…",
+        "createFailed": "Couldn't create the device group. Try again?",
+        "retry": "Retry"
+      },
+      "cloudOff": {
+        "title": "Cloud sync is off",
+        "body": "Local Wi-Fi transfers still work. Re-enable cloud sync to wake other devices over push.",
+        "enable": "Turn on cloud sync"
+      }
     },
     "other": {
       "title": "Other",

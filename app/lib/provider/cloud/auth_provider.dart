@@ -60,6 +60,17 @@ class CloudAuthIdle extends CloudAuthState {
   const CloudAuthIdle();
 }
 
+/// No Firebase user is signed in and the app is waiting for the user to
+/// pick *Create new group*, *Join existing group* (Epic 11), or *Use
+/// without cloud*. The previous default of auto-creating an anonymous
+/// account on first launch is gone — that produced orphaned accounts
+/// whenever the user paired into an existing group right after install.
+/// The welcome-card UI in the device-group settings section gates
+/// progression out of this state.
+class CloudAuthAwaitingChoice extends CloudAuthState {
+  const CloudAuthAwaitingChoice();
+}
+
 class CloudAuthSigningIn extends CloudAuthState {
   const CloudAuthSigningIn();
 }
@@ -87,10 +98,11 @@ class CloudAuthFailed extends CloudAuthState {
   int get hashCode => Object.hash(message, error);
 }
 
-/// Subscribes to Firebase auth state. On startup, if no user is signed in,
-/// triggers anonymous sign-in. The persisted Firebase auth session means
-/// the same UID survives app restarts (the FirebaseAuth SDK caches it
-/// locally).
+/// Subscribes to Firebase auth state. If a Firebase user already exists
+/// (from a prior run), surfaces it as [CloudAuthAuthenticated]. Otherwise
+/// holds in [CloudAuthAwaitingChoice] until the user explicitly picks
+/// *Create new group* (which calls [signInForNewGroup]) or pairs into an
+/// existing group via Epic 11.
 class CloudAuthService extends Notifier<CloudAuthState> {
   CloudAuthService({CloudAuthGateway? gateway}) : _gateway = gateway ?? CloudAuthGateway.live();
 
@@ -102,24 +114,19 @@ class CloudAuthService extends Notifier<CloudAuthState> {
   CloudAuthState init() {
     final currentUid = _gateway.currentUserId();
     // Idempotent: NotifierTester invokes init() twice during construction;
-    // production RefenaScope invokes it once. Subscribing or kicking off
-    // sign-in more than once would double-bill the side-effects.
+    // production RefenaScope invokes it once. Subscribing twice would
+    // double-bill the stream listener.
     if (!_started) {
       _started = true;
       _subscription = _gateway.userIdChanges().listen(
         _handleUidChange,
         onError: _handleStreamError,
       );
-      if (currentUid == null) {
-        // Fire-and-forget: sign-in proceeds in the background, results are
-        // surfaced via state transitions on the auth-state stream listener.
-        unawaited(_signIn());
-      }
     }
     if (currentUid != null) {
       return CloudAuthAuthenticated(currentUid);
     }
-    return const CloudAuthSigningIn();
+    return const CloudAuthAwaitingChoice();
   }
 
   void _handleUidChange(String? uid) {
@@ -127,12 +134,12 @@ class CloudAuthService extends Notifier<CloudAuthState> {
       state = CloudAuthAuthenticated(uid);
       return;
     }
-    // Stream emitted null — Firebase signed the user out (e.g. account
-    // deletion). Re-trigger sign-in unless we're already in flight.
-    if (state is! CloudAuthSigningIn) {
-      state = const CloudAuthSigningIn();
-      unawaited(_signIn());
-    }
+    // Stream emitted null — the Firebase user is gone (sign-out, account
+    // deletion, etc.). Drop back to AwaitingChoice unless a destroy-group
+    // sign-in is already running (which pre-sets SigningIn, see
+    // [deleteAndReset]).
+    if (state is CloudAuthSigningIn) return;
+    state = const CloudAuthAwaitingChoice();
   }
 
   void _handleStreamError(Object error, StackTrace stack) {
@@ -150,6 +157,17 @@ class CloudAuthService extends Notifier<CloudAuthState> {
     }
   }
 
+  /// User explicitly picked *Create new group* on the welcome card.
+  /// Triggers anonymous sign-in; [CloudBootstrapService] then provisions
+  /// the cloud account and registers this device. No-op if already
+  /// signed in or already mid-sign-in.
+  Future<void> signInForNewGroup() async {
+    if (state is CloudAuthAuthenticated) return;
+    if (state is CloudAuthSigningIn) return;
+    state = const CloudAuthSigningIn();
+    await _signIn();
+  }
+
   /// Public retry hook for the rare path where sign-in failed and the user
   /// (or a UI button) wants to try again.
   Future<void> retrySignIn() async {
@@ -158,14 +176,16 @@ class CloudAuthService extends Notifier<CloudAuthState> {
     await _signIn();
   }
 
-  /// Deletes the current Firebase Auth user. The auth-state stream then
-  /// emits `null`, which [_handleUidChange] picks up and turns into a
-  /// fresh anonymous sign-in. The next [CloudAuthAuthenticated] carries
-  /// a brand new UID — this is what callers (e.g. destroy-group) rely
-  /// on to re-bootstrap with a new account. State is intentionally not
-  /// pre-set here so [_handleUidChange]'s SigningIn guard can still
-  /// trigger the re-sign-in path.
+  /// Deletes the current Firebase Auth user and immediately starts a new
+  /// anonymous sign-in. State is pre-set to SigningIn so the stream
+  /// listener doesn't bounce through AwaitingChoice when the deletion
+  /// emits null on the auth stream. The next [CloudAuthAuthenticated]
+  /// carries a fresh UID — that's what destroy-group callers rely on to
+  /// re-bootstrap with a brand new account. Without this explicit
+  /// re-sign-in the user would be left at the welcome card after every
+  /// destroy-group action.
   Future<void> deleteAndReset() async {
+    state = const CloudAuthSigningIn();
     try {
       await _gateway.deleteCurrentUser();
     } catch (e, st) {
@@ -173,6 +193,7 @@ class CloudAuthService extends Notifier<CloudAuthState> {
       state = CloudAuthFailed(message: 'Auth user deletion failed: $e', error: e);
       rethrow;
     }
+    await _signIn();
   }
 
   @override

@@ -8,7 +8,9 @@ import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/account_reset_service.dart';
+import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
+import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_detail_sheet.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_list_tile.dart';
 import 'package:magicshare_app/widget/dialogs/cloud_device_icon_picker_dialog.dart';
@@ -27,11 +29,27 @@ class CloudDeviceGroupSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.ref.watch(accountRepositoryProvider);
-    return switch (state) {
+    final ref = context.ref;
+    final cloudSyncEnabled = ref.watch(settingsProvider.select((s) => s.cloudSyncEnabled));
+    final authState = ref.watch(cloudAuthProvider);
+    final accountState = ref.watch(accountRepositoryProvider);
+
+    if (accountState is AccountUnsupported) {
+      return const SizedBox.shrink();
+    }
+    if (!cloudSyncEnabled) {
+      return const SizedBox.shrink();
+    }
+    if (authState is CloudAuthAwaitingChoice) {
+      return const _WelcomeCard();
+    }
+    if (authState is CloudAuthFailed) {
+      return const _WelcomeCard(showSignInError: true);
+    }
+    return switch (accountState) {
       AccountUnsupported() => const SizedBox.shrink(),
-      AccountIdle() => const _LoadingCard(),
-      AccountLoading() => const _LoadingCard(),
+      AccountIdle() => _LoadingCard(creating: authState is CloudAuthSigningIn),
+      AccountLoading() => _LoadingCard(creating: authState is CloudAuthSigningIn),
       AccountReady(:final currentDeviceId, :final devices) => _ReadyCard(
         currentDeviceId: currentDeviceId,
         devices: devices,
@@ -42,10 +60,12 @@ class CloudDeviceGroupSection extends StatelessWidget {
 }
 
 class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
+  final bool creating;
+  const _LoadingCard({this.creating = false});
 
   @override
   Widget build(BuildContext context) {
+    final l = t.settingsTab.deviceGroup;
     return _SectionShell(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),
@@ -58,8 +78,163 @@ class _LoadingCard extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: 12),
-            Text(t.settingsTab.deviceGroup.loading),
+            Text(creating ? l.welcome.creating : l.loading),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// First-launch welcome card. Three calls-to-action: create a new group
+/// (anonymous sign-in + bootstrap), join an existing group (Epic 11), or
+/// opt out of cloud features entirely (settings.cloudSyncEnabled = false).
+/// When [showSignInError] is true, an inline banner explains that the
+/// previous sign-in attempt failed; tapping *Create a new group* retries.
+class _WelcomeCard extends StatelessWidget {
+  final bool showSignInError;
+  const _WelcomeCard({this.showSignInError = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = t.settingsTab.deviceGroup.welcome;
+    final scheme = Theme.of(context).colorScheme;
+    return _SectionShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 4),
+          Text(
+            l.title,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l.body,
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+          if (showSignInError) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: scheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: scheme.onErrorContainer, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l.createFailed,
+                      style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          _WelcomeAction(
+            icon: Icons.add_circle_outline,
+            title: showSignInError ? l.retry : l.createNewGroup,
+            subtitle: l.createNewGroupHint,
+            primary: true,
+            onTap: () => _onCreate(context),
+          ),
+          const SizedBox(height: 8),
+          _WelcomeAction(
+            icon: Icons.qr_code_scanner_outlined,
+            title: l.joinExistingGroup,
+            subtitle: l.joinExistingGroupHint,
+            onTap: () => _onJoin(context),
+          ),
+          const SizedBox(height: 8),
+          _WelcomeAction(
+            icon: Icons.cloud_off_outlined,
+            title: l.useWithoutCloud,
+            subtitle: l.useWithoutCloudHint,
+            onTap: () => _onUseWithoutCloud(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onCreate(BuildContext context) async {
+    await context.ref.notifier(cloudAuthProvider).signInForNewGroup();
+  }
+
+  void _onJoin(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t.settingsTab.deviceGroup.comingSoon)),
+    );
+  }
+
+  Future<void> _onUseWithoutCloud(BuildContext context) async {
+    await context.ref.notifier(settingsProvider).setCloudSyncEnabled(false);
+  }
+}
+
+class _WelcomeAction extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool primary;
+  final VoidCallback onTap;
+
+  const _WelcomeAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final background = primary ? scheme.primaryContainer : scheme.surfaceContainerHighest;
+    final foreground = primary ? scheme.onPrimaryContainer : scheme.onSurface;
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: foreground),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: foreground.withValues(alpha: 0.85),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
