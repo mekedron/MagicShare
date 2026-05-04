@@ -89,6 +89,21 @@ jobs:
         working-directory: common
         run: dart test
 
+  rust-core:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+      - name: Test (core)
+        working-directory: core
+        run: cargo test --features full --lib
+
   packaging:
     runs-on: ubuntu-latest
 
