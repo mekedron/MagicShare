@@ -1,7 +1,9 @@
 # Firebase local development
 
 > Reference spec: [`cloud-sync-spec.md`](./cloud-sync-spec.md). Task list:
-> [`task-list.md`](./task-list.md).
+> [`task-list.md`](./task-list.md). Pairing-flow specific testing
+> recipes (including the Android-emulator-as-issuer workaround):
+> [`pairing-testing.md`](./pairing-testing.md).
 
 This page explains how to run the MagicShare Firebase backend locally.
 Everything in this guide runs against the **Firebase emulator suite** —
