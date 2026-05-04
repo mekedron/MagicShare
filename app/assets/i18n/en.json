@@ -147,6 +147,66 @@
       "multicastGroup": "Multicast address",
       "multicastGroupWarning": "You might not be detected by other devices because you are using a custom multicast address. (default: {defaultMulticast})"
     },
+    "deviceGroup": {
+      "title": "Device group",
+      "thisDevice": "This device",
+      "presenceOnline": "Online",
+      "presenceOffline": "Offline",
+      "inviteDevice": "Invite a device",
+      "joinExistingGroup": "Join an existing group",
+      "deleteGroup": "Delete this device group",
+      "loading": "Loading device group…",
+      "loadFailed": "Could not load device group.",
+      "loadRetry": "Retry",
+      "actions": {
+        "rename": "Rename",
+        "changeIcon": "Change icon",
+        "removeFromGroup": "Remove from group",
+        "leaveOrDestroy": "Leave or destroy this group"
+      },
+      "renameDialog": {
+        "title": "Rename device",
+        "label": "Display name",
+        "save": "Save"
+      },
+      "iconPickerDialog": {
+        "title": "Choose an icon",
+        "icons": {
+          "laptop": "Laptop",
+          "desktop": "Desktop",
+          "phone": "Phone",
+          "tablet": "Tablet",
+          "server": "Server",
+          "headless": "Headless",
+          "other": "Generic"
+        }
+      },
+      "removeDialog": {
+        "title": "Remove device?",
+        "body": "Remove {device} from this group? It will need to pair again to send to your other devices.",
+        "confirm": "Remove"
+      },
+      "leaveDialog": {
+        "title": "Leave this group?",
+        "body": "This device will leave the group and create a new one of its own. If it is the last device in the group, the group is destroyed.",
+        "confirm": "Leave"
+      },
+      "deleteGroupDialog": {
+        "title": "Delete this device group?",
+        "body": "All devices will leave the group. The group is destroyed everywhere. This device will create a fresh empty group.",
+        "confirm": "Delete group"
+      },
+      "snackbars": {
+        "renamed": "Device renamed",
+        "iconUpdated": "Icon updated",
+        "removed": "Device removed",
+        "groupDeleted": "Device group deleted"
+      },
+      "errors": {
+        "generic": "Something went wrong. Try again."
+      },
+      "comingSoon": "Coming soon"
+    },
     "other": {
       "title": "Other",
       "support": "Support upstream LocalSend",

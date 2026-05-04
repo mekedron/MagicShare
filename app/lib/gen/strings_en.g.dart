@@ -272,6 +272,7 @@ class TranslationsSettingsTabEn {
   late final TranslationsSettingsTabReceiveEn receive = TranslationsSettingsTabReceiveEn.internal(_root);
   late final TranslationsSettingsTabSendEn send = TranslationsSettingsTabSendEn.internal(_root);
   late final TranslationsSettingsTabNetworkEn network = TranslationsSettingsTabNetworkEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupEn deviceGroup = TranslationsSettingsTabDeviceGroupEn.internal(_root);
   late final TranslationsSettingsTabOtherEn other = TranslationsSettingsTabOtherEn.internal(_root);
 
   /// en: 'Advanced settings'
@@ -393,8 +394,11 @@ class TranslationsReceivePageEn {
   // Translations
 
   /// en: '(one) {wants to send you a file} (other) {wants to send you {n} files}'
-  String subTitle({required num n}) =>
-      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'wants to send you a file', other: 'wants to send you ${n} files');
+  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(
+    n,
+    one: 'wants to send you a file',
+    other: 'wants to send you ${n} files',
+  );
 
   /// en: 'sent you a message:'
   String get subTitleMessage => 'sent you a message:';
@@ -1147,6 +1151,61 @@ class TranslationsSettingsTabNetworkEn {
       'You might not be detected by other devices because you are using a custom multicast address. (default: ${defaultMulticast})';
 }
 
+// Path: settingsTab.deviceGroup
+class TranslationsSettingsTabDeviceGroupEn {
+  TranslationsSettingsTabDeviceGroupEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Device group'
+  String get title => 'Device group';
+
+  /// en: 'This device'
+  String get thisDevice => 'This device';
+
+  /// en: 'Online'
+  String get presenceOnline => 'Online';
+
+  /// en: 'Offline'
+  String get presenceOffline => 'Offline';
+
+  /// en: 'Invite a device'
+  String get inviteDevice => 'Invite a device';
+
+  /// en: 'Join an existing group'
+  String get joinExistingGroup => 'Join an existing group';
+
+  /// en: 'Delete this device group'
+  String get deleteGroup => 'Delete this device group';
+
+  /// en: 'Loading device group…'
+  String get loading => 'Loading device group…';
+
+  /// en: 'Could not load device group.'
+  String get loadFailed => 'Could not load device group.';
+
+  /// en: 'Retry'
+  String get loadRetry => 'Retry';
+
+  late final TranslationsSettingsTabDeviceGroupActionsEn actions = TranslationsSettingsTabDeviceGroupActionsEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupRenameDialogEn renameDialog = TranslationsSettingsTabDeviceGroupRenameDialogEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupIconPickerDialogEn iconPickerDialog = TranslationsSettingsTabDeviceGroupIconPickerDialogEn.internal(
+    _root,
+  );
+  late final TranslationsSettingsTabDeviceGroupRemoveDialogEn removeDialog = TranslationsSettingsTabDeviceGroupRemoveDialogEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupLeaveDialogEn leaveDialog = TranslationsSettingsTabDeviceGroupLeaveDialogEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupDeleteGroupDialogEn deleteGroupDialog = TranslationsSettingsTabDeviceGroupDeleteGroupDialogEn.internal(
+    _root,
+  );
+  late final TranslationsSettingsTabDeviceGroupSnackbarsEn snackbars = TranslationsSettingsTabDeviceGroupSnackbarsEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupErrorsEn errors = TranslationsSettingsTabDeviceGroupErrorsEn.internal(_root);
+
+  /// en: 'Coming soon'
+  String get comingSoon => 'Coming soon';
+}
+
 // Path: settingsTab.other
 class TranslationsSettingsTabOtherEn {
   TranslationsSettingsTabOtherEn.internal(this._root);
@@ -1768,6 +1827,149 @@ class TranslationsSettingsTabNetworkNetworkOptionsEn {
   String get filtered => 'Filtered';
 }
 
+// Path: settingsTab.deviceGroup.actions
+class TranslationsSettingsTabDeviceGroupActionsEn {
+  TranslationsSettingsTabDeviceGroupActionsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Rename'
+  String get rename => 'Rename';
+
+  /// en: 'Change icon'
+  String get changeIcon => 'Change icon';
+
+  /// en: 'Remove from group'
+  String get removeFromGroup => 'Remove from group';
+
+  /// en: 'Leave or destroy this group'
+  String get leaveOrDestroy => 'Leave or destroy this group';
+}
+
+// Path: settingsTab.deviceGroup.renameDialog
+class TranslationsSettingsTabDeviceGroupRenameDialogEn {
+  TranslationsSettingsTabDeviceGroupRenameDialogEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Rename device'
+  String get title => 'Rename device';
+
+  /// en: 'Display name'
+  String get label => 'Display name';
+
+  /// en: 'Save'
+  String get save => 'Save';
+}
+
+// Path: settingsTab.deviceGroup.iconPickerDialog
+class TranslationsSettingsTabDeviceGroupIconPickerDialogEn {
+  TranslationsSettingsTabDeviceGroupIconPickerDialogEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Choose an icon'
+  String get title => 'Choose an icon';
+
+  late final TranslationsSettingsTabDeviceGroupIconPickerDialogIconsEn icons = TranslationsSettingsTabDeviceGroupIconPickerDialogIconsEn.internal(
+    _root,
+  );
+}
+
+// Path: settingsTab.deviceGroup.removeDialog
+class TranslationsSettingsTabDeviceGroupRemoveDialogEn {
+  TranslationsSettingsTabDeviceGroupRemoveDialogEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Remove device?'
+  String get title => 'Remove device?';
+
+  /// en: 'Remove {device} from this group? It will need to pair again to send to your other devices.'
+  String body({required Object device}) => 'Remove ${device} from this group? It will need to pair again to send to your other devices.';
+
+  /// en: 'Remove'
+  String get confirm => 'Remove';
+}
+
+// Path: settingsTab.deviceGroup.leaveDialog
+class TranslationsSettingsTabDeviceGroupLeaveDialogEn {
+  TranslationsSettingsTabDeviceGroupLeaveDialogEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Leave this group?'
+  String get title => 'Leave this group?';
+
+  /// en: 'This device will leave the group and create a new one of its own. If it is the last device in the group, the group is destroyed.'
+  String get body =>
+      'This device will leave the group and create a new one of its own. If it is the last device in the group, the group is destroyed.';
+
+  /// en: 'Leave'
+  String get confirm => 'Leave';
+}
+
+// Path: settingsTab.deviceGroup.deleteGroupDialog
+class TranslationsSettingsTabDeviceGroupDeleteGroupDialogEn {
+  TranslationsSettingsTabDeviceGroupDeleteGroupDialogEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Delete this device group?'
+  String get title => 'Delete this device group?';
+
+  /// en: 'All devices will leave the group. The group is destroyed everywhere. This device will create a fresh empty group.'
+  String get body => 'All devices will leave the group. The group is destroyed everywhere. This device will create a fresh empty group.';
+
+  /// en: 'Delete group'
+  String get confirm => 'Delete group';
+}
+
+// Path: settingsTab.deviceGroup.snackbars
+class TranslationsSettingsTabDeviceGroupSnackbarsEn {
+  TranslationsSettingsTabDeviceGroupSnackbarsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Device renamed'
+  String get renamed => 'Device renamed';
+
+  /// en: 'Icon updated'
+  String get iconUpdated => 'Icon updated';
+
+  /// en: 'Device removed'
+  String get removed => 'Device removed';
+
+  /// en: 'Device group deleted'
+  String get groupDeleted => 'Device group deleted';
+}
+
+// Path: settingsTab.deviceGroup.errors
+class TranslationsSettingsTabDeviceGroupErrorsEn {
+  TranslationsSettingsTabDeviceGroupErrorsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Something went wrong. Try again.'
+  String get generic => 'Something went wrong. Try again.';
+}
+
 // Path: progressPage.total.title
 class TranslationsProgressPageTotalTitleEn {
   TranslationsProgressPageTotalTitleEn.internal(this._root);
@@ -1787,4 +1989,34 @@ class TranslationsProgressPageTotalTitleEn {
 
   /// en: 'Canceled by receiver'
   String get canceledReceiver => 'Canceled by receiver';
+}
+
+// Path: settingsTab.deviceGroup.iconPickerDialog.icons
+class TranslationsSettingsTabDeviceGroupIconPickerDialogIconsEn {
+  TranslationsSettingsTabDeviceGroupIconPickerDialogIconsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Laptop'
+  String get laptop => 'Laptop';
+
+  /// en: 'Desktop'
+  String get desktop => 'Desktop';
+
+  /// en: 'Phone'
+  String get phone => 'Phone';
+
+  /// en: 'Tablet'
+  String get tablet => 'Tablet';
+
+  /// en: 'Server'
+  String get server => 'Server';
+
+  /// en: 'Headless'
+  String get headless => 'Headless';
+
+  /// en: 'Generic'
+  String get other => 'Generic';
 }
