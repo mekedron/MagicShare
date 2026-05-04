@@ -113,6 +113,11 @@ pub struct RegisterResponseDto {
 pub struct PrepareUploadRequestDto {
     pub info: RegisterDto,
     pub files: HashMap<String, FileDto>,
+
+    /// MagicShare extension: nonce that lets the receiver auto-accept a
+    /// transfer triggered by a wake notification. Absent on stock LocalSend.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wake_session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,4 +174,119 @@ impl From<RegisterResponseDtoV2> for RegisterResponseDto {
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::transfer::FileDto;
+
+    fn sample_register_dto() -> RegisterDto {
+        RegisterDto {
+            alias: "Sender".to_string(),
+            version: "2.1".to_string(),
+            device_model: None,
+            device_type: None,
+            token: "sender-token".to_string(),
+            port: 53317,
+            protocol: ProtocolType::Https,
+            has_web_interface: false,
+        }
+    }
+
+    fn sample_files() -> HashMap<String, FileDto> {
+        let mut files = HashMap::new();
+        files.insert(
+            "file-1".to_string(),
+            FileDto {
+                id: "file-1".to_string(),
+                file_name: "photo.jpg".to_string(),
+                size: 1234,
+                file_type: "image/jpeg".to_string(),
+                sha256: None,
+                preview: None,
+                metadata: None,
+            },
+        );
+        files
+    }
+
+    #[test]
+    fn prepare_upload_request_round_trips_with_wake_session_id() {
+        let dto = PrepareUploadRequestDto {
+            info: sample_register_dto(),
+            files: sample_files(),
+            wake_session_id: Some("nonce-abc".to_string()),
+        };
+
+        let json = serde_json::to_string(&dto).unwrap();
+        assert!(
+            json.contains("\"wakeSessionId\":\"nonce-abc\""),
+            "expected camelCase key in {json}",
+        );
+
+        let parsed: PrepareUploadRequestDto = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.wake_session_id, Some("nonce-abc".to_string()));
+        assert_eq!(parsed.files.len(), 1);
+        assert_eq!(parsed.info.alias, "Sender");
+    }
+
+    #[test]
+    fn prepare_upload_request_omits_wake_session_id_when_none() {
+        let dto = PrepareUploadRequestDto {
+            info: sample_register_dto(),
+            files: sample_files(),
+            wake_session_id: None,
+        };
+
+        let json = serde_json::to_string(&dto).unwrap();
+        assert!(
+            !json.contains("wakeSessionId"),
+            "wakeSessionId should be skipped when None, got {json}",
+        );
+    }
+
+    #[test]
+    fn prepare_upload_request_parses_legacy_payload() {
+        // Stock LocalSend v2.1 client body: no wakeSessionId field.
+        let json = r#"{
+            "info": {
+                "alias": "Stock LocalSend",
+                "version": "2.1",
+                "token": "stock-token",
+                "port": 53317,
+                "protocol": "HTTPS"
+            },
+            "files": {
+                "file-1": {
+                    "id": "file-1",
+                    "fileName": "photo.jpg",
+                    "size": 1234,
+                    "fileType": "image/jpeg"
+                }
+            }
+        }"#;
+
+        let parsed: PrepareUploadRequestDto = serde_json::from_str(json).unwrap();
+        assert!(parsed.wake_session_id.is_none());
+        assert_eq!(parsed.info.alias, "Stock LocalSend");
+        assert_eq!(parsed.files.len(), 1);
+    }
+
+    #[test]
+    fn v3_to_v2_conversion_drops_wake_session_id() {
+        let dto = PrepareUploadRequestDto {
+            info: sample_register_dto(),
+            files: sample_files(),
+            wake_session_id: Some("nonce-abc".to_string()),
+        };
+
+        let v2: PrepareUploadRequestDtoV2 = dto.into();
+        let json = serde_json::to_string(&v2).unwrap();
+        assert!(
+            !json.contains("wakeSessionId"),
+            "v2 wire shape must not carry wakeSessionId, got {json}",
+        );
+        assert_eq!(v2.files.len(), 1);
+    }
 }

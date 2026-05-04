@@ -70,18 +70,25 @@ class FileMetadata {
 class PrepareUploadRequestDto {
   final RegisterDto info;
   final Map<String, FileDto> files;
+  final String? wakeSessionId;
 
   const PrepareUploadRequestDto({
     required this.info,
     required this.files,
+    this.wakeSessionId,
   });
 
   @override
-  int get hashCode => info.hashCode ^ files.hashCode;
+  int get hashCode => info.hashCode ^ files.hashCode ^ wakeSessionId.hashCode;
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is PrepareUploadRequestDto && runtimeType == other.runtimeType && info == other.info && files == other.files;
+      identical(this, other) ||
+      other is PrepareUploadRequestDto &&
+          runtimeType == other.runtimeType &&
+          info == other.info &&
+          files == other.files &&
+          wakeSessionId == other.wakeSessionId;
 }
 
 class PrepareUploadResponseDto {

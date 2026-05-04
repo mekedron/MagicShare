@@ -206,6 +206,7 @@ async fn client_test() -> Result<()> {
             map.insert(id, file);
             map
         },
+        wake_session_id: None,
     };
 
     let prepare_upload_response = client
