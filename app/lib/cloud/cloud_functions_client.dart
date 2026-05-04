@@ -5,6 +5,7 @@ import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
+import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
 import 'package:magicshare_app/model/cloud/requests/send_link_notification_request.dart';
 import 'package:magicshare_app/model/cloud/results/create_account_result.dart';
 import 'package:magicshare_app/model/cloud/results/create_join_token_result.dart';
@@ -182,15 +183,23 @@ class CloudFunctionsClient {
     );
   }
 
+  /// When the caller has no source account doc on this UID
+  /// (welcome-card route — anon sign-in happened only to authenticate
+  /// the call), pass [newDevice] so the backend can populate the
+  /// fresh device doc under the target account. Existing-source-group
+  /// callers omit it; the backend copies the source device's identity
+  /// over and ignores [newDevice] if supplied.
   Future<JoinNetworkResult> joinNetwork({
     required String tokenId,
     required String deviceId,
+    JoinNetworkNewDevice? newDevice,
   }) {
     return _call(
       'joinNetwork',
       <String, dynamic>{
         'tokenId': tokenId,
         'deviceId': deviceId,
+        if (newDevice != null) 'newDevice': newDevice.toJson(),
       },
       (raw) => JoinNetworkResult.fromJson(_asMap(raw)),
     );

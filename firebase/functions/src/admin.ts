@@ -1,9 +1,11 @@
 import { getApps, initializeApp } from 'firebase-admin/app';
+import { Auth, getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { Firestore, getFirestore } from 'firebase-admin/firestore';
 import { getMessaging as getAdminMessaging, type Messaging } from 'firebase-admin/messaging';
 
 let cachedDb: Firestore | undefined;
 let cachedMessaging: Messaging | undefined;
+let cachedAuth: Auth | undefined;
 
 function ensureApp(): void {
   if (getApps().length === 0) {
@@ -42,4 +44,18 @@ export function getMessaging(): Messaging {
     cachedMessaging = getAdminMessaging();
   }
   return cachedMessaging;
+}
+
+/**
+ * Returns the singleton admin Auth client used by `joinNetwork` to mint
+ * a Firebase custom token for the target account so the joining device
+ * can re-auth post-pair. Tests inject a stub minter directly into
+ * `joinNetworkLogic` instead of going through this getter.
+ */
+export function getAuth(): Auth {
+  if (!cachedAuth) {
+    ensureApp();
+    cachedAuth = getAdminAuth();
+  }
+  return cachedAuth;
 }

@@ -112,6 +112,11 @@ describe('Epic 5 integration: pairing', () => {
   const B1 = 'b1-pixel';
   const B2 = 'b2-ipad';
 
+  // Stub minter mirrors production shape but bypasses the Auth
+  // emulator round-trip. The integration test cares about Firestore
+  // state, not custom-token signing.
+  const fakeMinter = async (uid: string) => `stub-token:${uid}`;
+
   beforeEach(async () => {
     await clearEmulator();
   });
@@ -152,17 +157,20 @@ describe('Epic 5 integration: pairing', () => {
 
     // 4. B confirms: joinNetwork moves B1 into A. B was a single-device
     //    group, so its account is destroyed in the same transaction.
-    const join = await joinNetworkLogic(db, UID_B, {
-      tokenId: minted.tokenId,
-      deviceId: B1,
-    });
+    const join = await joinNetworkLogic(
+      db,
+      UID_B,
+      { tokenId: minted.tokenId, deviceId: B1 },
+      fakeMinter,
+    );
     expect(join.accountId).toBe(UID_A);
     expect(join.oldAccountDeleted).toBe(true);
     expect(join.devices.map((d) => d.deviceId).sort()).toEqual([A1, B1].sort());
+    expect(join.customToken).toBe(`stub-token:${UID_A}`);
 
     // 5. End state: A has both devices, B is gone, token is consumed,
     //    moved device is offline (waiting for the LAN-side key handshake
-    //    in Epic 11 before it can act on wake notifications).
+    //    before it can act on wake notifications).
     expect((await readAccount(UID_A))?.deviceCount).toBe(2);
     expect(await readAccount(UID_B)).toBeNull();
     expect((await listDeviceIds(UID_A)).sort()).toEqual([A1, B1].sort());
@@ -202,10 +210,12 @@ describe('Epic 5 integration: pairing', () => {
     });
 
     const minted = await createJoinTokenLogic(db, UID_A, { issuingDeviceId: A1 });
-    const join = await joinNetworkLogic(db, UID_B, {
-      tokenId: minted.tokenId,
-      deviceId: B1,
-    });
+    const join = await joinNetworkLogic(
+      db,
+      UID_B,
+      { tokenId: minted.tokenId, deviceId: B1 },
+      fakeMinter,
+    );
 
     expect(join.oldAccountDeleted).toBe(false);
     expect((await readAccount(UID_A))?.deviceCount).toBe(2);
@@ -214,6 +224,57 @@ describe('Epic 5 integration: pairing', () => {
     expect((await listDeviceIds(UID_A)).sort()).toEqual([A1, B1].sort());
     expect(await readDevice(UID_A, B1)).not.toBeNull();
     expect(await readDevice(UID_B, B1)).toBeNull();
+  });
+
+  it('welcome-card path: anon UID with no source state pairs into the target group', async () => {
+    const db = getDb();
+    const anonUid = 'transient-anon-uid';
+    const newDeviceId = 'fresh-device-from-welcome';
+
+    // A bootstraps as before; B is a pristine install that has only
+    // signed in anonymously to authenticate the call — no
+    // createAccount, no registerDevice on B's UID yet.
+    await createAccountLogic(db, UID_A);
+    await registerDeviceLogic(db, UID_A, {
+      deviceId: A1,
+      displayName: 'MacBook Pro',
+      icon: 'laptop',
+      fcmToken: 'fcm-a1',
+      platform: 'macos',
+    });
+
+    const minted = await createJoinTokenLogic(db, UID_A, { issuingDeviceId: A1 });
+    const join = await joinNetworkLogic(
+      db,
+      anonUid,
+      {
+        tokenId: minted.tokenId,
+        deviceId: newDeviceId,
+        newDevice: {
+          displayName: 'Niki Pixel',
+          icon: 'phone',
+          fcmToken: 'fcm-fresh',
+          platform: 'android',
+        },
+      },
+      fakeMinter,
+    );
+
+    expect(join.accountId).toBe(UID_A);
+    expect(join.oldAccountDeleted).toBe(false);
+    expect(join.customToken).toBe(`stub-token:${UID_A}`);
+    expect(join.devices.map((d) => d.deviceId).sort()).toEqual([A1, newDeviceId].sort());
+
+    // No account doc was ever created for the anon UID.
+    expect(await readAccount(anonUid)).toBeNull();
+    // Target picked up the new device with the supplied identity.
+    expect((await readAccount(UID_A))?.deviceCount).toBe(2);
+    const created = await readDevice(UID_A, newDeviceId);
+    expect(created?.displayName).toBe('Niki Pixel');
+    expect(created?.icon).toBe('phone');
+    expect(created?.platform).toBe('android');
+    expect(created?.fcmToken).toBe('fcm-fresh');
+    expect(created?.presence).toBe('offline');
   });
 });
 

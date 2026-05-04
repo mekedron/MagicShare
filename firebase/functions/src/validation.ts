@@ -121,6 +121,19 @@ export interface PreviewJoinTokenInput {
 export interface JoinNetworkInput {
   tokenId: string;
   deviceId: string;
+  /**
+   * Optional new-device fields used by the welcome-card pairing route
+   * (no source account doc exists yet for the caller's UID, so there
+   * is nothing to copy from). When the source account does exist
+   * these are ignored — the existing source device doc is copied
+   * over verbatim with `presence` reset to `offline`.
+   */
+  newDevice?: {
+    displayName: string;
+    icon: DeviceIcon;
+    fcmToken: string | null;
+    platform: DevicePlatform;
+  };
 }
 
 function asObject(raw: unknown): Record<string, unknown> {
@@ -188,10 +201,23 @@ export function parsePreviewJoinTokenInput(raw: unknown): PreviewJoinTokenInput 
 
 export function parseJoinNetworkInput(raw: unknown): JoinNetworkInput {
   const obj = asObject(raw);
-  return {
+  const result: JoinNetworkInput = {
     tokenId: assertTokenId(obj.tokenId),
     deviceId: assertDeviceId(obj.deviceId),
   };
+  if (obj.newDevice !== undefined && obj.newDevice !== null) {
+    if (!isPlainObject(obj.newDevice)) {
+      fail('newDevice', 'expected an object');
+    }
+    const nd = obj.newDevice as Record<string, unknown>;
+    result.newDevice = {
+      displayName: assertDisplayName(nd.displayName),
+      icon: assertDeviceIcon(nd.icon),
+      fcmToken: assertFcmToken(nd.fcmToken),
+      platform: assertDevicePlatform(nd.platform),
+    };
+  }
+  return result;
 }
 
 function assertEncryptedPayload(value: unknown, field: string): string {

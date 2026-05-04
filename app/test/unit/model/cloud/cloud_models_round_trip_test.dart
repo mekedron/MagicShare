@@ -241,6 +241,7 @@ void main() {
             'presence': 'online',
           },
         ],
+        'customToken': 'eyJhbGciOiJSUzI1NiJ9.fixturePayload.fixtureSig',
       };
       expect(JoinNetworkResult.fromJson(fixture).toJson(), fixture);
     });

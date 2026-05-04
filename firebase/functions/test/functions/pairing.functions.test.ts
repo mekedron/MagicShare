@@ -231,6 +231,9 @@ describe('joinNetworkLogic', () => {
   const SOURCE_DEVICE = 'source-device';
   const SOURCE_OTHER = 'source-other';
 
+  const FAKE_CUSTOM_TOKEN_PREFIX = 'fake-custom-token-for:';
+  const fakeMinter = async (uid: string) => `${FAKE_CUSTOM_TOKEN_PREFIX}${uid}`;
+
   beforeEach(async () => {
     await clearEmulator();
   });
@@ -283,16 +286,19 @@ describe('joinNetworkLogic', () => {
     await seedTargetGroupOnly();
     await seedSourceWithSurvivor();
 
-    const result = await joinNetworkLogic(getDb(), SOURCE_UID, {
-      tokenId: TOKEN_ID,
-      deviceId: SOURCE_DEVICE,
-    });
+    const result = await joinNetworkLogic(
+      getDb(),
+      SOURCE_UID,
+      { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+      fakeMinter,
+    );
 
     expect(result.accountId).toBe(TARGET_UID);
     expect(result.oldAccountDeleted).toBe(false);
     expect(result.devices.map((d) => d.deviceId).sort()).toEqual(
       [TARGET_DEVICE_A, SOURCE_DEVICE].sort(),
     );
+    expect(result.customToken).toBe(`${FAKE_CUSTOM_TOKEN_PREFIX}${TARGET_UID}`);
 
     const sourceAccount = await readAccount(SOURCE_UID);
     expect(sourceAccount).not.toBeNull();
@@ -318,10 +324,12 @@ describe('joinNetworkLogic', () => {
     await seedSourceWithLastDevice();
     await seedInboxItem(SOURCE_UID, SOURCE_DEVICE, 'pendingWake');
 
-    const result = await joinNetworkLogic(getDb(), SOURCE_UID, {
-      tokenId: TOKEN_ID,
-      deviceId: SOURCE_DEVICE,
-    });
+    const result = await joinNetworkLogic(
+      getDb(),
+      SOURCE_UID,
+      { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+      fakeMinter,
+    );
 
     expect(result.oldAccountDeleted).toBe(true);
     expect(await readAccount(SOURCE_UID)).toBeNull();
@@ -337,10 +345,12 @@ describe('joinNetworkLogic', () => {
     await seedInboxItem(SOURCE_UID, SOURCE_DEVICE, 'movingItem');
     await seedInboxItem(SOURCE_UID, SOURCE_OTHER, 'survivorItem');
 
-    await joinNetworkLogic(getDb(), SOURCE_UID, {
-      tokenId: TOKEN_ID,
-      deviceId: SOURCE_DEVICE,
-    });
+    await joinNetworkLogic(
+      getDb(),
+      SOURCE_UID,
+      { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+      fakeMinter,
+    );
 
     expect(await listInboxIds(SOURCE_UID, SOURCE_DEVICE)).toEqual([]);
     expect(await listInboxIds(SOURCE_UID, SOURCE_OTHER)).toEqual(['survivorItem']);
@@ -357,7 +367,12 @@ describe('joinNetworkLogic', () => {
     });
 
     await expect(
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE }),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
     ).rejects.toMatchObject({ code: 'failed-precondition' });
 
     const token = await readJoinToken(TOKEN_ID);
@@ -367,7 +382,12 @@ describe('joinNetworkLogic', () => {
   it('throws not-found when the token does not exist', async () => {
     await seedSourceWithLastDevice();
     await expect(
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: 'missing', deviceId: SOURCE_DEVICE }),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: 'missing', deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
     ).rejects.toMatchObject({ code: 'not-found' });
   });
 
@@ -381,7 +401,12 @@ describe('joinNetworkLogic', () => {
     });
 
     await expect(
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE }),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
     ).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
@@ -395,16 +420,26 @@ describe('joinNetworkLogic', () => {
     });
 
     await expect(
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE }),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
     ).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
-  it('throws failed-precondition when the source device does not exist', async () => {
+  it('throws failed-precondition when the source account exists but the device does not', async () => {
     await seedTargetGroupOnly();
     await seedAccount(SOURCE_UID, { deviceCount: 0 });
 
     await expect(
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE }),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
     ).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
@@ -418,7 +453,12 @@ describe('joinNetworkLogic', () => {
     });
 
     await expect(
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE }),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
     ).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
@@ -427,8 +467,18 @@ describe('joinNetworkLogic', () => {
     await seedSourceWithSurvivor();
 
     const [resA, resB] = await Promise.allSettled([
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE }),
-      joinNetworkLogic(getDb(), SOURCE_UID, { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE }),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
+      joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        fakeMinter,
+      ),
     ]);
 
     const fulfilled = [resA, resB].filter((r) => r.status === 'fulfilled');
@@ -444,6 +494,92 @@ describe('joinNetworkLogic', () => {
     expect((await readAccount(TARGET_UID))?.deviceCount).toBe(2);
     expect((await readAccount(SOURCE_UID))?.deviceCount).toBe(1);
     expect(await readDevice(TARGET_UID, SOURCE_DEVICE)).not.toBeNull();
+  });
+
+  describe('welcome-card path (no source account)', () => {
+    const NEW_DEVICE = 'new-device-from-welcome';
+    const ANON_UID = 'anon-temp-uid';
+
+    it('creates the device under the target account using newDevice fields', async () => {
+      await seedTargetGroupOnly();
+
+      const result = await joinNetworkLogic(
+        getDb(),
+        ANON_UID,
+        {
+          tokenId: TOKEN_ID,
+          deviceId: NEW_DEVICE,
+          newDevice: {
+            displayName: 'Niki iPad',
+            icon: 'tablet',
+            fcmToken: 'fcm-new-device',
+            platform: 'ios',
+          },
+        },
+        fakeMinter,
+      );
+
+      expect(result.accountId).toBe(TARGET_UID);
+      expect(result.oldAccountDeleted).toBe(false);
+      expect(result.customToken).toBe(`${FAKE_CUSTOM_TOKEN_PREFIX}${TARGET_UID}`);
+      expect(result.devices.map((d) => d.deviceId).sort()).toEqual(
+        [TARGET_DEVICE_A, NEW_DEVICE].sort(),
+      );
+
+      const created = await readDevice(TARGET_UID, NEW_DEVICE);
+      expect(created?.displayName).toBe('Niki iPad');
+      expect(created?.icon).toBe('tablet');
+      expect(created?.platform).toBe('ios');
+      expect(created?.fcmToken).toBe('fcm-new-device');
+      expect(created?.presence).toBe('offline');
+
+      // No source account doc was ever created or touched.
+      expect(await readAccount(ANON_UID)).toBeNull();
+      expect((await readAccount(TARGET_UID))?.deviceCount).toBe(2);
+
+      const token = await readJoinToken(TOKEN_ID);
+      expect(token?.consumedAt).not.toBeNull();
+    });
+
+    it('throws failed-precondition when newDevice is missing', async () => {
+      await seedTargetGroupOnly();
+
+      await expect(
+        joinNetworkLogic(
+          getDb(),
+          ANON_UID,
+          { tokenId: TOKEN_ID, deviceId: NEW_DEVICE },
+          fakeMinter,
+        ),
+      ).rejects.toMatchObject({ code: 'failed-precondition' });
+
+      const token = await readJoinToken(TOKEN_ID);
+      // Transaction must roll back fully — token should still be unconsumed.
+      expect(token?.consumedAt).toBeNull();
+    });
+  });
+
+  describe('customToken minting', () => {
+    it('uses the injected minter and includes the result in the response', async () => {
+      await seedTargetGroupOnly();
+      await seedSourceWithLastDevice();
+
+      const seen: string[] = [];
+      const minter = async (uid: string) => {
+        seen.push(uid);
+        return `signed:${uid}`;
+      };
+
+      const result = await joinNetworkLogic(
+        getDb(),
+        SOURCE_UID,
+        { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
+        minter,
+      );
+
+      expect(seen).toEqual([TARGET_UID]);
+      expect(result.customToken).toBe(`signed:${TARGET_UID}`);
+    });
   });
 
   it('rejects an empty tokenId during input parsing', () => {
@@ -465,5 +601,57 @@ describe('joinNetworkLogic', () => {
 
   it('rejects a missing deviceId during input parsing', () => {
     expect(() => parseJoinNetworkInput({ tokenId: TOKEN_ID })).toThrow(HttpsError);
+  });
+
+  it('parses a valid newDevice block', () => {
+    const out = parseJoinNetworkInput({
+      tokenId: TOKEN_ID,
+      deviceId: SOURCE_DEVICE,
+      newDevice: {
+        displayName: 'Niki iPad',
+        icon: 'tablet',
+        fcmToken: null,
+        platform: 'ios',
+      },
+    });
+    expect(out.newDevice?.displayName).toBe('Niki iPad');
+    expect(out.newDevice?.icon).toBe('tablet');
+    expect(out.newDevice?.fcmToken).toBeNull();
+    expect(out.newDevice?.platform).toBe('ios');
+  });
+
+  it('rejects a non-object newDevice', () => {
+    expect(() =>
+      parseJoinNetworkInput({ tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE, newDevice: 'bad' }),
+    ).toThrow(HttpsError);
+  });
+
+  it('rejects newDevice with an unknown icon', () => {
+    expect(() =>
+      parseJoinNetworkInput({
+        tokenId: TOKEN_ID,
+        deviceId: SOURCE_DEVICE,
+        newDevice: { displayName: 'x', icon: 'fridge', fcmToken: null, platform: 'macos' },
+      }),
+    ).toThrow(HttpsError);
+  });
+
+  it('rejects newDevice with an unknown platform', () => {
+    expect(() =>
+      parseJoinNetworkInput({
+        tokenId: TOKEN_ID,
+        deviceId: SOURCE_DEVICE,
+        newDevice: { displayName: 'x', icon: 'phone', fcmToken: null, platform: 'beos' },
+      }),
+    ).toThrow(HttpsError);
+  });
+
+  it('treats a null newDevice as absent', () => {
+    const out = parseJoinNetworkInput({
+      tokenId: TOKEN_ID,
+      deviceId: SOURCE_DEVICE,
+      newDevice: null,
+    });
+    expect(out.newDevice).toBeUndefined();
   });
 });

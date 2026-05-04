@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { FieldValue, Firestore, Timestamp } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 
-import { getDb } from './admin';
+import { getAuth, getDb } from './admin';
 import { requireAuth } from './auth';
 import { instrument } from './logging';
 import {
@@ -50,11 +50,22 @@ import {
  *   to preserve the §5.1 invariant "exactly one device group at any
  *   time" and avoid a half-paired state on failure.
  *
- * - **Custom-token re-auth is deferred to Epic 11.** Post-`joinNetwork`,
- *   the joining device's auth UID still matches the now-deleted source
- *   account. Epic 11 (Pairing UI + LAN key exchange) is the right place
- *   to add the custom-token issuance + client-side re-auth, since that
- *   is where the LAN handshake also lands.
+ * - **Custom-token re-auth.** Post-move, the joining device's auth UID
+ *   no longer matches its (now-deleted or stale) source account, and
+ *   future Firestore reads under the target account would fail under
+ *   the security rules. `joinNetwork` mints a Firebase custom token
+ *   bound to the target accountId and returns it; the client signs in
+ *   with it (replacing its prior anon UID) so subsequent reads/writes
+ *   pass the rules. Tests inject a stub minter; production wires
+ *   `getAuth().createCustomToken(uid)` via the live default minter.
+ *
+ * - **No-source-account path.** The first-launch welcome-card route
+ *   pairs *before* any account doc has been created for the joining
+ *   device's transient anon UID — there is intentionally no source
+ *   account to clean up. `joinNetwork` tolerates this: when the
+ *   source account doc is absent, source-side cleanup is skipped and
+ *   only the target-side write + token-consume + custom-token mint
+ *   run.
  *
  * - **LAN-reachability is client-side.** The server cannot verify that
  *   the calling device shares a LAN with the issuing device. Epic 11
@@ -65,6 +76,14 @@ import {
 
 const TOKEN_LIFETIME_MS = 5 * 60_000;
 const TOKEN_ID_BYTES = 24;
+
+/**
+ * Mints a Firebase custom token for [uid]. Injected so tests can swap
+ * a deterministic stub in without exercising the Auth emulator on
+ * every call (and so production code never reaches the live Auth
+ * service from inside the unit-test process).
+ */
+export type CustomTokenMinter = (uid: string) => Promise<string>;
 
 export interface CreateJoinTokenResult {
   tokenId: string;
@@ -214,12 +233,23 @@ export interface JoinNetworkResult {
   accountId: string;
   oldAccountDeleted: boolean;
   devices: JoinTokenPreviewDevice[];
+  /**
+   * Firebase custom token bound to [accountId]. The joining client
+   * signs in with this token so its `auth.uid` switches from the
+   * pre-pair anon UID to the target account's UID and Firestore
+   * reads under the new account path start succeeding.
+   */
+  customToken: string;
 }
 
 /**
  * Atomically move the caller's device into the device group named by
  * the join token. If the source account was the moving device's only
  * home, the source account is destroyed in the same transaction.
+ * Mints a Firebase custom token bound to the target accountId so the
+ * client can re-auth to the new UID immediately after the move
+ * lands, so subsequent Firestore reads under the new account path
+ * pass the security rules.
  *
  * Behaviour:
  *
@@ -235,23 +265,31 @@ export interface JoinNetworkResult {
  *   Either way it rejects with `failed-precondition`.
  * - Resets the moved device's `presence` to `offline`. The device
  *   cannot decrypt wakes encrypted with the new group key until the
- *   LAN handshake (Epic 11) lands the new key, so showing it `online`
- *   to the new group invites premature wake attempts.
+ *   LAN handshake lands the new key, so showing it `online` to the
+ *   new group invites premature wake attempts.
  * - Out-of-transaction `recursiveDelete` sweeps subcollections that
  *   transactions can't (the moved device's old inbox on the
  *   surviving-source branch, or the entire source account subtree on
  *   the last-device branch). Mirrors `removeDeviceLogic`.
+ * - **No source account.** When the caller's account doc does not
+ *   exist (welcome-card route: anon sign-in happened only to
+ *   authenticate the callable, no account/device docs were ever
+ *   created), source-side cleanup is skipped entirely and a fresh
+ *   device doc is written under the target account using the input
+ *   alone (with a `pairing-pending` displayName / icon placeholder).
+ *   The client will overwrite these via `registerDevice` after the
+ *   custom-token re-auth completes.
  *
  * Returns the post-move target device list (public-safe projection)
- * so the joining client can render the new group state without doing
- * a Firestore read it can't yet authorize — its auth UID still
- * matches the now-deleted source account; custom-token re-auth lands
- * in Epic 11.
+ * plus a custom token bound to the target accountId so the client
+ * can switch its `auth.uid` to the new value without a separate
+ * round-trip.
  */
 export async function joinNetworkLogic(
   db: Firestore,
   sourceUid: string,
   input: JoinNetworkInput,
+  customTokenMinter: CustomTokenMinter = (uid) => getAuth().createCustomToken(uid),
 ): Promise<JoinNetworkResult> {
   const tokenRef = db.doc(joinTokenPath(input.tokenId));
   const sourceAccountRef = db.doc(accountPath(sourceUid));
@@ -281,51 +319,91 @@ export async function joinNetworkLogic(
       tx.get(sourceDeviceRef),
       tx.get(targetAccountRef),
     ]);
-    if (!sourceAccountSnap.exists) {
-      throw new HttpsError('failed-precondition', 'Source account not found.');
-    }
-    if (!sourceDeviceSnap.exists) {
-      throw new HttpsError('failed-precondition', 'Source device not found.');
-    }
     if (!targetAccountSnap.exists) {
       throw new HttpsError('failed-precondition', 'Target account not found.');
     }
 
-    const sourceAccount = sourceAccountSnap.data() as AccountDoc;
-    const sourceDevice = sourceDeviceSnap.data() as DeviceDoc;
     const now = Timestamp.now();
+    const hasSourceAccount = sourceAccountSnap.exists;
+
+    if (hasSourceAccount && !sourceDeviceSnap.exists) {
+      // Account exists but the device doesn't — partially-set-up source
+      // group. The client should have called registerDevice first; fail
+      // loudly so the joining UI surfaces a real error rather than
+      // silently "moving" a non-existent device.
+      throw new HttpsError('failed-precondition', 'Source device not found.');
+    }
 
     tx.update(tokenRef, { consumedAt: now });
-    tx.delete(sourceDeviceRef);
-    const movedDevice: DeviceDoc = {
-      ...sourceDevice,
-      presence: 'offline',
-    };
+
+    let movedDevice: DeviceDoc;
+    if (hasSourceAccount) {
+      const sourceDevice = sourceDeviceSnap.data() as DeviceDoc;
+      tx.delete(sourceDeviceRef);
+      movedDevice = { ...sourceDevice, presence: 'offline' };
+    } else {
+      // Welcome-card route: no source-side state to migrate. The
+      // client must supply the new device's identity in
+      // `input.newDevice`; otherwise we don't have enough information
+      // to write a valid device doc (icon and platform are required
+      // and have closed enums — there is no sensible "unknown"
+      // value).
+      if (!input.newDevice) {
+        throw new HttpsError(
+          'failed-precondition',
+          'newDevice is required when no source account exists for the caller.',
+        );
+      }
+      movedDevice = {
+        displayName: input.newDevice.displayName,
+        icon: input.newDevice.icon,
+        fcmToken: input.newDevice.fcmToken,
+        platform: input.newDevice.platform,
+        lastSeenAt: now,
+        presence: 'offline',
+      };
+    }
+
     tx.set(targetDeviceRef, movedDevice);
     tx.update(targetAccountRef, {
       deviceCount: FieldValue.increment(1),
       lastActiveAt: now,
     });
 
+    if (!hasSourceAccount) {
+      return { accountId: token.accountId, oldAccountDeleted: false, hadSourceAccount: false };
+    }
+
+    const sourceAccount = sourceAccountSnap.data() as AccountDoc;
     if (sourceAccount.deviceCount > 1) {
       tx.update(sourceAccountRef, {
         deviceCount: FieldValue.increment(-1),
         lastActiveAt: now,
       });
-      return { accountId: token.accountId, oldAccountDeleted: false };
+      return { accountId: token.accountId, oldAccountDeleted: false, hadSourceAccount: true };
     }
     tx.delete(sourceAccountRef);
-    return { accountId: token.accountId, oldAccountDeleted: true };
+    return { accountId: token.accountId, oldAccountDeleted: true, hadSourceAccount: true };
   });
 
-  if (result.oldAccountDeleted) {
-    await db.recursiveDelete(sourceAccountRef);
-  } else {
-    await db.recursiveDelete(sourceDeviceRef);
+  if (result.hadSourceAccount) {
+    if (result.oldAccountDeleted) {
+      await db.recursiveDelete(sourceAccountRef);
+    } else {
+      await db.recursiveDelete(sourceDeviceRef);
+    }
   }
 
-  const devices = await listGroupDevicesForPreview(db, result.accountId);
-  return { ...result, devices };
+  const [devices, customToken] = await Promise.all([
+    listGroupDevicesForPreview(db, result.accountId),
+    customTokenMinter(result.accountId),
+  ]);
+  return {
+    accountId: result.accountId,
+    oldAccountDeleted: result.oldAccountDeleted,
+    devices,
+    customToken,
+  };
 }
 
 export const joinNetwork = onCall<unknown, Promise<JoinNetworkResult>>(

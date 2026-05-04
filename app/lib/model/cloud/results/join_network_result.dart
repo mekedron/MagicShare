@@ -18,10 +18,17 @@ class JoinNetworkResult with JoinNetworkResultMappable {
   /// joined device.
   final List<JoinTokenPreviewDevice> devices;
 
+  /// Firebase custom token bound to [accountId]. The client signs in
+  /// with this so its `auth.uid` switches from the pre-pair anon UID
+  /// to the target account's UID — Firestore reads under the new
+  /// account path then pass the security rules.
+  final String customToken;
+
   const JoinNetworkResult({
     required this.accountId,
     required this.oldAccountDeleted,
     required this.devices,
+    required this.customToken,
   });
 
   static const fromJson = JoinNetworkResultMapper.fromJson;

@@ -7,6 +7,7 @@ import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cloud/delivery_channel.dart';
 import 'package:magicshare_app/model/cloud/inbox_item_type.dart';
+import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
 import 'package:magicshare_app/model/cloud/requests/send_link_notification_request.dart';
 
 class _RecordingInvoker {
@@ -170,12 +171,13 @@ void main() {
       expect(result.devices.single.icon, CloudDeviceIcon.laptop);
     });
 
-    test('joinNetwork forwards token and device, decodes oldAccountDeleted', () async {
+    test('joinNetwork forwards token and device, decodes oldAccountDeleted + customToken', () async {
       final inv = _RecordingInvoker()
         ..respond = (_, __) => {
           'accountId': 'acct-2',
           'oldAccountDeleted': true,
           'devices': <Map<String, dynamic>>[],
+          'customToken': 'fixture-custom-token',
         };
       final c = _client(inv);
 
@@ -184,6 +186,40 @@ void main() {
       expect(inv.calls.single.data, {'tokenId': 'tok-1', 'deviceId': 'd-1'});
       expect(result.oldAccountDeleted, isTrue);
       expect(result.accountId, 'acct-2');
+      expect(result.customToken, 'fixture-custom-token');
+    });
+
+    test('joinNetwork forwards newDevice when supplied (welcome-card route)', () async {
+      final inv = _RecordingInvoker()
+        ..respond = (_, __) => {
+          'accountId': 'acct-2',
+          'oldAccountDeleted': false,
+          'devices': <Map<String, dynamic>>[],
+          'customToken': 'token',
+        };
+      final c = _client(inv);
+
+      await c.joinNetwork(
+        tokenId: 'tok-1',
+        deviceId: 'd-1',
+        newDevice: const JoinNetworkNewDevice(
+          displayName: 'Niki Pixel',
+          icon: CloudDeviceIcon.phone,
+          platform: CloudDevicePlatform.android,
+          fcmToken: 'fcm-fresh',
+        ),
+      );
+
+      expect(inv.calls.single.data, {
+        'tokenId': 'tok-1',
+        'deviceId': 'd-1',
+        'newDevice': {
+          'displayName': 'Niki Pixel',
+          'icon': 'phone',
+          'platform': 'android',
+          'fcmToken': 'fcm-fresh',
+        },
+      });
     });
 
     test('sendWake forwards opaque payload and decodes channel', () async {

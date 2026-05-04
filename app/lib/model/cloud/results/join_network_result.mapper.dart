@@ -37,12 +37,18 @@ class JoinNetworkResultMapper extends ClassMapperBase<JoinNetworkResult> {
       v.devices;
   static const Field<JoinNetworkResult, List<JoinTokenPreviewDevice>>
   _f$devices = Field('devices', _$devices);
+  static String _$customToken(JoinNetworkResult v) => v.customToken;
+  static const Field<JoinNetworkResult, String> _f$customToken = Field(
+    'customToken',
+    _$customToken,
+  );
 
   @override
   final MappableFields<JoinNetworkResult> fields = const {
     #accountId: _f$accountId,
     #oldAccountDeleted: _f$oldAccountDeleted,
     #devices: _f$devices,
+    #customToken: _f$customToken,
   };
 
   static JoinNetworkResult _instantiate(DecodingData data) {
@@ -50,6 +56,7 @@ class JoinNetworkResultMapper extends ClassMapperBase<JoinNetworkResult> {
       accountId: data.dec(_f$accountId),
       oldAccountDeleted: data.dec(_f$oldAccountDeleted),
       devices: data.dec(_f$devices),
+      customToken: data.dec(_f$customToken),
     );
   }
 
@@ -138,6 +145,7 @@ abstract class JoinNetworkResultCopyWith<
     String? accountId,
     bool? oldAccountDeleted,
     List<JoinTokenPreviewDevice>? devices,
+    String? customToken,
   });
   JoinNetworkResultCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -172,11 +180,13 @@ class _JoinNetworkResultCopyWithImpl<$R, $Out>
     String? accountId,
     bool? oldAccountDeleted,
     List<JoinTokenPreviewDevice>? devices,
+    String? customToken,
   }) => $apply(
     FieldCopyWithData({
       if (accountId != null) #accountId: accountId,
       if (oldAccountDeleted != null) #oldAccountDeleted: oldAccountDeleted,
       if (devices != null) #devices: devices,
+      if (customToken != null) #customToken: customToken,
     }),
   );
   @override
@@ -187,6 +197,7 @@ class _JoinNetworkResultCopyWithImpl<$R, $Out>
       or: $value.oldAccountDeleted,
     ),
     devices: data.get(#devices, or: $value.devices),
+    customToken: data.get(#customToken, or: $value.customToken),
   );
 
   @override
