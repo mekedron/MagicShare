@@ -1,10 +1,13 @@
 #include "../../Flutter/Flutter-Debug.xcconfig"
 #include "Warnings.xcconfig"
 
-// Local debug builds: skip code signing so we don't need a real
-// developer team / cert in the keychain. Production builds keep
-// the AppInfo.xcconfig signing settings.
-CODE_SIGN_IDENTITY = -
-CODE_SIGNING_REQUIRED = NO
-CODE_SIGNING_ALLOWED = NO
-DEVELOPMENT_TEAM =
+// Code-signing settings for local Debug builds intentionally inherit
+// from the project file (set via Xcode → Runner → Signing &
+// Capabilities). FirebaseAuth on macOS persists the anon session in
+// the keychain, which requires a real signing identity (Personal Team
+// or Apple Developer Team) — the previous "skip signing" override
+// here forced ad-hoc and broke FirebaseAuth.
+//
+// Each developer sets their own DEVELOPMENT_TEAM via Xcode's UI; that
+// value lives in `Runner.xcodeproj/project.pbxproj` and is honoured by
+// both `flutter run -d macos` and Xcode-driven builds.
