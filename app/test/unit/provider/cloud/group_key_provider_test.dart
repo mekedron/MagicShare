@@ -27,7 +27,7 @@ void main() {
     test('starts in Loading and resolves to Missing when storage is empty', () async {
       final storage = _InMemoryStorage();
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
-        notifier: GroupKeyService(storage: storage.service()),
+        notifier: GroupKeyService(storage: storage.service(), clearDeviceId: () async {}),
       );
 
       expect(tester.state, isA<GroupKeyLoading>());
@@ -39,7 +39,7 @@ void main() {
       final original = Uint8List.fromList(List.generate(32, (i) => i + 1));
       final storage = _InMemoryStorage()..put(cloudGroupKeyKey, base64Encode(original));
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
-        notifier: GroupKeyService(storage: storage.service()),
+        notifier: GroupKeyService(storage: storage.service(), clearDeviceId: () async {}),
       );
 
       await pumpEventQueue();
@@ -51,7 +51,7 @@ void main() {
     test('surfaces a corrupt stored key as GroupKeyFailed', () async {
       final storage = _InMemoryStorage()..put(cloudGroupKeyKey, base64Encode(Uint8List(16)));
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
-        notifier: GroupKeyService(storage: storage.service()),
+        notifier: GroupKeyService(storage: storage.service(), clearDeviceId: () async {}),
       );
 
       await pumpEventQueue();
@@ -66,6 +66,7 @@ void main() {
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
         notifier: GroupKeyService(
           storage: storage.service(),
+          clearDeviceId: () async {},
           keyGenerator: () => fixed,
         ),
       );
@@ -86,6 +87,7 @@ void main() {
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
         notifier: GroupKeyService(
           storage: storage.service(),
+          clearDeviceId: () async {},
           keyGenerator: () {
             calls++;
             return Uint8List.fromList(List.generate(32, (_) => calls));
@@ -106,7 +108,7 @@ void main() {
     test('writes the supplied key to storage and updates state', () async {
       final storage = _InMemoryStorage();
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
-        notifier: GroupKeyService(storage: storage.service()),
+        notifier: GroupKeyService(storage: storage.service(), clearDeviceId: () async {}),
       );
       await pumpEventQueue();
 
@@ -119,7 +121,7 @@ void main() {
 
     test('rejects a key of the wrong length', () async {
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
-        notifier: GroupKeyService(storage: _InMemoryStorage().service()),
+        notifier: GroupKeyService(storage: _InMemoryStorage().service(), clearDeviceId: () async {}),
       );
       await pumpEventQueue();
 
@@ -131,12 +133,14 @@ void main() {
   });
 
   group('GroupKeyService.clear', () {
-    test('wipes both the group key and the device id in storage', () async {
-      final storage = _InMemoryStorage()
-        ..put(cloudGroupKeyKey, base64Encode(generateGroupKey()))
-        ..put(cloudDeviceIdKey, 'existing-device-id');
+    test('wipes the group key in secure storage and invokes the device-id clear callback', () async {
+      final storage = _InMemoryStorage()..put(cloudGroupKeyKey, base64Encode(generateGroupKey()));
+      var deviceIdCleared = 0;
       final tester = Notifier.test<GroupKeyService, GroupKeyState>(
-        notifier: GroupKeyService(storage: storage.service()),
+        notifier: GroupKeyService(
+          storage: storage.service(),
+          clearDeviceId: () async => deviceIdCleared++,
+        ),
       );
       await pumpEventQueue();
       expect(tester.state, isA<GroupKeyReady>());
@@ -145,7 +149,7 @@ void main() {
 
       expect(tester.state, isA<GroupKeyMissing>());
       expect(storage.get(cloudGroupKeyKey), isNull);
-      expect(storage.get(cloudDeviceIdKey), isNull);
+      expect(deviceIdCleared, 1);
     });
   });
 }

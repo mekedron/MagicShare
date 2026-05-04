@@ -3,11 +3,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/provider/cloud/secure_storage_provider.dart';
+import 'package:magicshare_app/provider/persistence_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
-import 'package:magicshare_app/util/native/secure_storage_service.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:uuid/uuid.dart';
+
+/// Storage seam for the device id. Pulled out as a typedef-bag so tests
+/// can supply an in-memory fake instead of the real PersistenceService
+/// (which needs SharedPreferences).
+class DeviceIdStorage {
+  DeviceIdStorage({required this.read, required this.write});
+
+  final String? Function() read;
+  final Future<void> Function(String value) write;
+}
 
 /// Knows everything device-shaped about *this* installation: a stable
 /// per-install device id, a default human display name (sourced from the
@@ -16,7 +25,7 @@ import 'package:uuid/uuid.dart';
 /// `registerDevice`.
 class DeviceIdentityService {
   DeviceIdentityService({
-    required SecureStorageService storage,
+    required DeviceIdStorage storage,
     required this.aliasReader,
     TargetPlatform? platformOverride,
     String Function()? deviceIdGenerator,
@@ -24,7 +33,7 @@ class DeviceIdentityService {
        _platformOverride = platformOverride,
        _generateDeviceId = deviceIdGenerator ?? _defaultDeviceIdGenerator;
 
-  final SecureStorageService _storage;
+  final DeviceIdStorage _storage;
 
   /// Resolves the current LAN alias on every call. Held as a function
   /// rather than a captured snapshot so the value follows live edits in
@@ -61,13 +70,13 @@ class DeviceIdentityService {
   }
 
   Future<String> _resolveDeviceId() async {
-    final stored = await _storage.read(cloudDeviceIdKey);
+    final stored = _storage.read();
     if (stored != null && stored.isNotEmpty) {
       _cached = stored;
       return stored;
     }
     final fresh = _generateDeviceId();
-    await _storage.write(cloudDeviceIdKey, fresh);
+    await _storage.write(fresh);
     _cached = fresh;
     return fresh;
   }
@@ -122,8 +131,12 @@ class DeviceIdentityService {
 String _defaultDeviceIdGenerator() => const Uuid().v4();
 
 final deviceIdentityProvider = Provider<DeviceIdentityService>((ref) {
+  final persistence = ref.read(persistenceProvider);
   return DeviceIdentityService(
-    storage: ref.read(secureStorageProvider),
+    storage: DeviceIdStorage(
+      read: persistence.getCloudDeviceId,
+      write: persistence.setCloudDeviceId,
+    ),
     aliasReader: () => ref.read(settingsProvider).alias,
   );
 });

@@ -92,6 +92,7 @@ const _shareViaLinkAutoAccept = 'ls_share_via_link_auto_accept';
 const _advancedSettingsKey = 'ls_advanced_settings';
 const _cloudSyncEnabledKey = 'ls_cloud_sync_enabled';
 const _cloudWelcomeDismissedKey = 'ls_cloud_welcome_dismissed';
+const _cloudDeviceIdPrefKey = 'ls_cloud_device_id';
 
 final persistenceProvider = Provider<PersistenceService>((ref) {
   throw Exception('persistenceProvider not initialized');
@@ -449,6 +450,27 @@ class PersistenceService {
 
   Future<void> setCloudWelcomeDismissed(bool isDismissed) async {
     await _prefs.setBool(_cloudWelcomeDismissedKey, isDismissed);
+  }
+
+  /// Stable per-install device id used in `accounts/{uid}/devices/{deviceId}`.
+  /// Stored in plain SharedPreferences instead of flutter_secure_storage
+  /// because (a) it isn't a secret — every `registerDevice` call sends it
+  /// over the wire — and (b) flutter_secure_storage's macOS keychain
+  /// backend has been observed to fail to persist across app launches in
+  /// our sandboxed Personal-Team-signed builds, which produced duplicate
+  /// device docs on every restart.
+  String? getCloudDeviceId() {
+    final stored = _prefs.getString(_cloudDeviceIdPrefKey);
+    if (stored == null || stored.isEmpty) return null;
+    return stored;
+  }
+
+  Future<void> setCloudDeviceId(String deviceId) async {
+    await _prefs.setString(_cloudDeviceIdPrefKey, deviceId);
+  }
+
+  Future<void> clearCloudDeviceId() async {
+    await _prefs.remove(_cloudDeviceIdPrefKey);
   }
 
   bool isQuickSave() {

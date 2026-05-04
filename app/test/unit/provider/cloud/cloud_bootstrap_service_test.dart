@@ -52,12 +52,9 @@ class _CallableSpy {
 class _DeviceIdentityFake extends DeviceIdentityService {
   _DeviceIdentityFake({String deviceId = 'device-A'})
     : super(
-        storage: SecureStorageService(
-          gateway: SecureStorageGateway(
-            read: (_) async => deviceId,
-            write: (_, __) async {},
-            delete: (_) async {},
-          ),
+        storage: DeviceIdStorage(
+          read: () => deviceId,
+          write: (_) async {},
         ),
         aliasReader: () => 'fixture-alias',
         platformOverride: TargetPlatform.android,

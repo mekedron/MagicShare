@@ -3,22 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
-import 'package:magicshare_app/util/native/secure_storage_service.dart';
 
 class _InMemoryStorage {
-  final Map<String, String> _store = <String, String>{};
+  String? _value;
 
-  SecureStorageService service() => SecureStorageService(
-    gateway: SecureStorageGateway(
-      read: (key) async => _store[key],
-      write: (key, value) async => _store[key] = value,
-      delete: (key) async => _store.remove(key),
-    ),
+  DeviceIdStorage gateway() => DeviceIdStorage(
+    read: () => _value,
+    write: (value) async => _value = value,
   );
 
-  String? get(String key) => _store[key];
-  void put(String key, String value) => _store[key] = value;
+  String? get(Object _) => _value;
+  void put(Object _, String value) => _value = value;
 }
+
+const cloudDeviceIdKey = Object();
 
 void main() {
   group('DeviceIdentityService.ensureDeviceId', () {
@@ -26,7 +24,7 @@ void main() {
       final storage = _InMemoryStorage();
       var calls = 0;
       final service = DeviceIdentityService(
-        storage: storage.service(),
+        storage: storage.gateway(),
         aliasReader: () => 'fixture',
         deviceIdGenerator: () => 'minted-${++calls}',
       );
@@ -40,7 +38,7 @@ void main() {
       final storage = _InMemoryStorage();
       var calls = 0;
       final service = DeviceIdentityService(
-        storage: storage.service(),
+        storage: storage.gateway(),
         aliasReader: () => 'fixture',
         deviceIdGenerator: () => 'minted-${++calls}',
       );
@@ -55,7 +53,7 @@ void main() {
     test('honours an id already present in secure storage', () async {
       final storage = _InMemoryStorage()..put(cloudDeviceIdKey, 'pre-existing');
       final service = DeviceIdentityService(
-        storage: storage.service(),
+        storage: storage.gateway(),
         aliasReader: () => 'fixture',
         deviceIdGenerator: () => fail('should not be called when storage is populated'),
       );
@@ -67,14 +65,14 @@ void main() {
       final storage = _InMemoryStorage();
       var calls = 0;
       final service = DeviceIdentityService(
-        storage: storage.service(),
+        storage: storage.gateway(),
         aliasReader: () => 'fixture',
         deviceIdGenerator: () => 'minted-${++calls}',
       );
 
       await service.ensureDeviceId();
       // External state-change: storage wiped (e.g. by deleteAccount cleanup).
-      storage._store.remove(cloudDeviceIdKey);
+      storage._value = null;
       service.invalidate();
 
       final second = await service.ensureDeviceId();
@@ -91,7 +89,7 @@ void main() {
       final storage = _InMemoryStorage();
       var calls = 0;
       final service = DeviceIdentityService(
-        storage: storage.service(),
+        storage: storage.gateway(),
         aliasReader: () => 'fixture',
         deviceIdGenerator: () => 'minted-${++calls}',
       );
@@ -112,7 +110,7 @@ void main() {
     test('display name reads through to the alias function', () {
       var alias = 'first';
       final service = DeviceIdentityService(
-        storage: _InMemoryStorage().service(),
+        storage: _InMemoryStorage().gateway(),
         aliasReader: () => alias,
       );
 
@@ -169,7 +167,7 @@ void main() {
 
 DeviceIdentityService _build({required TargetPlatform platform}) {
   return DeviceIdentityService(
-    storage: _InMemoryStorage().service(),
+    storage: _InMemoryStorage().gateway(),
     aliasReader: () => 'fixture',
     platformOverride: platform,
   );

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:logging/logging.dart';
 import 'package:magicshare_app/cloud/crypto/group_key_codec.dart';
 import 'package:magicshare_app/provider/cloud/secure_storage_provider.dart';
+import 'package:magicshare_app/provider/persistence_provider.dart';
 import 'package:magicshare_app/util/native/secure_storage_service.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
@@ -53,15 +54,19 @@ class GroupKeyFailed extends GroupKeyState {
 ///   empty), which generates and persists a fresh 32-byte key.
 /// - Pairing (Epic 11) installs a key received over LAN via [replace].
 /// - Deleting the device group calls [clear] which wipes both the group
-///   key and the per-device id so the next bootstrap registers afresh.
+///   key (secure storage) and the per-device id (SharedPreferences via
+///   [clearDeviceId]) so the next bootstrap registers afresh.
 class GroupKeyService extends Notifier<GroupKeyState> {
   GroupKeyService({
     required SecureStorageService storage,
+    required Future<void> Function() clearDeviceId,
     Uint8List Function()? keyGenerator,
   }) : _storage = storage,
+       _clearDeviceId = clearDeviceId,
        _generateKey = keyGenerator ?? generateGroupKey;
 
   final SecureStorageService _storage;
+  final Future<void> Function() _clearDeviceId;
   final Uint8List Function() _generateKey;
   bool _started = false;
 
@@ -117,7 +122,7 @@ class GroupKeyService extends Notifier<GroupKeyState> {
   /// id under the new account).
   Future<void> clear() async {
     await _storage.delete(cloudGroupKeyKey);
-    await _storage.delete(cloudDeviceIdKey);
+    await _clearDeviceId();
     state = const GroupKeyMissing();
   }
 }
@@ -144,5 +149,9 @@ bool _constantTimeEqual(Uint8List a, Uint8List b) {
 }
 
 final groupKeyProvider = NotifierProvider<GroupKeyService, GroupKeyState>((ref) {
-  return GroupKeyService(storage: ref.read(secureStorageProvider));
+  final persistence = ref.read(persistenceProvider);
+  return GroupKeyService(
+    storage: ref.read(secureStorageProvider),
+    clearDeviceId: persistence.clearCloudDeviceId,
+  );
 });
