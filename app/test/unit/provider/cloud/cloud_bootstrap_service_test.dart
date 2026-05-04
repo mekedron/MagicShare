@@ -13,7 +13,6 @@ import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
 import 'package:magicshare_app/provider/cloud/fcm_provider.dart';
 import 'package:magicshare_app/provider/cloud/group_key_provider.dart';
-import 'package:magicshare_app/util/native/secure_storage_service.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 class _CallableSpy {
