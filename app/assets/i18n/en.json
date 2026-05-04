@@ -212,7 +212,7 @@
         "createNewGroup": "Create a new group",
         "createNewGroupHint": "This device becomes the first member. Add more devices by inviting them.",
         "joinExistingGroup": "@:settingsTab.deviceGroup.joinExistingGroup",
-        "joinExistingGroupHint": "Scan a QR code from another device that's already set up.",
+        "joinExistingGroupHint": "Scan a QR code or enter a short code from another device that's already set up.",
         "useWithoutCloud": "Use without cloud",
         "useWithoutCloudHint": "Skip the cloud features. The app keeps working over local Wi-Fi like vanilla LocalSend.",
         "creating": "Creating your device group…",

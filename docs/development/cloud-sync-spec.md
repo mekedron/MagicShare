@@ -134,15 +134,23 @@ maintenance. Cost target: well under \$1/month per active user.
 
 #### Pairing
 
-- From the settings screen, a user can show a pairing QR code. The QR
-  encodes three things: a short-lived (5 min) one-time join token
-  bound to the current device group, the issuing device's local
-  network address, and a temporary public key for the LAN-side key
-  handshake.
-- From the settings screen, a user can scan a pairing QR code from
-  another device. The app verifies the issuing device is reachable on
-  the same local network, fetches the target group's device list from
-  the cloud, and shows it for confirmation.
+- The pairing payload is a triple: a short-lived (5 min) one-time
+  join token bound to the current device group, the issuing device's
+  local network address, and a temporary public key for the LAN-side
+  key handshake. The payload is shown in two equivalent forms — a
+  **QR code** for camera scanning and a **short human-readable code**
+  for manual entry — so cameraless desktops, headless servers, and
+  accessibility users can pair without a webcam.
+- From the settings screen, a user can show that payload (the
+  *Invite a device* dialog renders both forms side by side) or
+  consume one (the *Join an existing group* flow has two routes:
+  a QR scanner with a *Camera unavailable — enter code instead*
+  fallback, and a manual-entry page that takes the human-readable
+  code from the clipboard or keyboard). Either issuing form pairs
+  with either consuming form.
+- After a successful scan / paste the app verifies the issuing
+  device is reachable on the same local network, fetches the target
+  group's device list from the cloud, and shows it for confirmation.
 - On confirmation, the joining device is registered under the target
   group via the cloud, opens a direct LAN connection to the issuing
   device, and receives the group's shared encryption key over that
@@ -153,8 +161,8 @@ maintenance. Cost target: well under \$1/month per active user.
   clear error (*"Both devices need to be on the same Wi-Fi to pair"*)
   and aborts. The group's shared key never leaves the local network.
 - A device can refuse pairing at any point before tapping Confirm.
-- Button names: **"Invite a device"** (show QR) and **"Join an
-  existing group"** (scan QR).
+- Button names: **"Invite a device"** (show the QR + manual code) and
+  **"Join an existing group"** (scan QR or enter code).
 
 #### Notifications
 

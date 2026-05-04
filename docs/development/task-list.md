@@ -360,38 +360,67 @@ lands.
   user-visible pairing flow plus the direct LAN handshake that
   delivers the group's shared key.
 
-  - *Invite a device* button + QR code dialog: calls
-    `createJoinToken`, renders a `pretty_qr_code` QR, shows
-    expiry countdown, copy-as-text fallback. The QR encodes the
-    join token, the issuing device's LAN address, and a temporary
-    public key.
-  - *Join an existing group* flow: button, QR scanner page (e.g.,
-    `mobile_scanner`) with camera permission handling, and the
-    pair preview dialog (calls `previewJoinToken`, renders the
-    device list for confirmation).
+  Both **QR code** and **manual code entry** are first-class
+  pairing surfaces. Cameraless desktops, headless servers, and
+  accessibility users need a non-camera path. Mobile users
+  benefit from QR's speed. Whichever issuing-side surface a
+  user picks, the joining-side surface can choose its own —
+  i.e. a QR shown on a phone can be typed in by a desktop, and
+  vice versa.
+
+  - *Invite a device* dialog (issuing side): calls
+    `createJoinToken`, then displays the join payload in **two
+    forms side by side**:
+    - a `pretty_qr_code` QR for camera scanning, and
+    - a short **human-readable code** (Base32 or similar
+      compact alphabet, grouped in 4-char chunks for typing,
+      with a *Copy* button).
+    The dialog shows an expiry countdown and refreshes the
+    code if the user keeps it open past expiry.
+  - *Join an existing group* flow (joining side) with **two
+    routes** that converge on the same `previewJoinToken` →
+    `joinNetwork` pipeline:
+    - QR scanner page (e.g. `mobile_scanner`) with camera
+      permission handling. Surfaces a *Camera unavailable —
+      enter code instead* fallback when the platform lacks a
+      camera or permission is denied.
+    - Manual code entry page: a single grouped-input field
+      that accepts the human-readable code, with paste support
+      from the system clipboard.
+    Both routes hand the decoded payload to a shared pair
+    preview dialog (renders the device list for confirmation).
   - LAN reachability check: if the issuing device's LAN address
-    is not reachable after a successful scan, show *"Both devices
-    need to be on the same Wi-Fi to pair"* and abort.
+    is not reachable after a successful scan / paste, show
+    *"Both devices need to be on the same Wi-Fi to pair"* and
+    abort.
   - LAN-side key exchange: the issuing device opens a one-shot
-    LAN endpoint protected by the temporary keypair from the QR.
-    The joining device, after `joinNetwork` succeeds, connects,
-    authenticates, and receives the group's shared key. Both
-    sides tear the endpoint down on success or after a 5 min
-    timeout.
+    LAN endpoint protected by the temporary keypair from the
+    payload. The joining device, after `joinNetwork` succeeds,
+    connects, authenticates, and receives the group's shared
+    key. Both sides tear the endpoint down on success or after
+    a 5 min timeout.
   - Post-pair flow: refresh AccountRepository, replace the
     locally stored shared key, clear the old key, show a success
     snackbar.
-  - Desktop alternative to QR scanning: a paste-token text field
-    that accepts the same payload as the QR.
+  - Joining-from-welcome integration: when the user picks *Join
+    an existing group* on the first-launch welcome card, the
+    joining route attaches the device directly to the target
+    account without first creating a temporary one — no orphan
+    Firebase Auth user. (Requires a small backend tweak: the
+    `joinNetwork` cloud function should be callable without an
+    account doc on the caller's UID.)
   - **Tests:**
-    - Widget (`flutter test`): QR display dialog (countdown,
-      copy-as-text fallback); scan preview; paste-token
-      alternative.
+    - Unit: payload codec round-trips for both QR and manual
+      forms; manual-code typo / wrong-length / expired-token
+      surfaces.
+    - Widget (`flutter test`): QR + manual-code issuer dialog
+      (countdown, copy buttons); scanner with camera-fallback;
+      manual-entry page; pair preview.
     - Integration / E2E (emulator + virtual LAN): two simulated
-      installations pair end-to-end, both end up with the same
-      shared key, the joining device's old account is
-      destroyed; cross-LAN pairing fails fast with the
-      LAN-required error.
+      installations pair end-to-end via QR; same again via
+      manual code; both end up with the same shared key, the
+      joining device's old account is destroyed; cross-LAN
+      pairing fails fast with the LAN-required error.
   - **Done when:** two simulated installations on the same LAN
     pair end-to-end, both end up with the same shared key, and
     the joining device's old (now empty) account is destroyed;

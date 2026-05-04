@@ -1998,8 +1998,8 @@ class TranslationsSettingsTabDeviceGroupWelcomeEn {
   /// en: 'Join an existing group'
   String get joinExistingGroup => _root.settingsTab.deviceGroup.joinExistingGroup;
 
-  /// en: 'Scan a QR code from another device that's already set up.'
-  String get joinExistingGroupHint => 'Scan a QR code from another device that\'s already set up.';
+  /// en: 'Scan a QR code or enter a short code from another device that's already set up.'
+  String get joinExistingGroupHint => 'Scan a QR code or enter a short code from another device that\'s already set up.';
 
   /// en: 'Use without cloud'
   String get useWithoutCloud => 'Use without cloud';
