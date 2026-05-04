@@ -18,6 +18,28 @@ import 'package:refena_flutter/refena_flutter.dart';
 
 final _logger = Logger('InviteDeviceDialog');
 
+/// Debug-only override for the LAN address advertised in the QR /
+/// manual code. Set via `--dart-define=CLOUD_PAIRING_LAN_HOST=...`.
+/// Empty (default) uses the auto-detected primary local IP. The
+/// canonical use case is testing emulator-as-issuer end-to-end:
+/// the Android emulator has no real LAN IP (its only address is
+/// qemu's NAT-internal 10.0.2.15), so the QR it would normally
+/// generate is unreachable from any host on the actual LAN. Pair
+/// this with [_kDebugLanPortOverride] and `adb forward
+/// tcp:N tcp:N` to bridge the host to the emulator's pairing
+/// server.
+const String _kDebugLanHostOverride = String.fromEnvironment(
+  'CLOUD_PAIRING_LAN_HOST',
+);
+
+/// Debug-only fixed port for the LAN handshake server. Set via
+/// `--dart-define=CLOUD_PAIRING_LAN_PORT=51820` to pin the bind
+/// to a known port so an `adb forward tcp:51820 tcp:51820` from
+/// the host can target it. 0 (default) lets the OS pick.
+const int _kDebugLanPortOverride = int.fromEnvironment(
+  'CLOUD_PAIRING_LAN_PORT',
+);
+
 /// Factory used by the dialog to spin up the LAN-side handshake
 /// server. Defaults to [PairingLanServer.new]; widget tests inject a
 /// fake [PairingLanServerHandle] implementation to drive the
@@ -40,6 +62,8 @@ PairingLanServerHandle _defaultServerFactory({
     // friendly; the production path always supplies an ECPrivateKey.
     issuerPrivateKey: issuerPrivateKey,
     groupKey: groupKey,
+    // Honour the debug port override when set. 0 = OS-chosen.
+    desiredPort: _kDebugLanPortOverride,
   );
 }
 
@@ -179,9 +203,21 @@ class _InviteDeviceDialogState extends State<InviteDeviceDialog> {
       );
       final port = await realServer.start();
 
+      // Apply the debug host override if set. Useful when running
+      // the issuer on the Android emulator: pair with
+      // `CLOUD_PAIRING_LAN_PORT` and `adb forward tcp:N tcp:N` to
+      // make 127.0.0.1 on the host route to the emulator's bound
+      // port.
+      final advertisedHost = _kDebugLanHostOverride.isNotEmpty ? _kDebugLanHostOverride : lanAddress;
+      if (_kDebugLanHostOverride.isNotEmpty) {
+        _logger.info(
+          'CLOUD_PAIRING_LAN_HOST override active: advertising $advertisedHost (real LAN ip is $lanAddress)',
+        );
+      }
+
       final payload = PairingPayload(
         tokenId: tokenResult.tokenId,
-        issuerLanAddress: lanAddress,
+        issuerLanAddress: advertisedHost,
         issuerLanPort: port,
         issuerPubKeyCompressed: compressPublicKey(keypair.publicKey),
       );

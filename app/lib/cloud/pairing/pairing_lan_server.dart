@@ -61,12 +61,18 @@ class PairingLanServer implements PairingLanServerHandle {
     required this.issuerPrivateKey,
     required this.groupKey,
     Duration timeout = kDefaultPairingHandshakeTimeout,
-  }) : _timeout = timeout;
+    int desiredPort = 0,
+  }) : _timeout = timeout,
+       _desiredPort = desiredPort;
 
   final String tokenId;
   final ECPrivateKey issuerPrivateKey;
   final Uint8List groupKey;
   final Duration _timeout;
+  // 0 = let the OS pick a free port. Non-zero values are used by the
+  // debug `CLOUD_PAIRING_LAN_PORT` knob so an `adb forward tcp:N
+  // tcp:N` from the host to the emulator can target a stable port.
+  final int _desiredPort;
 
   HttpServer? _server;
   Timer? _timeoutTimer;
@@ -91,13 +97,13 @@ class PairingLanServer implements PairingLanServerHandle {
     return s.port;
   }
 
-  /// Bind on `anyIPv4:0` (a free port chosen by the OS). The bound
-  /// port is read back via [port]. Idempotent: calling start twice
-  /// returns the existing port.
+  /// Bind on `anyIPv4:_desiredPort` (defaults to 0 — OS picks a
+  /// free port). The bound port is read back via [port]. Idempotent:
+  /// calling start twice returns the existing port.
   @override
   Future<int> start() async {
     if (_server != null) return _server!.port;
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+    final server = await HttpServer.bind(InternetAddress.anyIPv4, _desiredPort);
     _server = server;
     server.listen(_handleRequest, onError: _onServerError);
     _timeoutTimer = Timer(_timeout, () {
