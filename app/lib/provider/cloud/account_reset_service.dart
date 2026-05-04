@@ -73,6 +73,19 @@ class AccountResetService {
     _logger.info('Destroy-group flow complete');
   }
 
+  /// Triggered by AccountRepository when the account document the
+  /// user was attached to disappears from Firestore — i.e. another
+  /// device in the group ran *Delete this device group* (or this
+  /// device's row was removed by a peer). The cloud-side action is
+  /// already done; we only run the local cleanup so the user lands
+  /// back at the welcome card with a fresh anon UID on next bootstrap
+  /// instead of being stuck on a ghost group.
+  Future<void> resetForExternalGroupDeletion() async {
+    _logger.info('Starting external-group-deletion reset');
+    await _resetLocalState();
+    _logger.info('External-group-deletion reset complete');
+  }
+
   /// Leave-group only swallows notFound (the cloud already considers
   /// this device gone, e.g. after another device removed it). Other
   /// failures abort the flow because the rest of the group is supposed

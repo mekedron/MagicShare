@@ -7,6 +7,7 @@ import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
+import 'package:magicshare_app/provider/cloud/account_reset_service.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
@@ -121,6 +122,7 @@ class AccountRepositoryDeps {
     required this.authStateChanges,
     required this.deviceIdResolver,
     required this.cloudSyncEnabledReader,
+    this.onAccountVanished,
   });
 
   /// Snapshot of the current cloud auth state at attach time.
@@ -135,6 +137,17 @@ class AccountRepositoryDeps {
   /// Honours the user's master toggle. Read once at startup; we do not
   /// react to live flips (that's Epic 14).
   final bool Function() cloudSyncEnabledReader;
+
+  /// Fires when the account document we were attached to disappears
+  /// from Firestore *after* we'd previously seen it as existing — i.e.
+  /// another device in the group ran *Delete this device group*. The
+  /// initial "doc doesn't exist yet" emission during bootstrap (the
+  /// gap between anon sign-in and `createAccount`) does NOT trigger
+  /// this, only an existing → non-existing transition. Wired by the
+  /// provider factory below to AccountResetService's local cleanup.
+  /// Optional: tests that don't care about the destroy-elsewhere
+  /// flow can leave it unset.
+  final Future<void> Function()? onAccountVanished;
 }
 
 /// Live view of the current device group. Subscribes to Firestore as soon
@@ -160,6 +173,12 @@ class AccountRepository extends Notifier<AccountState> {
   CloudAccount? _latestAccount;
   List<CloudDevice> _latestDevices = const <CloudDevice>[];
   bool _started = false;
+  // Tracks whether we've seen the account doc as existing during the
+  // current attachment. Used to distinguish the "doc not created yet"
+  // bootstrap emission (false → false, no-op) from the "doc was
+  // deleted by a peer" emission (true → false, trigger callback).
+  bool _accountDocSeenExisting = false;
+  bool _externalDeletionFired = false;
 
   AccountFirestoreGateway get _gateway => _gatewayOverride ?? AccountFirestoreGateway.live();
 
@@ -225,6 +244,8 @@ class AccountRepository extends Notifier<AccountState> {
     _currentDeviceId = deviceId;
     _latestAccount = null;
     _latestDevices = const <CloudDevice>[];
+    _accountDocSeenExisting = false;
+    _externalDeletionFired = false;
     state = AccountLoading(accountId: accountId, currentDeviceId: deviceId);
 
     _accountSubscription = _gateway
@@ -232,6 +253,22 @@ class AccountRepository extends Notifier<AccountState> {
         .listen(
           (snap) {
             _latestAccount = snap;
+            if (snap != null) {
+              _accountDocSeenExisting = true;
+            } else if (_accountDocSeenExisting && !_externalDeletionFired) {
+              // Doc previously existed and now doesn't — another
+              // device in the group ran *Delete this device group*
+              // (or the cloud GC swept the account). Cleanup runs
+              // asynchronously; mark the flag immediately so a
+              // second null emission while we're awaiting doesn't
+              // re-fire the callback.
+              _externalDeletionFired = true;
+              final cb = _deps.onAccountVanished;
+              if (cb != null) {
+                _logger.info('Account doc vanished from Firestore — triggering local reset');
+                unawaited(cb());
+              }
+            }
             _emitReady();
           },
           onError: (Object error, StackTrace stack) {
@@ -338,6 +375,7 @@ final accountRepositoryProvider = NotifierProvider<AccountRepository, AccountSta
       authStateChanges: () => ref.stream(cloudAuthProvider).map((event) => event.next),
       deviceIdResolver: () => ref.read(deviceIdentityProvider).ensureDeviceId(),
       cloudSyncEnabledReader: () => ref.read(settingsProvider).cloudSyncEnabled,
+      onAccountVanished: () => ref.read(accountResetServiceProvider).resetForExternalGroupDeletion(),
     ),
   );
 });
