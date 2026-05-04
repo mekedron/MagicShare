@@ -217,7 +217,8 @@
         "useWithoutCloudHint": "Skip the cloud features. The app keeps working over local Wi-Fi like vanilla LocalSend.",
         "creating": "Creating your device group…",
         "createFailed": "Something went wrong setting up your device group. Try again — or pick a different option below.",
-        "retry": "Try again"
+        "retry": "Try again",
+        "staleSession": "Your previous device group is no longer available — the cloud doesn't recognise this device anymore. Pick how to start over."
       },
       "cloudOff": {
         "title": "Cloud sync is off",

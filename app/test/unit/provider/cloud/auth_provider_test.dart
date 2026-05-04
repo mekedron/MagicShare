@@ -9,8 +9,10 @@ class _FakeAuthBackend {
   final StreamController<String?> _controller = StreamController<String?>.broadcast();
   int signInCallCount = 0;
   int deleteCallCount = 0;
+  int signOutCallCount = 0;
   Object? signInThrows;
   Object? deleteThrows;
+  Object? signOutThrows;
   String nextSignInUid = 'anon-uid-1';
 
   /// When non-null, simulates the slot of time between calling
@@ -37,6 +39,13 @@ class _FakeAuthBackend {
     _controller.add(null);
   }
 
+  Future<void> signOut() async {
+    signOutCallCount++;
+    if (signOutThrows != null) throw signOutThrows!;
+    currentUid = null;
+    _controller.add(null);
+  }
+
   String? read() => currentUid;
 
   void emit(String? uid) {
@@ -55,6 +64,7 @@ class _FakeAuthBackend {
     signInAnonymously: signInAnonymously,
     currentUserId: read,
     deleteCurrentUser: deleteCurrentUser,
+    signOut: signOut,
   );
 }
 
@@ -217,10 +227,30 @@ void main() {
       await backend.dispose();
     });
 
-    test('surfaces deletion failures and rethrows', () async {
+    test('falls back to signOut when delete fails (stale UID case)', () async {
       final backend = _FakeAuthBackend()
-        ..currentUid = 'old-uid'
-        ..deleteThrows = StateError('requires-recent-login');
+        ..currentUid = 'stale-uid'
+        ..deleteThrows = StateError('user-not-found');
+      final tester = Notifier.test<CloudAuthService, CloudAuthState>(
+        notifier: CloudAuthService(gateway: backend.gateway()),
+      );
+
+      await tester.notifier.deleteAndReset();
+      await pumpEventQueue();
+
+      // Delete attempted, then signOut fallback ran. Stream emits null
+      // → AwaitingChoice. No exception surfaced to the caller.
+      expect(backend.deleteCallCount, 1);
+      expect(backend.signOutCallCount, 1);
+      expect(tester.state, isA<CloudAuthAwaitingChoice>());
+      await backend.dispose();
+    });
+
+    test('surfaces failure only when both delete and signOut fail', () async {
+      final backend = _FakeAuthBackend()
+        ..currentUid = 'stuck-uid'
+        ..deleteThrows = StateError('requires-recent-login')
+        ..signOutThrows = StateError('keychain locked');
       final tester = Notifier.test<CloudAuthService, CloudAuthState>(
         notifier: CloudAuthService(gateway: backend.gateway()),
       );
@@ -232,7 +262,7 @@ void main() {
       await pumpEventQueue();
 
       expect(backend.deleteCallCount, 1);
-      expect(backend.signInCallCount, 0);
+      expect(backend.signOutCallCount, 1);
       expect(tester.state, isA<CloudAuthFailed>());
       await backend.dispose();
     });

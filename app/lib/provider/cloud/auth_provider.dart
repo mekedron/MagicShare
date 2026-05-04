@@ -15,6 +15,7 @@ class CloudAuthGateway {
     required this.signInAnonymously,
     required this.currentUserId,
     required this.deleteCurrentUser,
+    required this.signOut,
   });
 
   /// Stream of UID values — null when signed out.
@@ -29,8 +30,18 @@ class CloudAuthGateway {
   /// Permanently deletes the current Firebase Auth user. Used during
   /// destroy-this-device-group so the next anonymous sign-in produces a
   /// fresh UID rather than reattaching to the just-deleted account.
-  /// No-op when there is no current user.
+  /// No-op when there is no current user. Can fail with
+  /// requires-recent-login or user-not-found when the local UID no
+  /// longer matches a server-side user — see [signOut] for the
+  /// fallback path.
   final Future<void> Function() deleteCurrentUser;
+
+  /// Clears the local Firebase Auth session without touching the
+  /// server. Used as a fallback when [deleteCurrentUser] throws (e.g.
+  /// the auth emulator was reset, requires-recent-login, or the
+  /// server-side user was already deleted out-of-band). Always
+  /// succeeds locally.
+  final Future<void> Function() signOut;
 
   factory CloudAuthGateway.live() {
     return CloudAuthGateway(
@@ -47,6 +58,7 @@ class CloudAuthGateway {
       deleteCurrentUser: () async {
         await FirebaseAuth.instance.currentUser?.delete();
       },
+      signOut: () => FirebaseAuth.instance.signOut(),
     );
   }
 }
@@ -176,20 +188,32 @@ class CloudAuthService extends Notifier<CloudAuthState> {
     await _signIn();
   }
 
-  /// Deletes the current Firebase Auth user and lets the auth-state
-  /// stream emit null, which [_handleUidChange] resolves to
-  /// [CloudAuthAwaitingChoice]. The user is then re-prompted via the
-  /// welcome card to *Create*, *Join*, or *Use without cloud* — same
-  /// model as first launch. This is intentional: a destroy-group flow
-  /// is a fresh-start moment, and silently re-creating an account
-  /// would re-introduce the orphaned-account problem the welcome card
-  /// is designed to avoid.
+  /// Discards the current Firebase Auth session and lets the
+  /// auth-state stream emit null, which [_handleUidChange] resolves
+  /// to [CloudAuthAwaitingChoice]. The user is then re-prompted via
+  /// the welcome card to *Create*, *Join*, or *Use without cloud*.
+  ///
+  /// We try [CloudAuthGateway.deleteCurrentUser] first (so the
+  /// cloud-side user record goes too — minimises orphan accounts).
+  /// If that fails for any reason — typically `requires-recent-login`,
+  /// `user-not-found`, or a stale local UID after an auth-emulator
+  /// reset — we fall back to plain sign-out, which always works
+  /// locally. Either path lands the user at the welcome card, which
+  /// is the whole point: silently re-creating an account is exactly
+  /// the orphan-account behaviour the welcome card was added to
+  /// avoid.
   Future<void> deleteAndReset() async {
     try {
       await _gateway.deleteCurrentUser();
+      return;
     } catch (e, st) {
-      _logger.warning('Auth user deletion failed', e, st);
-      state = CloudAuthFailed(message: 'Auth user deletion failed: $e', error: e);
+      _logger.warning('deleteCurrentUser failed; falling back to signOut', e, st);
+    }
+    try {
+      await _gateway.signOut();
+    } catch (e, st) {
+      _logger.warning('signOut fallback also failed', e, st);
+      state = CloudAuthFailed(message: 'Auth reset failed: $e', error: e);
       rethrow;
     }
   }

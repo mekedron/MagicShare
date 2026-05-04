@@ -2015,6 +2015,10 @@ class TranslationsSettingsTabDeviceGroupWelcomeEn {
 
   /// en: 'Try again'
   String get retry => 'Try again';
+
+  /// en: 'Your previous device group is no longer available — the cloud doesn't recognise this device anymore. Pick how to start over.'
+  String get staleSession =>
+      'Your previous device group is no longer available — the cloud doesn\'t recognise this device anymore. Pick how to start over.';
 }
 
 // Path: settingsTab.deviceGroup.cloudOff

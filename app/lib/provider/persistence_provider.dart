@@ -91,6 +91,7 @@ const _deviceModel = 'ls_device_model';
 const _shareViaLinkAutoAccept = 'ls_share_via_link_auto_accept';
 const _advancedSettingsKey = 'ls_advanced_settings';
 const _cloudSyncEnabledKey = 'ls_cloud_sync_enabled';
+const _cloudWelcomeDismissedKey = 'ls_cloud_welcome_dismissed';
 
 final persistenceProvider = Provider<PersistenceService>((ref) {
   throw Exception('persistenceProvider not initialized');
@@ -418,6 +419,19 @@ class PersistenceService {
 
   Future<void> setCloudSyncEnabled(bool isEnabled) async {
     await _prefs.setBool(_cloudSyncEnabledKey, isEnabled);
+  }
+
+  /// Whether the user has tapped *Use without cloud* on the
+  /// first-launch welcome card. Distinct from [getCloudSyncEnabled]:
+  /// dismissing the welcome doesn't disable cloud features, it only
+  /// hides the prominent welcome banner so the settings device-group
+  /// section can shrink to a quieter "set up" card.
+  bool getCloudWelcomeDismissed() {
+    return _prefs.getBool(_cloudWelcomeDismissedKey) ?? false;
+  }
+
+  Future<void> setCloudWelcomeDismissed(bool isDismissed) async {
+    await _prefs.setBool(_cloudWelcomeDismissedKey, isDismissed);
   }
 
   bool isQuickSave() {

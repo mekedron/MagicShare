@@ -7,6 +7,7 @@ import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
+import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/persistence_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_group_section.dart';
 import 'package:mockito/mockito.dart';
@@ -47,11 +48,13 @@ class _FakeAuthService extends CloudAuthService {
           signInAnonymously: () async => 'fake-uid',
           currentUserId: () => null,
           deleteCurrentUser: () async {},
+          signOut: () async {},
         ),
       );
 
   final CloudAuthState _initial;
   int signInForNewGroupCalls = 0;
+  int deleteAndResetCalls = 0;
 
   @override
   CloudAuthState init() => _initial;
@@ -60,9 +63,41 @@ class _FakeAuthService extends CloudAuthService {
   Future<void> signInForNewGroup() async {
     signInForNewGroupCalls++;
   }
+
+  @override
+  Future<void> deleteAndReset() async {
+    deleteAndResetCalls++;
+  }
 }
 
-MockPersistenceService _stubPersistence({required bool cloudSyncEnabled}) {
+class _FakeBootstrapService extends CloudBootstrapService {
+  _FakeBootstrapService(this._initial)
+    : super(
+        deps: CloudBootstrapDeps(
+          authStateReader: () => const CloudAuthIdle(),
+          authStateChanges: () => const Stream<CloudAuthState>.empty(),
+          deviceIdentity: () => throw UnimplementedError(),
+          client: () => throw UnimplementedError(),
+          fcmTokenReader: () => const FcmTokenAcquiring(),
+          fcmTokenChanges: () => const Stream<FcmTokenSnapshot>.empty(),
+          groupKeyReader: () => throw UnimplementedError(),
+          ensureGroupKey: () async {},
+          peerDeviceCountReader: () => 0,
+          cloudSyncEnabledReader: () => false,
+        ),
+        supportedOverride: false,
+      );
+
+  final BootstrapState _initial;
+
+  @override
+  BootstrapState init() => _initial;
+}
+
+MockPersistenceService _stubPersistence({
+  required bool cloudSyncEnabled,
+  bool cloudWelcomeDismissed = false,
+}) {
   final mock = MockPersistenceService();
   when(mock.getShowToken()).thenReturn('token');
   when(mock.getAlias()).thenReturn('alias');
@@ -70,6 +105,8 @@ MockPersistenceService _stubPersistence({required bool cloudSyncEnabled}) {
   when(mock.getPort()).thenReturn(53317);
   when(mock.getDiscoveryTimeout()).thenReturn(500);
   when(mock.getCloudSyncEnabled()).thenReturn(cloudSyncEnabled);
+  when(mock.getCloudWelcomeDismissed()).thenReturn(cloudWelcomeDismissed);
+  when(mock.setCloudWelcomeDismissed(any)).thenAnswer((_) async {});
   return mock;
 }
 
@@ -94,7 +131,9 @@ Future<_FakeAuthService> _pump(
   WidgetTester tester,
   AccountState state, {
   CloudAuthState authState = const CloudAuthAuthenticated('fake-uid'),
+  BootstrapState bootstrapState = const BootstrapDone(accountId: 'fake-uid', deviceId: 'fake-device'),
   bool cloudSyncEnabled = true,
+  bool cloudWelcomeDismissed = false,
 }) async {
   LocaleSettings.setLocaleSync(AppLocale.en);
   final auth = _FakeAuthService(authState);
@@ -102,9 +141,13 @@ Future<_FakeAuthService> _pump(
     RefenaScope(
       overrides: [
         persistenceProvider.overrideWithValue(
-          _stubPersistence(cloudSyncEnabled: cloudSyncEnabled),
+          _stubPersistence(
+            cloudSyncEnabled: cloudSyncEnabled,
+            cloudWelcomeDismissed: cloudWelcomeDismissed,
+          ),
         ),
         cloudAuthProvider.overrideWithNotifier((ref) => auth),
+        cloudBootstrapProvider.overrideWithNotifier((ref) => _FakeBootstrapService(bootstrapState)),
         accountRepositoryProvider.overrideWithNotifier((ref) => _FakeAccountRepository(state)),
       ],
       child: TranslationProvider(
@@ -304,19 +347,19 @@ void main() {
     });
   });
 
-  group('welcome card', () {
-    testWidgets('renders three CTAs when auth state is AwaitingChoice', (tester) async {
+  group('setup card — first-launch welcome variant', () {
+    testWidgets('renders three CTAs when auth state is AwaitingChoice and welcome not dismissed', (tester) async {
       await _pump(
         tester,
         const AccountIdle(),
         authState: const CloudAuthAwaitingChoice(),
+        bootstrapState: const BootstrapIdle(),
       );
 
       expect(find.text('Set up your device group'), findsOneWidget);
       expect(find.text('Create a new group'), findsOneWidget);
       expect(find.text('Join an existing group'), findsOneWidget);
       expect(find.text('Use without cloud'), findsOneWidget);
-      // No loading spinner.
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
@@ -325,12 +368,16 @@ void main() {
         tester,
         const AccountIdle(),
         authState: const CloudAuthAwaitingChoice(),
+        bootstrapState: const BootstrapIdle(),
       );
 
       await tester.tap(find.text('Create a new group'));
       await tester.pump();
 
       expect(auth.signInForNewGroupCalls, 1);
+      // No deleteAndReset on the AwaitingChoice path — only stale sessions
+      // need to be discarded first.
+      expect(auth.deleteAndResetCalls, 0);
     });
 
     testWidgets('tapping Join an existing group surfaces the coming-soon snackbar', (tester) async {
@@ -338,11 +385,9 @@ void main() {
         tester,
         const AccountIdle(),
         authState: const CloudAuthAwaitingChoice(),
+        bootstrapState: const BootstrapIdle(),
       );
 
-      // The Join CTA shares its label with the AccountReady card's button —
-      // here the AccountReady branch isn't rendered so the welcome instance
-      // is the only match.
       await tester.tap(find.text('Join an existing group'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -350,21 +395,25 @@ void main() {
       expect(find.text('Coming soon'), findsOneWidget);
     });
 
-    testWidgets('tapping Use without cloud flips cloudSyncEnabled and hides the card', (tester) async {
+    testWidgets('tapping Use without cloud dismisses welcome but keeps section visible', (tester) async {
       await _pump(
         tester,
         const AccountIdle(),
         authState: const CloudAuthAwaitingChoice(),
+        bootstrapState: const BootstrapIdle(),
       );
 
-      expect(find.text('Set up your device group'), findsOneWidget);
+      expect(find.text('Use without cloud'), findsOneWidget);
       await tester.tap(find.text('Use without cloud'));
       await tester.pump();
       await tester.pump();
 
-      // Section disappears entirely once cloud sync is off.
-      expect(find.text('Set up your device group'), findsNothing);
-      expect(find.text('Device group'), findsNothing);
+      // The third CTA disappears, but the section title and the Create /
+      // Join CTAs stay — the user can still set up cloud later.
+      expect(find.text('Use without cloud'), findsNothing);
+      expect(find.text('Set up your device group'), findsOneWidget);
+      expect(find.text('Create a new group'), findsOneWidget);
+      expect(find.text('Join an existing group'), findsOneWidget);
     });
 
     testWidgets('renders an inline error banner when auth state is Failed', (tester) async {
@@ -372,6 +421,7 @@ void main() {
         tester,
         const AccountIdle(),
         authState: const CloudAuthFailed(message: 'boom', error: 'boom'),
+        bootstrapState: const BootstrapIdle(),
       );
 
       expect(find.text('Set up your device group'), findsOneWidget);
@@ -379,8 +429,60 @@ void main() {
         find.textContaining('Something went wrong setting up your device group'),
         findsOneWidget,
       );
-      // Primary CTA flips to "Try again".
       expect(find.text('Try again'), findsOneWidget);
+    });
+  });
+
+  group('setup card — post-dismissal variant', () {
+    testWidgets('renders only Create + Join when welcome was dismissed', (tester) async {
+      await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAwaitingChoice(),
+        bootstrapState: const BootstrapIdle(),
+        cloudWelcomeDismissed: true,
+      );
+
+      expect(find.text('Set up your device group'), findsOneWidget);
+      expect(find.text('Create a new group'), findsOneWidget);
+      expect(find.text('Join an existing group'), findsOneWidget);
+      // Use without cloud is intentionally absent in settings — Epic 14
+      // ships a real master toggle for that.
+      expect(find.text('Use without cloud'), findsNothing);
+    });
+  });
+
+  group('setup card — stale-session variant', () {
+    testWidgets('renders the setup card when bootstrap failed under an Authenticated UID', (tester) async {
+      await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAuthenticated('stale-uid'),
+        bootstrapState: const BootstrapFailed(message: 'unknown', error: 'unknown'),
+      );
+
+      expect(find.text('Set up your device group'), findsOneWidget);
+      expect(
+        find.textContaining('Your previous device group is no longer available'),
+        findsOneWidget,
+      );
+      expect(find.text('Create a new group'), findsOneWidget);
+    });
+
+    testWidgets('Create from stale-session discards the old session before signing in', (tester) async {
+      final auth = await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAuthenticated('stale-uid'),
+        bootstrapState: const BootstrapFailed(message: 'unknown', error: 'unknown'),
+      );
+
+      await tester.tap(find.text('Create a new group'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(auth.deleteAndResetCalls, 1);
+      expect(auth.signInForNewGroupCalls, 1);
     });
   });
 

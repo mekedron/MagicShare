@@ -36,6 +36,7 @@ class SettingsState with SettingsStateMappable {
   final int discoveryTimeout;
   final bool advancedSettings;
   final bool cloudSyncEnabled;
+  final bool cloudWelcomeDismissed;
 
   const SettingsState({
     required this.showToken,
@@ -65,5 +66,6 @@ class SettingsState with SettingsStateMappable {
     required this.discoveryTimeout,
     required this.advancedSettings,
     required this.cloudSyncEnabled,
+    required this.cloudWelcomeDismissed,
   });
 }

@@ -9,6 +9,7 @@ import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/account_reset_service.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
+import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_detail_sheet.dart';
@@ -31,7 +32,9 @@ class CloudDeviceGroupSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final ref = context.ref;
     final cloudSyncEnabled = ref.watch(settingsProvider.select((s) => s.cloudSyncEnabled));
+    final welcomeDismissed = ref.watch(settingsProvider.select((s) => s.cloudWelcomeDismissed));
     final authState = ref.watch(cloudAuthProvider);
+    final bootstrapState = ref.watch(cloudBootstrapProvider);
     final accountState = ref.watch(accountRepositoryProvider);
 
     if (accountState is AccountUnsupported) {
@@ -40,12 +43,22 @@ class CloudDeviceGroupSection extends StatelessWidget {
     if (!cloudSyncEnabled) {
       return const SizedBox.shrink();
     }
-    if (authState is CloudAuthAwaitingChoice) {
-      return const _WelcomeCard();
+
+    // Stale-UID detection: if we booted with a cached UID but the cloud
+    // bootstrap couldn't complete (the account doesn't exist on the
+    // backend, the auth emulator was reset, etc.), treat the session
+    // as gone and surface the setup card so the user can pick again.
+    final staleSession = bootstrapState is BootstrapFailed && authState is CloudAuthAuthenticated;
+    final needsSetup = authState is CloudAuthAwaitingChoice || authState is CloudAuthFailed || staleSession;
+
+    if (needsSetup) {
+      return _SetupCard(
+        showWelcomeOptions: !welcomeDismissed,
+        showSignInError: authState is CloudAuthFailed,
+        showStaleSession: staleSession,
+      );
     }
-    if (authState is CloudAuthFailed) {
-      return const _WelcomeCard(showSignInError: true);
-    }
+
     return switch (accountState) {
       AccountUnsupported() => const SizedBox.shrink(),
       AccountIdle() => _LoadingCard(creating: authState is CloudAuthSigningIn),
@@ -86,14 +99,33 @@ class _LoadingCard extends StatelessWidget {
   }
 }
 
-/// First-launch welcome card. Three calls-to-action: create a new group
-/// (anonymous sign-in + bootstrap), join an existing group (Epic 11), or
-/// opt out of cloud features entirely (settings.cloudSyncEnabled = false).
-/// When [showSignInError] is true, an inline banner explains that the
-/// previous sign-in attempt failed; tapping *Create a new group* retries.
-class _WelcomeCard extends StatelessWidget {
+/// Setup card shown when there's no usable cloud session (first launch,
+/// post-destroy, or a stale UID after the backend forgot the account).
+///
+/// Two variants:
+/// - [showWelcomeOptions] true: three CTAs — *Create a new group*,
+///   *Join an existing group*, *Use without cloud*. The third dismisses
+///   the welcome surface for future launches without disabling cloud
+///   features; the user can still create / join from settings later.
+/// - [showWelcomeOptions] false: two CTAs (no *Use without cloud*).
+///   This is what the user sees on subsequent launches once they've
+///   dismissed the welcome — settings should always offer a way to
+///   set the device group up.
+///
+/// [showSignInError] adds an inline banner if the last sign-in attempt
+/// failed; [showStaleSession] adds a different banner explaining that
+/// the previous session is no longer usable so the user knows why
+/// they're being prompted to set up again.
+class _SetupCard extends StatelessWidget {
+  final bool showWelcomeOptions;
   final bool showSignInError;
-  const _WelcomeCard({this.showSignInError = false});
+  final bool showStaleSession;
+
+  const _SetupCard({
+    required this.showWelcomeOptions,
+    this.showSignInError = false,
+    this.showStaleSession = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -113,30 +145,23 @@ class _WelcomeCard extends StatelessWidget {
             l.body,
             style: TextStyle(color: scheme.onSurfaceVariant),
           ),
-          if (showSignInError) ...[
+          if (showStaleSession) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: scheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, color: scheme.onErrorContainer, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      l.createFailed,
-                      style: TextStyle(color: scheme.onErrorContainer, fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
+            _InfoBanner(
+              icon: Icons.history_toggle_off,
+              text: l.staleSession,
+              tone: _InfoBannerTone.surfaceVariant,
+            ),
+          ] else if (showSignInError) ...[
+            const SizedBox(height: 12),
+            _InfoBanner(
+              icon: Icons.error_outline,
+              text: l.createFailed,
+              tone: _InfoBannerTone.error,
             ),
           ],
           const SizedBox(height: 16),
-          _WelcomeAction(
+          _SetupAction(
             icon: Icons.add_circle_outline,
             title: showSignInError ? l.retry : l.createNewGroup,
             subtitle: l.createNewGroupHint,
@@ -144,26 +169,40 @@ class _WelcomeCard extends StatelessWidget {
             onTap: () => _onCreate(context),
           ),
           const SizedBox(height: 8),
-          _WelcomeAction(
+          _SetupAction(
             icon: Icons.qr_code_scanner_outlined,
             title: l.joinExistingGroup,
             subtitle: l.joinExistingGroupHint,
             onTap: () => _onJoin(context),
           ),
-          const SizedBox(height: 8),
-          _WelcomeAction(
-            icon: Icons.cloud_off_outlined,
-            title: l.useWithoutCloud,
-            subtitle: l.useWithoutCloudHint,
-            onTap: () => _onUseWithoutCloud(context),
-          ),
+          if (showWelcomeOptions) ...[
+            const SizedBox(height: 8),
+            _SetupAction(
+              icon: Icons.cloud_off_outlined,
+              title: l.useWithoutCloud,
+              subtitle: l.useWithoutCloudHint,
+              onTap: () => _onUseWithoutCloud(context),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Future<void> _onCreate(BuildContext context) async {
-    await context.ref.notifier(cloudAuthProvider).signInForNewGroup();
+    final ref = context.ref;
+    final auth = ref.notifier(cloudAuthProvider);
+    // Stale Authenticated state: discard the dead session before signing
+    // in fresh, or signInForNewGroup will treat us as already signed in
+    // and no-op.
+    if (ref.read(cloudAuthProvider) is CloudAuthAuthenticated) {
+      try {
+        await auth.deleteAndReset();
+      } catch (_) {
+        // Best-effort: we still want to attempt the sign-in below.
+      }
+    }
+    await auth.signInForNewGroup();
   }
 
   void _onJoin(BuildContext context) {
@@ -173,18 +212,61 @@ class _WelcomeCard extends StatelessWidget {
   }
 
   Future<void> _onUseWithoutCloud(BuildContext context) async {
-    await context.ref.notifier(settingsProvider).setCloudSyncEnabled(false);
+    // Mark the welcome dismissed so the next render drops the third CTA
+    // and the section becomes a quieter "set up cloud" prompt. Crucially
+    // this does NOT touch settings.cloudSyncEnabled — the user can still
+    // create or join a group later from this same section.
+    await context.ref.notifier(settingsProvider).setCloudWelcomeDismissed(true);
   }
 }
 
-class _WelcomeAction extends StatelessWidget {
+enum _InfoBannerTone { error, surfaceVariant }
+
+class _InfoBanner extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final _InfoBannerTone tone;
+
+  const _InfoBanner({
+    required this.icon,
+    required this.text,
+    required this.tone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (background, foreground) = switch (tone) {
+      _InfoBannerTone.error => (scheme.errorContainer, scheme.onErrorContainer),
+      _InfoBannerTone.surfaceVariant => (scheme.surfaceContainerHighest, scheme.onSurface),
+    };
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: foreground, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: TextStyle(color: foreground, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SetupAction extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final bool primary;
   final VoidCallback onTap;
 
-  const _WelcomeAction({
+  const _SetupAction({
     required this.icon,
     required this.title,
     required this.subtitle,

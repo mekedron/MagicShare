@@ -153,6 +153,12 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
     'cloudSyncEnabled',
     _$cloudSyncEnabled,
   );
+  static bool _$cloudWelcomeDismissed(SettingsState v) =>
+      v.cloudWelcomeDismissed;
+  static const Field<SettingsState, bool> _f$cloudWelcomeDismissed = Field(
+    'cloudWelcomeDismissed',
+    _$cloudWelcomeDismissed,
+  );
 
   @override
   final MappableFields<SettingsState> fields = const {
@@ -183,6 +189,7 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
     #discoveryTimeout: _f$discoveryTimeout,
     #advancedSettings: _f$advancedSettings,
     #cloudSyncEnabled: _f$cloudSyncEnabled,
+    #cloudWelcomeDismissed: _f$cloudWelcomeDismissed,
   };
 
   static SettingsState _instantiate(DecodingData data) {
@@ -214,6 +221,7 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
       discoveryTimeout: data.dec(_f$discoveryTimeout),
       advancedSettings: data.dec(_f$advancedSettings),
       cloudSyncEnabled: data.dec(_f$cloudSyncEnabled),
+      cloudWelcomeDismissed: data.dec(_f$cloudWelcomeDismissed),
     );
   }
 
@@ -311,6 +319,7 @@ abstract class SettingsStateCopyWith<$R, $In extends SettingsState, $Out>
     int? discoveryTimeout,
     bool? advancedSettings,
     bool? cloudSyncEnabled,
+    bool? cloudWelcomeDismissed,
   });
   SettingsStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -370,6 +379,7 @@ class _SettingsStateCopyWithImpl<$R, $Out>
     int? discoveryTimeout,
     bool? advancedSettings,
     bool? cloudSyncEnabled,
+    bool? cloudWelcomeDismissed,
   }) => $apply(
     FieldCopyWithData({
       if (showToken != null) #showToken: showToken,
@@ -402,6 +412,8 @@ class _SettingsStateCopyWithImpl<$R, $Out>
       if (discoveryTimeout != null) #discoveryTimeout: discoveryTimeout,
       if (advancedSettings != null) #advancedSettings: advancedSettings,
       if (cloudSyncEnabled != null) #cloudSyncEnabled: cloudSyncEnabled,
+      if (cloudWelcomeDismissed != null)
+        #cloudWelcomeDismissed: cloudWelcomeDismissed,
     }),
   );
   @override
@@ -442,6 +454,10 @@ class _SettingsStateCopyWithImpl<$R, $Out>
     discoveryTimeout: data.get(#discoveryTimeout, or: $value.discoveryTimeout),
     advancedSettings: data.get(#advancedSettings, or: $value.advancedSettings),
     cloudSyncEnabled: data.get(#cloudSyncEnabled, or: $value.cloudSyncEnabled),
+    cloudWelcomeDismissed: data.get(
+      #cloudWelcomeDismissed,
+      or: $value.cloudWelcomeDismissed,
+    ),
   );
 
   @override
