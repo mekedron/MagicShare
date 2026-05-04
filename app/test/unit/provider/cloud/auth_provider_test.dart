@@ -8,7 +8,10 @@ class _FakeAuthBackend {
   String? currentUid;
   final StreamController<String?> _controller = StreamController<String?>.broadcast();
   int signInCallCount = 0;
+  int deleteCallCount = 0;
   Object? signInThrows;
+  Object? deleteThrows;
+  String nextSignInUid = 'anon-uid-1';
 
   /// When non-null, simulates the slot of time between calling
   /// signInAnonymously and the auth-state stream emitting the new UID.
@@ -21,10 +24,17 @@ class _FakeAuthBackend {
     signInCallCount++;
     if (signInThrows != null) throw signInThrows!;
     if (signInDelay != null) await signInDelay!.future;
-    const newUid = 'anon-uid-1';
+    final newUid = nextSignInUid;
     currentUid = newUid;
     _controller.add(newUid);
     return newUid;
+  }
+
+  Future<void> deleteCurrentUser() async {
+    deleteCallCount++;
+    if (deleteThrows != null) throw deleteThrows!;
+    currentUid = null;
+    _controller.add(null);
   }
 
   String? read() => currentUid;
@@ -44,6 +54,7 @@ class _FakeAuthBackend {
     userIdChanges: userIdChanges,
     signInAnonymously: signInAnonymously,
     currentUserId: read,
+    deleteCurrentUser: deleteCurrentUser,
   );
 }
 
@@ -154,6 +165,48 @@ void main() {
 
       expect(backend.signInCallCount, 2);
       expect(tester.state, isA<CloudAuthAuthenticated>());
+      await backend.dispose();
+    });
+  });
+
+  group('CloudAuthService.deleteAndReset', () {
+    test('deletes the current user and re-signs in with a fresh UID', () async {
+      final backend = _FakeAuthBackend()
+        ..currentUid = 'old-uid'
+        ..nextSignInUid = 'fresh-uid';
+      final tester = Notifier.test<CloudAuthService, CloudAuthState>(
+        notifier: CloudAuthService(gateway: backend.gateway()),
+      );
+      expect((tester.state as CloudAuthAuthenticated).uid, 'old-uid');
+
+      await tester.notifier.deleteAndReset();
+      // Allow the stream-driven re-sign-in path to complete.
+      await pumpEventQueue();
+
+      expect(backend.deleteCallCount, 1);
+      expect(backend.signInCallCount, 1);
+      expect(tester.state, isA<CloudAuthAuthenticated>());
+      expect((tester.state as CloudAuthAuthenticated).uid, 'fresh-uid');
+      await backend.dispose();
+    });
+
+    test('surfaces deletion failures and rethrows', () async {
+      final backend = _FakeAuthBackend()
+        ..currentUid = 'old-uid'
+        ..deleteThrows = StateError('requires-recent-login');
+      final tester = Notifier.test<CloudAuthService, CloudAuthState>(
+        notifier: CloudAuthService(gateway: backend.gateway()),
+      );
+
+      await expectLater(
+        tester.notifier.deleteAndReset(),
+        throwsA(isA<StateError>()),
+      );
+      await pumpEventQueue();
+
+      expect(backend.deleteCallCount, 1);
+      expect(backend.signInCallCount, 0);
+      expect(tester.state, isA<CloudAuthFailed>());
       await backend.dispose();
     });
   });

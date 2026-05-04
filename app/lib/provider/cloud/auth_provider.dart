@@ -14,6 +14,7 @@ class CloudAuthGateway {
     required this.userIdChanges,
     required this.signInAnonymously,
     required this.currentUserId,
+    required this.deleteCurrentUser,
   });
 
   /// Stream of UID values — null when signed out.
@@ -24,6 +25,12 @@ class CloudAuthGateway {
 
   /// Synchronously reads the current UID, or null when signed out.
   final String? Function() currentUserId;
+
+  /// Permanently deletes the current Firebase Auth user. Used during
+  /// destroy-this-device-group so the next anonymous sign-in produces a
+  /// fresh UID rather than reattaching to the just-deleted account.
+  /// No-op when there is no current user.
+  final Future<void> Function() deleteCurrentUser;
 
   factory CloudAuthGateway.live() {
     return CloudAuthGateway(
@@ -37,6 +44,9 @@ class CloudAuthGateway {
         return uid;
       },
       currentUserId: () => FirebaseAuth.instance.currentUser?.uid,
+      deleteCurrentUser: () async {
+        await FirebaseAuth.instance.currentUser?.delete();
+      },
     );
   }
 }
@@ -146,6 +156,23 @@ class CloudAuthService extends Notifier<CloudAuthState> {
     if (state is CloudAuthSigningIn) return;
     state = const CloudAuthSigningIn();
     await _signIn();
+  }
+
+  /// Deletes the current Firebase Auth user. The auth-state stream then
+  /// emits `null`, which [_handleUidChange] picks up and turns into a
+  /// fresh anonymous sign-in. The next [CloudAuthAuthenticated] carries
+  /// a brand new UID — this is what callers (e.g. destroy-group) rely
+  /// on to re-bootstrap with a new account. State is intentionally not
+  /// pre-set here so [_handleUidChange]'s SigningIn guard can still
+  /// trigger the re-sign-in path.
+  Future<void> deleteAndReset() async {
+    try {
+      await _gateway.deleteCurrentUser();
+    } catch (e, st) {
+      _logger.warning('Auth user deletion failed', e, st);
+      state = CloudAuthFailed(message: 'Auth user deletion failed: $e', error: e);
+      rethrow;
+    }
   }
 
   @override
