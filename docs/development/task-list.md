@@ -306,7 +306,7 @@ lands.
     foregrounded and offline within 5 min of backgrounding;
     round-trip encryption tests pass.
 
-- [ ] **Epic 9 — LocalSend protocol extension.** Add the optional
+- [x] **Epic 9 — LocalSend protocol extension.** Add the optional
   `wakeSessionId` field that lets receivers auto-accept transfers
   triggered by a wake notification.
 
