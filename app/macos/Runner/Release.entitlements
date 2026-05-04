@@ -8,6 +8,12 @@
 	<array>
 		<string>$(AppIdentifierPrefix)magicshare.shared_group</string>
 	</array>
+	<!-- Firebase Auth on macOS persists anon credentials in the keychain;
+	     under the sandbox this requires an explicit access group. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.magicshare.app</string>
+	</array>
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
 	<key>com.apple.security.files.downloads.read-write</key>
