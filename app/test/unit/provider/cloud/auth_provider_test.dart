@@ -200,23 +200,20 @@ void main() {
   });
 
   group('CloudAuthService.deleteAndReset', () {
-    test('deletes the current user and re-signs in with a fresh UID', () async {
-      final backend = _FakeAuthBackend()
-        ..currentUid = 'old-uid'
-        ..nextSignInUid = 'fresh-uid';
+    test('deletes the current user and drops to AwaitingChoice', () async {
+      final backend = _FakeAuthBackend()..currentUid = 'old-uid';
       final tester = Notifier.test<CloudAuthService, CloudAuthState>(
         notifier: CloudAuthService(gateway: backend.gateway()),
       );
       expect((tester.state as CloudAuthAuthenticated).uid, 'old-uid');
 
       await tester.notifier.deleteAndReset();
-      // Allow the stream-driven re-sign-in path to complete.
       await pumpEventQueue();
 
+      // No auto re-sign-in: the user is re-prompted via the welcome card.
       expect(backend.deleteCallCount, 1);
-      expect(backend.signInCallCount, 1);
-      expect(tester.state, isA<CloudAuthAuthenticated>());
-      expect((tester.state as CloudAuthAuthenticated).uid, 'fresh-uid');
+      expect(backend.signInCallCount, 0);
+      expect(tester.state, isA<CloudAuthAwaitingChoice>());
       await backend.dispose();
     });
 

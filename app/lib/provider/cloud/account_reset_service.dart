@@ -1,4 +1,5 @@
 import 'package:logging/logging.dart';
+import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
 import 'package:magicshare_app/provider/cloud/group_key_provider.dart';
@@ -56,16 +57,35 @@ class AccountResetService {
 
   Future<void> resetForGroupDeletion() async {
     _logger.info('Starting destroy-group flow');
-    await _deps.deleteAccountOnCloud();
+    await _runCloudStepIgnoringMissing(_deps.deleteAccountOnCloud);
     await _resetLocalState();
-    _logger.info('Destroy-group flow complete; awaiting bootstrap re-run');
+    _logger.info('Destroy-group flow complete');
   }
 
   Future<void> resetForLeaveGroup({required String currentDeviceId}) async {
     _logger.info('Starting leave-group flow for device $currentDeviceId');
-    await _deps.removeDeviceOnCloud(currentDeviceId);
+    await _runCloudStepIgnoringMissing(() => _deps.removeDeviceOnCloud(currentDeviceId));
     await _resetLocalState();
-    _logger.info('Leave-group flow complete; awaiting bootstrap re-run');
+    _logger.info('Leave-group flow complete');
+  }
+
+  /// Runs the cloud-side step of a reset flow. If the cloud responds
+  /// with notFound (the account / device no longer exists — common
+  /// after the emulator was reset, or if another device just deleted
+  /// the group) we still proceed with local cleanup: the goal of a
+  /// reset is to start fresh, and the cloud is already in the desired
+  /// "gone" state. All other CloudExceptions still abort the flow so
+  /// the user can retry from a known state.
+  Future<void> _runCloudStepIgnoringMissing(Future<void> Function() step) async {
+    try {
+      await step();
+    } on CloudException catch (e) {
+      if (e.code == CloudErrorCode.notFound) {
+        _logger.info('Cloud-side step returned notFound; proceeding with local reset');
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<void> _resetLocalState() async {

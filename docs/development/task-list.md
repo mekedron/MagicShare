@@ -562,3 +562,71 @@ lands.
     without FlutterFire; a wake sent to a Linux client surfaces
     a desktop notification within ~30 s; a wake sent to a Windows
     client surfaces a toast within ~30 s.
+
+- [ ] **Epic 17 — Self-hosted Firebase backend.** Ship the bits
+  needed for community members to deploy their own MagicShare
+  backend (their own Firebase project + Cloud Functions) and
+  point the app at it. Today every install is hard-pinned to
+  `magic-share-backend` because `firebase_options.dart` is a
+  generated file with the project ID, API key, app ID, and
+  region baked in.
+
+  Foundational — touches the Firebase init path, Cloud Functions
+  region pinning, and a new piece of secure-storage state
+  (per-user backend config). Do **Plan Mode** before
+  implementing.
+
+  - **Configurable Firebase options.** Move the runtime
+    `FirebaseOptions` out of the generated `firebase_options.dart`
+    and into a `cloud_backend_config_provider`. Default to the
+    upstream `magic-share-backend` values; override via a new
+    `BackendConfig` blob persisted in `flutter_secure_storage`
+    (treat the API key as quasi-sensitive; Firebase API keys are
+    not strictly secrets but worth keeping out of plain prefs).
+    Re-init Firebase when the override changes — likely needs a
+    full `Firebase.deleteApp()` + `Firebase.initializeApp()`
+    cycle and a hard re-bootstrap of every cloud provider.
+  - **Cloud Functions region.** `cloudFunctionsRegion` is a
+    top-level const today; make it part of `BackendConfig`.
+  - **Settings UI.** New section under Settings → Device group
+    titled *Backend* with three rows:
+    - *Backend* — read-only label showing the current project ID.
+    - *Use a custom backend* — opens a dialog: project ID,
+      API key, app ID, region. Save validates the config by
+      calling the new `health` Cloud Function (already deployed
+      under every backend; returns service metadata) and refuses
+      to save on failure.
+    - *Restore default backend* — wipes the override and
+      re-pins to `magic-share-backend`.
+  - **First-launch welcome integration.** When the user picks
+    *Create a new group* on the welcome card, optionally allow
+    them to pick *Use a custom backend* first via a small
+    secondary action. (Stretch — can ship without and rely on
+    settings.)
+  - **Privacy / safety guardrails.** Don't auto-trust an unknown
+    backend: the validate step should at minimum confirm the
+    backend's `health` returns the expected schema and a
+    project ID matching what the user typed. Add a one-time
+    confirmation banner on first connect explaining that
+    callable code now runs on a backend the user picked.
+  - **Docs.** A `docs/development/self-hosting.md` describing
+    `firebase init`, `firebase deploy --only functions,firestore`,
+    and how to copy the resulting config into the app's settings.
+  - **Tests:**
+    - Unit: `BackendConfig` round-trip through secure storage;
+      `cloudBackendConfigProvider` defaults vs override; the
+      validate step (mocked `health` returns the right shape vs
+      a wrong project id vs a 5xx).
+    - Widget: backend section render (default vs custom),
+      override dialog (validation failure path, success path,
+      restore-default path).
+    - Integration: spin up two emulator suites on different
+      ports, switch the app between them, assert account
+      bootstrap re-runs against the new backend with a fresh
+      UID.
+  - **Done when:** a user can paste a custom Firebase project's
+    config into the settings, the app validates it, re-bootstraps
+    against that project, and a follow-up rename / icon / delete
+    flow works end-to-end against the user's backend; the
+    self-hosting doc walks a reader from a fresh Firebase
+    project to a working install in under 30 minutes.

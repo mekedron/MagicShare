@@ -176,16 +176,15 @@ class CloudAuthService extends Notifier<CloudAuthState> {
     await _signIn();
   }
 
-  /// Deletes the current Firebase Auth user and immediately starts a new
-  /// anonymous sign-in. State is pre-set to SigningIn so the stream
-  /// listener doesn't bounce through AwaitingChoice when the deletion
-  /// emits null on the auth stream. The next [CloudAuthAuthenticated]
-  /// carries a fresh UID — that's what destroy-group callers rely on to
-  /// re-bootstrap with a brand new account. Without this explicit
-  /// re-sign-in the user would be left at the welcome card after every
-  /// destroy-group action.
+  /// Deletes the current Firebase Auth user and lets the auth-state
+  /// stream emit null, which [_handleUidChange] resolves to
+  /// [CloudAuthAwaitingChoice]. The user is then re-prompted via the
+  /// welcome card to *Create*, *Join*, or *Use without cloud* — same
+  /// model as first launch. This is intentional: a destroy-group flow
+  /// is a fresh-start moment, and silently re-creating an account
+  /// would re-introduce the orphaned-account problem the welcome card
+  /// is designed to avoid.
   Future<void> deleteAndReset() async {
-    state = const CloudAuthSigningIn();
     try {
       await _gateway.deleteCurrentUser();
     } catch (e, st) {
@@ -193,7 +192,6 @@ class CloudAuthService extends Notifier<CloudAuthState> {
       state = CloudAuthFailed(message: 'Auth user deletion failed: $e', error: e);
       rethrow;
     }
-    await _signIn();
   }
 
   @override

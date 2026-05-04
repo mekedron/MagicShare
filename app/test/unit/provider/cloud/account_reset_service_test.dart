@@ -90,6 +90,25 @@ void main() {
 
       expect(r.calls, ['deleteAccount', 'key', 'auth']);
     });
+
+    test('notFound on cloud step is treated as already-deleted; local state is wiped', () async {
+      final r = _Recorder();
+      final service = AccountResetService(
+        r.deps(
+          deleteAccountOnCloud: () async {
+            r.calls.add('deleteAccount');
+            throw const CloudException(
+              code: CloudErrorCode.notFound,
+              message: 'account does not exist',
+            );
+          },
+        ),
+      );
+
+      await service.resetForGroupDeletion();
+
+      expect(r.calls, ['deleteAccount', 'key', 'auth']);
+    });
   });
 
   group('resetForLeaveGroup', () {
@@ -102,15 +121,15 @@ void main() {
       expect(r.calls, ['removeDevice(device-x)', 'key', 'auth']);
     });
 
-    test('cloud failure short-circuits; local state is not wiped', () async {
+    test('non-notFound cloud failure short-circuits; local state is not wiped', () async {
       final r = _Recorder();
       final service = AccountResetService(
         r.deps(
           removeDeviceOnCloud: (id) async {
             r.calls.add('removeDevice($id)');
             throw const CloudException(
-              code: CloudErrorCode.notFound,
-              message: 'no such device',
+              code: CloudErrorCode.unauthenticated,
+              message: 'not signed in',
             );
           },
         ),
@@ -122,6 +141,25 @@ void main() {
       );
 
       expect(r.calls, ['removeDevice(device-x)']);
+    });
+
+    test('notFound on cloud step is treated as already-removed; local state is wiped', () async {
+      final r = _Recorder();
+      final service = AccountResetService(
+        r.deps(
+          removeDeviceOnCloud: (id) async {
+            r.calls.add('removeDevice($id)');
+            throw const CloudException(
+              code: CloudErrorCode.notFound,
+              message: 'device does not exist',
+            );
+          },
+        ),
+      );
+
+      await service.resetForLeaveGroup(currentDeviceId: 'device-x');
+
+      expect(r.calls, ['removeDevice(device-x)', 'key', 'auth']);
     });
   });
 }
