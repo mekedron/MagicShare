@@ -74,8 +74,16 @@ class MagicShareApp extends StatelessWidget {
                 break;
               case AppLifecycleState.paused:
               case AppLifecycleState.hidden:
-                ref.notifier(presenceHeartbeatProvider).markBackground();
-                ref.notifier(linuxWakePollerProvider).stop();
+                if (!isDesktop) {
+                  ref.notifier(presenceHeartbeatProvider).markBackground();
+                  ref.notifier(linuxWakePollerProvider).stop();
+                }
+                // Desktop: window minimised, hidden, or moved to
+                // another Space — the process is still alive and the
+                // LAN listener still works. Stay online so peers
+                // don't see us flap to offline every time the user
+                // switches windows. The heartbeat continues; it's
+                // only stopped on `detached`.
                 break;
               case AppLifecycleState.inactive:
                 if (!isDesktop) {
