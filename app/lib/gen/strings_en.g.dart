@@ -1180,6 +1180,9 @@ class TranslationsSettingsTabDeviceGroupEn {
   /// en: 'Delete this device group'
   String get deleteGroup => 'Delete this device group';
 
+  /// en: 'Refresh'
+  String get refresh => 'Refresh';
+
   /// en: 'Loading device group…'
   String get loading => 'Loading device group…';
 

@@ -84,11 +84,11 @@ void main() {
         async.flushMicrotasks();
         expect(spy.calls, 1, reason: 'immediate online dispatch');
 
-        async.elapse(const Duration(minutes: 4));
+        async.elapse(heartbeatPeriod);
         async.flushMicrotasks();
         expect(spy.calls, 2);
 
-        async.elapse(const Duration(minutes: 4));
+        async.elapse(heartbeatPeriod);
         async.flushMicrotasks();
         expect(spy.calls, 3);
 
@@ -112,7 +112,7 @@ void main() {
         async.flushMicrotasks();
         expect(spy.calls, 1, reason: 'second markForeground is a no-op');
 
-        async.elapse(const Duration(minutes: 4));
+        async.elapse(heartbeatPeriod);
         async.flushMicrotasks();
         expect(spy.calls, 2, reason: 'still one tick per 4 minutes');
       });

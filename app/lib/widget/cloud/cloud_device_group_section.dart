@@ -11,6 +11,7 @@ import 'package:magicshare_app/provider/cloud/account_reset_service.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
+import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_detail_sheet.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_list_tile.dart';
@@ -350,6 +351,7 @@ class _ReadyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sorted = _sortedDevices(devices, currentDeviceId);
     return _SectionShell(
+      showRefresh: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -568,7 +570,8 @@ List<CloudDevice> _sortedDevices(List<CloudDevice> devices, String currentDevice
 
 class _SectionShell extends StatelessWidget {
   final Widget child;
-  const _SectionShell({required this.child});
+  final bool showRefresh;
+  const _SectionShell({required this.child, this.showRefresh = false});
 
   @override
   Widget build(BuildContext context) {
@@ -580,9 +583,16 @@ class _SectionShell extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                t.settingsTab.deviceGroup.title,
-                style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      t.settingsTab.deviceGroup.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  if (showRefresh) const _RefreshButton(),
+                ],
               ),
               const SizedBox(height: 4),
               child,
@@ -590,6 +600,52 @@ class _SectionShell extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Section-header icon that re-fetches Firestore device data on tap and
+/// pings `updateDevicePresence(online)` so peers see this device as
+/// online faster than the 70 s heartbeat would deliver. Visible only
+/// when there's an attached account to refresh — i.e. `AccountReady` /
+/// `AccountLoading` paths.
+class _RefreshButton extends StatefulWidget {
+  const _RefreshButton();
+
+  @override
+  State<_RefreshButton> createState() => _RefreshButtonState();
+}
+
+class _RefreshButtonState extends State<_RefreshButton> {
+  bool _spinning = false;
+
+  Future<void> _onTap() async {
+    if (_spinning) return;
+    setState(() => _spinning = true);
+    final ref = context.ref;
+    try {
+      // Re-announce online first so other devices see us active before the
+      // re-fetch returns. markForeground is internally rate-limited so the
+      // common "user smashes the button" case is harmless.
+      ref.notifier(presenceHeartbeatProvider).markForeground();
+      await ref.notifier(accountRepositoryProvider).refresh();
+    } finally {
+      if (mounted) setState(() => _spinning = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: t.settingsTab.deviceGroup.refresh,
+      onPressed: _onTap,
+      icon: _spinning
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.refresh, size: 20),
     );
   }
 }

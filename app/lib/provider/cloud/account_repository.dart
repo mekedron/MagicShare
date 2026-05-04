@@ -196,6 +196,17 @@ class AccountRepository extends Notifier<AccountState> {
 
   AccountState _stateOrIdle() => state;
 
+  /// Tear down the active Firestore listeners and re-attach to the same
+  /// account. Useful for a "refresh" affordance in the UI: the live
+  /// stream already auto-updates, but a manual re-attach forces a fresh
+  /// fetch and a transient AccountLoading → AccountReady transition the
+  /// user can see. No-op if there's no current account.
+  Future<void> refresh() async {
+    final accountId = _currentAccountId;
+    if (accountId == null) return;
+    await _attachToAccount(accountId);
+  }
+
   Future<void> _onAuthStateChanged(CloudAuthState authState) async {
     if (authState is CloudAuthAuthenticated) {
       if (_currentAccountId == authState.uid) return;

@@ -12,9 +12,17 @@ import 'package:refena_flutter/refena_flutter.dart';
 
 final _logger = Logger('CloudPresence');
 
-/// Cadence for the foreground presence heartbeat. Comfortably above the
-/// backend's 1-call-per-minute rate limit on `updateDevicePresence`.
-const Duration heartbeatPeriod = Duration(minutes: 4);
+/// Cadence for the foreground presence heartbeat. The backend rate-limits
+/// `updateDevicePresence` to one accepted call per device per 60 s — any
+/// dispatch landing inside that window throws `resource-exhausted` and is
+/// quietly swallowed by [_send]. We pick 70 s so a normal heartbeat is
+/// always outside the window even when timer drift accumulates, while
+/// still tightening the recovery window from the previous 4 minutes:
+/// the cloud-side stale-presence sweep flips devices to offline after
+/// 10 minutes of no `lastSeenAt` advance, so a device that drops a
+/// heartbeat now recovers within ~70 s instead of risking the 10-min
+/// offline window.
+const Duration heartbeatPeriod = Duration(seconds: 70);
 
 /// Discriminated state for the heartbeat lifecycle.
 sealed class HeartbeatState {

@@ -155,6 +155,7 @@
       "inviteDevice": "Invite a device",
       "joinExistingGroup": "Join an existing group",
       "deleteGroup": "Delete this device group",
+      "refresh": "Refresh",
       "loading": "Loading device group…",
       "loadFailed": "Could not load device group.",
       "loadRetry": "Retry",

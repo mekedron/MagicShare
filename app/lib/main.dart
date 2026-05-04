@@ -11,6 +11,7 @@ import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
+import 'package:magicshare_app/util/native/platform_check.dart';
 import 'package:magicshare_app/util/ui/dynamic_colors.dart';
 import 'package:magicshare_app/widget/watcher/life_cycle_watcher.dart';
 import 'package:magicshare_app/widget/watcher/shortcut_watcher.dart';
@@ -53,6 +54,18 @@ class MagicShareApp extends StatelessWidget {
       child: WindowWatcher(
         child: LifeCycleWatcher(
           onChangedState: (AppLifecycleState state) {
+            // Desktop and mobile read AppLifecycleState differently:
+            // - macOS / Windows / Linux: `inactive` and `hidden` fire
+            //   when another window steals focus or the user minimises.
+            //   The MagicShare process is still alive and reachable, so
+            //   it should stay "online" — flipping to offline on every
+            //   focus change makes the device look offline to peers
+            //   while the user is actively using the same machine.
+            // - Android / iOS: `paused`/`hidden`/`inactive` mean the
+            //   OS suspended the app. It can't respond to LAN sends
+            //   until FCM wakes it. We mark offline so peers fall back
+            //   to the wake-then-send path.
+            final isDesktop = checkPlatformIsDesktop();
             switch (state) {
               case AppLifecycleState.resumed:
                 ref.redux(localIpProvider).dispatch(InitLocalIpAction());
@@ -60,10 +73,16 @@ class MagicShareApp extends StatelessWidget {
                 ref.notifier(linuxWakePollerProvider).start();
                 break;
               case AppLifecycleState.paused:
-              case AppLifecycleState.inactive:
               case AppLifecycleState.hidden:
                 ref.notifier(presenceHeartbeatProvider).markBackground();
                 ref.notifier(linuxWakePollerProvider).stop();
+                break;
+              case AppLifecycleState.inactive:
+                if (!isDesktop) {
+                  ref.notifier(presenceHeartbeatProvider).markBackground();
+                  ref.notifier(linuxWakePollerProvider).stop();
+                }
+                // Desktop: another app stole focus, we're still here.
                 break;
               case AppLifecycleState.detached:
                 // The main isolate is only exited when all child isolates are exited.
