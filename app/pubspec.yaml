@@ -19,7 +19,7 @@ dependencies:
     path: ../common
   connectivity_plus: 6.1.0
   convert: 3.1.2
-  dart_mappable: 4.6.0
+  dart_mappable: 4.8.0
   desktop_drop: 0.5.0
   device_apps: 2.2.0
   device_info_plus: 11.1.1
@@ -88,19 +88,18 @@ dependencies:
   yaru: 8.3.0
 
 dev_dependencies:
-  build_runner: 2.7.1
-  dart_mappable_builder: 4.6.0
+  build_runner: ^2.15.0
+  dart_mappable_builder: 4.8.0
   flutter_gen_runner: 5.12.0
   flutter_lints: 5.0.0
   flutter_test:
     sdk: flutter
-  freezed: 3.2.3
+  freezed: ^3.2.3
   integration_test:
     sdk: flutter
-  mockito: 5.5.0
+  mockito: ^5.6.1
   refena_inspector: 2.1.0
   slang_build_runner: 4.9.0
-  test: ^1.26.2
 
 dependency_overrides:
   device_apps:
