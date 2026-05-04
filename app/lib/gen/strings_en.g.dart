@@ -2050,6 +2050,12 @@ class TranslationsSettingsTabDeviceGroupPairingEn {
   late final TranslationsSettingsTabDeviceGroupPairingInviteDialogEn inviteDialog = TranslationsSettingsTabDeviceGroupPairingInviteDialogEn.internal(
     _root,
   );
+  late final TranslationsSettingsTabDeviceGroupPairingScanPageEn scanPage = TranslationsSettingsTabDeviceGroupPairingScanPageEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupPairingManualEntryPageEn manualEntryPage =
+      TranslationsSettingsTabDeviceGroupPairingManualEntryPageEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupPairingPreviewDialogEn previewDialog =
+      TranslationsSettingsTabDeviceGroupPairingPreviewDialogEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupPairingSnackbarsEn snackbars = TranslationsSettingsTabDeviceGroupPairingSnackbarsEn.internal(_root);
   late final TranslationsSettingsTabDeviceGroupPairingErrorsEn errors = TranslationsSettingsTabDeviceGroupPairingErrorsEn.internal(_root);
 }
 
@@ -2137,6 +2143,90 @@ class TranslationsSettingsTabDeviceGroupPairingInviteDialogEn {
   String get successPaired => 'A device joined the group';
 }
 
+// Path: settingsTab.deviceGroup.pairing.scanPage
+class TranslationsSettingsTabDeviceGroupPairingScanPageEn {
+  TranslationsSettingsTabDeviceGroupPairingScanPageEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Scan pairing QR'
+  String get title => 'Scan pairing QR';
+
+  /// en: 'Point the camera at the QR shown on the other device.'
+  String get instructions => 'Point the camera at the QR shown on the other device.';
+
+  /// en: 'Camera unavailable — enter code instead'
+  String get manualEntryButton => 'Camera unavailable — enter code instead';
+
+  /// en: 'Camera permission denied. Use the manual code instead.'
+  String get permissionDenied => 'Camera permission denied. Use the manual code instead.';
+}
+
+// Path: settingsTab.deviceGroup.pairing.manualEntryPage
+class TranslationsSettingsTabDeviceGroupPairingManualEntryPageEn {
+  TranslationsSettingsTabDeviceGroupPairingManualEntryPageEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Enter pairing code'
+  String get title => 'Enter pairing code';
+
+  /// en: 'Type or paste the code from the other device.'
+  String get hint => 'Type or paste the code from the other device.';
+
+  /// en: 'Pairing code'
+  String get label => 'Pairing code';
+
+  /// en: 'Paste'
+  String get paste => 'Paste';
+
+  /// en: 'Continue'
+  String get submit => 'Continue';
+
+  late final TranslationsSettingsTabDeviceGroupPairingManualEntryPageErrorsEn errors =
+      TranslationsSettingsTabDeviceGroupPairingManualEntryPageErrorsEn.internal(_root);
+}
+
+// Path: settingsTab.deviceGroup.pairing.previewDialog
+class TranslationsSettingsTabDeviceGroupPairingPreviewDialogEn {
+  TranslationsSettingsTabDeviceGroupPairingPreviewDialogEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Join this group?'
+  String get title => 'Join this group?';
+
+  /// en: 'This device will join the group below. The group's encryption key is sent over your local Wi-Fi only.'
+  String get body => 'This device will join the group below. The group\'s encryption key is sent over your local Wi-Fi only.';
+
+  /// en: 'Join group'
+  String get joinButton => 'Join group';
+
+  /// en: 'Joining…'
+  String get joining => 'Joining…';
+
+  /// en: 'Both devices need to be on the same Wi-Fi to pair.'
+  String get lanUnreachable => 'Both devices need to be on the same Wi-Fi to pair.';
+}
+
+// Path: settingsTab.deviceGroup.pairing.snackbars
+class TranslationsSettingsTabDeviceGroupPairingSnackbarsEn {
+  TranslationsSettingsTabDeviceGroupPairingSnackbarsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Joined the group'
+  String get joined => 'Joined the group';
+}
+
 // Path: settingsTab.deviceGroup.pairing.errors
 class TranslationsSettingsTabDeviceGroupPairingErrorsEn {
   TranslationsSettingsTabDeviceGroupPairingErrorsEn.internal(this._root);
@@ -2150,4 +2240,25 @@ class TranslationsSettingsTabDeviceGroupPairingErrorsEn {
 
   /// en: 'This device isn't on a Wi-Fi network. Connect first, then try again.'
   String get noLan => 'This device isn\'t on a Wi-Fi network. Connect first, then try again.';
+
+  /// en: 'Pairing succeeded but couldn't receive the group key. Try again or reset from Settings.'
+  String get handshakeFailed => 'Pairing succeeded but couldn\'t receive the group key. Try again or reset from Settings.';
+}
+
+// Path: settingsTab.deviceGroup.pairing.manualEntryPage.errors
+class TranslationsSettingsTabDeviceGroupPairingManualEntryPageErrorsEn {
+  TranslationsSettingsTabDeviceGroupPairingManualEntryPageErrorsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'That doesn't look right — check the code and try again.'
+  String get typo => 'That doesn\'t look right — check the code and try again.';
+
+  /// en: 'This code has expired or has already been used. Ask for a new one.'
+  String get expired => 'This code has expired or has already been used. Ask for a new one.';
+
+  /// en: 'We couldn't find that code. Check it and try again.'
+  String get notFound => 'We couldn\'t find that code. Check it and try again.';
 }

@@ -15,6 +15,7 @@ import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_detail_sheet.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_list_tile.dart';
+import 'package:magicshare_app/widget/cloud/pairing/scan_pairing_page.dart';
 import 'package:magicshare_app/widget/dialogs/cloud_device_icon_picker_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/cloud_device_leave_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/cloud_device_remove_dialog.dart';
@@ -22,6 +23,7 @@ import 'package:magicshare_app/widget/dialogs/cloud_device_rename_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/delete_device_group_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/invite_device_dialog.dart';
 import 'package:refena_flutter/refena_flutter.dart';
+import 'package:routerino/routerino.dart';
 
 /// Top-of-settings card listing every device in this user's group plus
 /// the destructive *Delete this device group* button. Hidden entirely on
@@ -382,7 +384,7 @@ class _ReadyCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.qr_code_scanner_outlined),
                   label: Text(t.settingsTab.deviceGroup.joinExistingGroup),
-                  onPressed: () => _showComingSoon(context),
+                  onPressed: () => _onJoin(context),
                 ),
               ),
             ],
@@ -541,17 +543,18 @@ class _ReadyCard extends StatelessWidget {
     );
   }
 
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(t.settingsTab.deviceGroup.comingSoon)),
-    );
-  }
-
   Future<void> _onInvite(BuildContext context) async {
     await showDialog<void>(
       context: context,
       builder: (_) => const InviteDeviceDialog(),
     );
+  }
+
+  Future<void> _onJoin(BuildContext context) async {
+    // Existing-source-group joiners (the source account / device docs
+    // already exist on this UID) leave newDeviceIdentity null and let
+    // the backend copy the source device's identity over.
+    await context.push(() => const ScanPairingPage());
   }
 }
 

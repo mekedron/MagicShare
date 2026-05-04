@@ -49,6 +49,7 @@ class _FakeAuthService extends CloudAuthService {
           currentUserId: () => null,
           deleteCurrentUser: () async {},
           signOut: () async {},
+          signInWithCustomToken: (_) async => 'fake-uid',
         ),
       );
 

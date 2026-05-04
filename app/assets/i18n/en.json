@@ -237,9 +237,38 @@
           "expired": "Refreshing…",
           "successPaired": "A device joined the group"
         },
+        "scanPage": {
+          "title": "Scan pairing QR",
+          "instructions": "Point the camera at the QR shown on the other device.",
+          "manualEntryButton": "Camera unavailable — enter code instead",
+          "permissionDenied": "Camera permission denied. Use the manual code instead."
+        },
+        "manualEntryPage": {
+          "title": "Enter pairing code",
+          "hint": "Type or paste the code from the other device.",
+          "label": "Pairing code",
+          "paste": "Paste",
+          "submit": "Continue",
+          "errors": {
+            "typo": "That doesn't look right — check the code and try again.",
+            "expired": "This code has expired or has already been used. Ask for a new one.",
+            "notFound": "We couldn't find that code. Check it and try again."
+          }
+        },
+        "previewDialog": {
+          "title": "Join this group?",
+          "body": "This device will join the group below. The group's encryption key is sent over your local Wi-Fi only.",
+          "joinButton": "Join group",
+          "joining": "Joining…",
+          "lanUnreachable": "Both devices need to be on the same Wi-Fi to pair."
+        },
+        "snackbars": {
+          "joined": "Joined the group"
+        },
         "errors": {
           "generic": "Something went wrong while pairing.",
-          "noLan": "This device isn't on a Wi-Fi network. Connect first, then try again."
+          "noLan": "This device isn't on a Wi-Fi network. Connect first, then try again.",
+          "handshakeFailed": "Pairing succeeded but couldn't receive the group key. Try again or reset from Settings."
         }
       }
     },

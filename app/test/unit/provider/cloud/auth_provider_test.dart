@@ -10,10 +10,14 @@ class _FakeAuthBackend {
   int signInCallCount = 0;
   int deleteCallCount = 0;
   int signOutCallCount = 0;
+  int signInWithCustomTokenCallCount = 0;
   Object? signInThrows;
   Object? deleteThrows;
   Object? signOutThrows;
+  Object? signInWithCustomTokenThrows;
   String nextSignInUid = 'anon-uid-1';
+  String nextCustomTokenUid = 'custom-token-uid-1';
+  final List<String> customTokensReceived = [];
 
   /// When non-null, simulates the slot of time between calling
   /// signInAnonymously and the auth-state stream emitting the new UID.
@@ -46,6 +50,16 @@ class _FakeAuthBackend {
     _controller.add(null);
   }
 
+  Future<String> signInWithCustomToken(String token) async {
+    signInWithCustomTokenCallCount++;
+    customTokensReceived.add(token);
+    if (signInWithCustomTokenThrows != null) throw signInWithCustomTokenThrows!;
+    final newUid = nextCustomTokenUid;
+    currentUid = newUid;
+    _controller.add(newUid);
+    return newUid;
+  }
+
   String? read() => currentUid;
 
   void emit(String? uid) {
@@ -65,6 +79,7 @@ class _FakeAuthBackend {
     currentUserId: read,
     deleteCurrentUser: deleteCurrentUser,
     signOut: signOut,
+    signInWithCustomToken: signInWithCustomToken,
   );
 }
 

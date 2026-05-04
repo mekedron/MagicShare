@@ -50,6 +50,7 @@ dependencies:
   # https://github.com/NightFeather0615/macos_dock_progress/issues/1
   # macos_dock_progress: 1.1.0
   mime: 1.0.6
+  mobile_scanner: 5.2.3
   moform: 0.2.5
   nanoid2: 2.0.1
   network_info_plus: 6.1.1

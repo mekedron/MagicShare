@@ -16,6 +16,7 @@ class CloudAuthGateway {
     required this.currentUserId,
     required this.deleteCurrentUser,
     required this.signOut,
+    required this.signInWithCustomToken,
   });
 
   /// Stream of UID values — null when signed out.
@@ -43,6 +44,12 @@ class CloudAuthGateway {
   /// succeeds locally.
   final Future<void> Function() signOut;
 
+  /// Signs in with a Firebase custom token (typically returned by
+  /// `joinNetwork` after a successful pair). The new auth.uid equals
+  /// the target accountId so subsequent Firestore reads under the
+  /// new account path pass the security rules. Returns the new UID.
+  final Future<String> Function(String customToken) signInWithCustomToken;
+
   factory CloudAuthGateway.live() {
     return CloudAuthGateway(
       userIdChanges: () => FirebaseAuth.instance.authStateChanges().map((user) => user?.uid),
@@ -59,6 +66,14 @@ class CloudAuthGateway {
         await FirebaseAuth.instance.currentUser?.delete();
       },
       signOut: () => FirebaseAuth.instance.signOut(),
+      signInWithCustomToken: (token) async {
+        final credential = await FirebaseAuth.instance.signInWithCustomToken(token);
+        final uid = credential.user?.uid;
+        if (uid == null) {
+          throw StateError('signInWithCustomToken returned a credential with no uid');
+        }
+        return uid;
+      },
     );
   }
 }
