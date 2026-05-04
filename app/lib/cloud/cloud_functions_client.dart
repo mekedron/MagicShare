@@ -255,9 +255,39 @@ Object? _ignoreResponse(Object? _) => null;
 Map<String, dynamic> debugAsMap(Object? raw) => _asMap(raw);
 
 Map<String, dynamic> _asMap(Object? raw) {
-  if (raw is Map) return raw.cast<String, dynamic>();
+  if (raw is Map) {
+    // The platform-channel bridge between Flutter and the native
+    // Firebase Functions SDKs delivers nested maps as
+    // `Map<Object?, Object?>` and nested lists with the same loose
+    // typing. dart_mappable's class decoders insist on
+    // `Map<String, dynamic>` at every level, so we deep-cast here
+    // once and let downstream decoders work with the strict shape.
+    return _deepCastMap(raw);
+  }
   throw CloudException(
     code: CloudErrorCode.unknown,
     message: 'Expected callable to return a map but got ${raw.runtimeType}',
   );
+}
+
+Map<String, dynamic> _deepCastMap(Map<Object?, Object?> raw) {
+  final out = <String, dynamic>{};
+  raw.forEach((key, value) {
+    if (key is! String) {
+      throw CloudException(
+        code: CloudErrorCode.unknown,
+        message: 'Non-string map key in callable response: ${key.runtimeType}',
+      );
+    }
+    out[key] = _deepCastValue(value);
+  });
+  return out;
+}
+
+Object? _deepCastValue(Object? value) {
+  if (value is Map<Object?, Object?>) return _deepCastMap(value);
+  if (value is List) {
+    return value.map(_deepCastValue).toList();
+  }
+  return value;
 }

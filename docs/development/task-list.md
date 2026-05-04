@@ -356,7 +356,7 @@ lands.
     wipes Firestore docs and the local app re-creates a fresh
     account.
 
-- [ ] **Epic 11 — Pairing UI and LAN key exchange.** Wire up the
+- [x] **Epic 11 — Pairing UI and LAN key exchange.** Wire up the
   user-visible pairing flow plus the direct LAN handshake that
   delivers the group's shared key.
 
