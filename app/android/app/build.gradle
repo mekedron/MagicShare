@@ -27,7 +27,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.magicshare.app"
-    compileSdkVersion 34
+    compileSdkVersion 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -88,6 +88,14 @@ android {
 
 flutter {
     source '../..'
+}
+
+dependencies {
+    // Provides FirebaseMessagingService + RemoteMessage for the native
+    // MagicShareFirebaseMessagingService. Use the Firebase BoM so the
+    // version stays in sync with the firebase_messaging Flutter plugin.
+    implementation platform('com.google.firebase:firebase-bom:33.5.1')
+    implementation 'com.google.firebase:firebase-messaging'
 }
 
 // To comply with F-Droid version code schema
