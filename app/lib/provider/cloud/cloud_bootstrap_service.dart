@@ -1,0 +1,295 @@
+import 'dart:async';
+
+import 'package:logging/logging.dart';
+import 'package:magicshare_app/cloud/cloud_functions_client.dart';
+import 'package:magicshare_app/model/cloud/cloud_exception.dart';
+import 'package:magicshare_app/provider/cloud/account_repository.dart';
+import 'package:magicshare_app/provider/cloud/auth_provider.dart';
+import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
+import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
+import 'package:magicshare_app/provider/cloud/fcm_provider.dart';
+import 'package:magicshare_app/provider/cloud/group_key_provider.dart';
+import 'package:magicshare_app/provider/settings_provider.dart';
+import 'package:magicshare_app/util/native/cloud_platform.dart';
+import 'package:refena_flutter/refena_flutter.dart';
+
+final _logger = Logger('CloudBootstrap');
+
+/// Discriminated bootstrap state.
+sealed class BootstrapState {
+  const BootstrapState();
+}
+
+class BootstrapIdle extends BootstrapState {
+  const BootstrapIdle();
+}
+
+class BootstrapDisabled extends BootstrapState {
+  const BootstrapDisabled();
+}
+
+class BootstrapUnsupported extends BootstrapState {
+  const BootstrapUnsupported();
+}
+
+class BootstrapInFlight extends BootstrapState {
+  const BootstrapInFlight();
+}
+
+class BootstrapDone extends BootstrapState {
+  const BootstrapDone({required this.accountId, required this.deviceId});
+  final String accountId;
+  final String deviceId;
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is BootstrapDone && other.accountId == accountId && other.deviceId == deviceId;
+
+  @override
+  int get hashCode => Object.hash(accountId, deviceId);
+}
+
+class BootstrapFailed extends BootstrapState {
+  const BootstrapFailed({required this.message, required this.error});
+  final String message;
+  final Object error;
+}
+
+/// Snapshot of the FCM token state at the moment we want to register.
+sealed class FcmTokenSnapshot {
+  const FcmTokenSnapshot();
+}
+
+class FcmTokenAvailable extends FcmTokenSnapshot {
+  const FcmTokenAvailable(this.token);
+  final String token;
+}
+
+class FcmTokenAcquiring extends FcmTokenSnapshot {
+  const FcmTokenAcquiring();
+}
+
+class FcmTokenUnsupported extends FcmTokenSnapshot {
+  const FcmTokenUnsupported();
+}
+
+/// Bag of cross-provider readers / streams that [CloudBootstrapService]
+/// needs. Same trick as [AccountRepositoryDeps] — keeps the notifier
+/// independently testable with `Notifier.test`.
+class CloudBootstrapDeps {
+  CloudBootstrapDeps({
+    required this.authStateReader,
+    required this.authStateChanges,
+    required this.deviceIdentity,
+    required this.client,
+    required this.fcmTokenReader,
+    required this.fcmTokenChanges,
+    required this.groupKeyReader,
+    required this.ensureGroupKey,
+    required this.peerDeviceCountReader,
+    required this.cloudSyncEnabledReader,
+  });
+
+  final CloudAuthState Function() authStateReader;
+  final Stream<CloudAuthState> Function() authStateChanges;
+  final DeviceIdentityService Function() deviceIdentity;
+  final CloudFunctionsClient Function() client;
+  final FcmTokenSnapshot Function() fcmTokenReader;
+  final Stream<FcmTokenSnapshot> Function() fcmTokenChanges;
+  final GroupKeyState Function() groupKeyReader;
+  final Future<void> Function() ensureGroupKey;
+  final int Function() peerDeviceCountReader;
+  final bool Function() cloudSyncEnabledReader;
+}
+
+/// Orchestrates first-launch (and post-restart) bootstrap of the cloud
+/// device-group identity. After [BootstrapDone], the local Firestore
+/// account doc and a child device row exist and the group key is
+/// persisted (when this device created the group).
+class CloudBootstrapService extends Notifier<BootstrapState> {
+  CloudBootstrapService({
+    required CloudBootstrapDeps deps,
+    bool? supportedOverride,
+  }) : _deps = deps,
+       _supportedOverride = supportedOverride;
+
+  final CloudBootstrapDeps _deps;
+  final bool? _supportedOverride;
+  StreamSubscription<CloudAuthState>? _authSubscription;
+  StreamSubscription<FcmTokenSnapshot>? _fcmSubscription;
+  String? _currentUid;
+  String? _currentDeviceId;
+  String? _lastUploadedFcmToken;
+  Future<void>? _inFlight;
+  bool _started = false;
+
+  bool get _isSupported => _supportedOverride ?? checkPlatformSupportsCloudFunctions();
+
+  @override
+  BootstrapState init() {
+    if (_started) return state;
+    _started = true;
+    if (!_isSupported) {
+      return const BootstrapUnsupported();
+    }
+    if (!_deps.cloudSyncEnabledReader()) {
+      return const BootstrapDisabled();
+    }
+    _authSubscription = _deps.authStateChanges().listen(
+      (auth) {
+        if (auth is CloudAuthAuthenticated) {
+          unawaited(_runBootstrap(auth.uid));
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        _logger.warning('Auth stream errored during bootstrap', error, stack);
+      },
+    );
+    _fcmSubscription = _deps.fcmTokenChanges().listen(
+      (snapshot) {
+        if (snapshot is FcmTokenAvailable) {
+          unawaited(_maybeReuploadToken(snapshot.token));
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        _logger.warning('FCM stream errored during bootstrap', error, stack);
+      },
+    );
+    final initial = _deps.authStateReader();
+    if (initial is CloudAuthAuthenticated) {
+      unawaited(_runBootstrap(initial.uid));
+      return const BootstrapInFlight();
+    }
+    return const BootstrapIdle();
+  }
+
+  Future<void> _runBootstrap(String uid) async {
+    final inFlight = _inFlight;
+    if (inFlight != null) {
+      await inFlight;
+      // After the prior run completes, only re-run if the uid changed
+      // or we never finished successfully.
+      if (_currentUid == uid && state is BootstrapDone) return;
+    }
+    final completer = Completer<void>();
+    _inFlight = completer.future;
+    try {
+      state = const BootstrapInFlight();
+      _currentUid = uid;
+      final identity = _deps.deviceIdentity();
+      final deviceId = await identity.ensureDeviceId();
+      _currentDeviceId = deviceId;
+
+      final client = _deps.client();
+      final accountResult = await client.createAccount();
+
+      // Group-key path:
+      //  - Always generate when createAccount returned `created: true`.
+      //  - Crash-recovery: also generate when this device sees no peers
+      //    AND the local key slot is empty (covers a crash between the
+      //    first createAccount call and key persistence on the original
+      //    install).
+      final keyState = _deps.groupKeyReader();
+      if (accountResult.created) {
+        await _deps.ensureGroupKey();
+      } else if (keyState is GroupKeyMissing && _deps.peerDeviceCountReader() == 0) {
+        _logger.info(
+          'Recovering group key: account exists, no peers visible, local key missing',
+        );
+        await _deps.ensureGroupKey();
+      }
+
+      final fcmSnapshot = _deps.fcmTokenReader();
+      final fcmToken = switch (fcmSnapshot) {
+        FcmTokenAvailable(:final token) => token,
+        _ => null,
+      };
+
+      await client.registerDevice(
+        deviceId: deviceId,
+        displayName: identity.defaultDisplayName(),
+        icon: identity.defaultIcon(),
+        platform: identity.currentPlatform(),
+        fcmToken: fcmToken,
+      );
+      _lastUploadedFcmToken = fcmToken;
+      state = BootstrapDone(accountId: uid, deviceId: deviceId);
+    } on CloudException catch (e, st) {
+      _logger.warning('Bootstrap failed (${e.code.name})', e, st);
+      state = BootstrapFailed(message: e.message, error: e);
+    } catch (e, st) {
+      _logger.warning('Bootstrap failed', e, st);
+      state = BootstrapFailed(message: 'Bootstrap failed: $e', error: e);
+    } finally {
+      completer.complete();
+      _inFlight = null;
+    }
+  }
+
+  Future<void> _maybeReuploadToken(String token) async {
+    final deviceId = _currentDeviceId;
+    if (deviceId == null) return;
+    if (state is! BootstrapDone) return;
+    if (token == _lastUploadedFcmToken) return;
+    final identity = _deps.deviceIdentity();
+    try {
+      await _deps.client().registerDevice(
+        deviceId: deviceId,
+        displayName: identity.defaultDisplayName(),
+        icon: identity.defaultIcon(),
+        platform: identity.currentPlatform(),
+        fcmToken: token,
+      );
+      _lastUploadedFcmToken = token;
+    } on CloudException catch (e, st) {
+      _logger.warning('FCM token re-upload failed (${e.code.name})', e, st);
+    } catch (e, st) {
+      _logger.warning('FCM token re-upload failed', e, st);
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    final authSub = _authSubscription;
+    final fcmSub = _fcmSubscription;
+    _authSubscription = null;
+    _fcmSubscription = null;
+    if (authSub != null) await authSub.cancel();
+    if (fcmSub != null) await fcmSub.cancel();
+    super.dispose();
+  }
+}
+
+/// Translates the typed [FcmState] from `fcmProvider` into the bootstrap
+/// snapshot enum.
+FcmTokenSnapshot toBootstrapSnapshot(FcmState state) {
+  return switch (state) {
+    FcmReady(:final token) => FcmTokenAvailable(token),
+    FcmAcquiring() || FcmIdle() => const FcmTokenAcquiring(),
+    FcmUnsupported() => const FcmTokenUnsupported(),
+    FcmFailed() => const FcmTokenAcquiring(),
+  };
+}
+
+final cloudBootstrapProvider = NotifierProvider<CloudBootstrapService, BootstrapState>((ref) {
+  return CloudBootstrapService(
+    deps: CloudBootstrapDeps(
+      authStateReader: () => ref.read(cloudAuthProvider),
+      authStateChanges: () => ref.stream(cloudAuthProvider).map((event) => event.next),
+      deviceIdentity: () => ref.read(deviceIdentityProvider),
+      client: () => ref.read(cloudFunctionsClientProvider),
+      fcmTokenReader: () => toBootstrapSnapshot(ref.read(fcmProvider)),
+      fcmTokenChanges: () => ref.stream(fcmProvider).map((event) => toBootstrapSnapshot(event.next)),
+      groupKeyReader: () => ref.read(groupKeyProvider),
+      ensureGroupKey: () async {
+        await ref.notifier(groupKeyProvider).ensureForNewAccount();
+      },
+      peerDeviceCountReader: () {
+        final accountState = ref.read(accountRepositoryProvider);
+        if (accountState is! AccountReady) return 0;
+        final currentDeviceId = accountState.currentDeviceId;
+        return accountState.devices.where((device) => device.deviceId != currentDeviceId).length;
+      },
+      cloudSyncEnabledReader: () => ref.read(settingsProvider).cloudSyncEnabled,
+    ),
+  );
+});
