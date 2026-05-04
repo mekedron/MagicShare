@@ -9,9 +9,14 @@ class PrepareUploadRequestDto with PrepareUploadRequestDtoMappable {
   final InfoRegisterDto info;
   final Map<String, FileDto> files;
 
+  /// MagicShare extension: nonce that lets the receiver auto-accept a
+  /// transfer triggered by a wake notification. Absent on stock LocalSend.
+  final String? wakeSessionId;
+
   const PrepareUploadRequestDto({
     required this.info,
     required this.files,
+    this.wakeSessionId,
   });
 
   static const fromJson = PrepareUploadRequestDtoMapper.fromJson;

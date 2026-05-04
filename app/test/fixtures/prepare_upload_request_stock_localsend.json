@@ -1,0 +1,21 @@
+{
+  "info": {
+    "alias": "Stock LocalSend",
+    "version": "2.1",
+    "deviceModel": "Pixel 8",
+    "deviceType": "mobile",
+    "fingerprint": "stock-fingerprint",
+    "port": 53317,
+    "protocol": "https",
+    "download": false
+  },
+  "files": {
+    "file-1": {
+      "id": "file-1",
+      "fileName": "photo.jpg",
+      "size": 1234,
+      "fileType": "image/jpeg",
+      "preview": "*preview data*"
+    }
+  }
+}
