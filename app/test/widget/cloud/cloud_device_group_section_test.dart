@@ -8,8 +8,10 @@ import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
+import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
 import 'package:magicshare_app/provider/persistence_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_group_section.dart';
+import 'package:magicshare_app/widget/cloud/pairing/scan_pairing_page.dart';
 import 'package:mockito/mockito.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
@@ -150,6 +152,16 @@ Future<_FakeAuthService> _pump(
         cloudAuthProvider.overrideWithNotifier((ref) => auth),
         cloudBootstrapProvider.overrideWithNotifier((ref) => _FakeBootstrapService(bootstrapState)),
         accountRepositoryProvider.overrideWithNotifier((ref) => _FakeAccountRepository(state)),
+        deviceIdentityProvider.overrideWithValue(
+          DeviceIdentityService(
+            storage: DeviceIdStorage(
+              read: () => 'fake-device-id',
+              write: (_) async {},
+            ),
+            aliasReader: () => 'Fake Device',
+            deviceIdGenerator: () => 'fake-device-id',
+          ),
+        ),
       ],
       child: TranslationProvider(
         child: const MaterialApp(
@@ -384,7 +396,7 @@ void main() {
       expect(auth.deleteAndResetCalls, 0);
     });
 
-    testWidgets('tapping Join an existing group surfaces the coming-soon snackbar', (tester) async {
+    testWidgets('tapping Join an existing group routes to the scanner page', (tester) async {
       await _pump(
         tester,
         const AccountIdle(),
@@ -394,9 +406,15 @@ void main() {
 
       await tester.tap(find.text('Join an existing group'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      // Pump the route transition.
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Coming soon'), findsOneWidget);
+      // The new ScanPairingPage is now mounted on top of the
+      // settings-tab navigator. We don't drive the camera here —
+      // mobile_scanner's surface initialises lazily via its
+      // controller.
+      expect(find.byType(ScanPairingPage), findsOneWidget);
+      expect(find.text('Coming soon'), findsNothing);
     });
 
     testWidgets('tapping Use without cloud dismisses welcome but keeps section visible', (tester) async {

@@ -6,11 +6,13 @@ import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
+import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/account_reset_service.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
+import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_detail_sheet.dart';
@@ -209,10 +211,22 @@ class _SetupCard extends StatelessWidget {
     await auth.signInForNewGroup();
   }
 
-  void _onJoin(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(t.settingsTab.deviceGroup.comingSoon)),
+  Future<void> _onJoin(BuildContext context) async {
+    // Welcome-card route: no anon sign-in has happened yet, so the
+    // backend has no source-account doc to copy a device identity
+    // from. Build one from local platform defaults and hand it to
+    // the joining pipeline as `newDevice`. The FCM token will be
+    // null on this first pass — bootstrap will register it via
+    // registerDevice once the device is signed into the new account
+    // and FCM has refreshed a token.
+    final identity = context.ref.read(deviceIdentityProvider);
+    final newDevice = JoinNetworkNewDevice(
+      displayName: identity.defaultDisplayName(),
+      icon: identity.defaultIcon(),
+      platform: identity.currentPlatform(),
+      fcmToken: null,
     );
+    await context.push(() => ScanPairingPage(newDeviceIdentity: newDevice));
   }
 
   Future<void> _onUseWithoutCloud(BuildContext context) async {
