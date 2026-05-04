@@ -163,11 +163,15 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
   }
 
   Future<void> _runBootstrap(String uid) async {
+    // Already done for this UID — nothing to do. The auth-state stream
+    // can re-emit the same Authenticated value (e.g. on a token refresh
+    // or a hot reload), and without this guard each re-emit re-ran
+    // createAccount + registerDevice, which under a race in
+    // ensureDeviceId could leave us with duplicate device docs.
+    if (_currentUid == uid && state is BootstrapDone) return;
     final inFlight = _inFlight;
     if (inFlight != null) {
       await inFlight;
-      // After the prior run completes, only re-run if the uid changed
-      // or we never finished successfully.
       if (_currentUid == uid && state is BootstrapDone) return;
     }
     final completer = Completer<void>();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
@@ -33,6 +35,7 @@ class DeviceIdentityService {
   final String Function() _generateDeviceId;
 
   String? _cached;
+  Future<String>? _inFlight;
 
   TargetPlatform get _platform => _platformOverride ?? defaultTargetPlatform;
 
@@ -40,9 +43,24 @@ class DeviceIdentityService {
   /// a UUIDv4, persists it, and returns it. Subsequent calls in the same
   /// process serve from an in-memory cache so the secure-storage backend is
   /// hit at most once per launch.
-  Future<String> ensureDeviceId() async {
+  ///
+  /// Concurrent callers (AccountRepository's _attachToAccount and
+  /// CloudBootstrapService's _runBootstrap both fire on the same auth
+  /// transition) share a single in-flight future, so they cannot each
+  /// generate a fresh UUID when storage is empty — that race used to
+  /// register two distinct devices under one account on the very first
+  /// post-destroy bootstrap.
+  Future<String> ensureDeviceId() {
     final cached = _cached;
-    if (cached != null) return cached;
+    if (cached != null) return Future.value(cached);
+    final inFlight = _inFlight;
+    if (inFlight != null) return inFlight;
+    final future = _resolveDeviceId();
+    _inFlight = future;
+    return future.whenComplete(() => _inFlight = null);
+  }
+
+  Future<String> _resolveDeviceId() async {
     final stored = await _storage.read(cloudDeviceIdKey);
     if (stored != null && stored.isNotEmpty) {
       _cached = stored;

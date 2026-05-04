@@ -80,6 +80,32 @@ void main() {
       final second = await service.ensureDeviceId();
       expect(second, 'minted-2');
     });
+
+    test('concurrent callers on an empty store share one minted id', () async {
+      // Regression: AccountRepository._attachToAccount and
+      // CloudBootstrapService._runBootstrap both call ensureDeviceId on
+      // the same auth transition. Without single-flight protection each
+      // caller used to mint a fresh UUID and write its own — registering
+      // two devices under one account on the very first post-destroy
+      // bootstrap.
+      final storage = _InMemoryStorage();
+      var calls = 0;
+      final service = DeviceIdentityService(
+        storage: storage.service(),
+        aliasReader: () => 'fixture',
+        deviceIdGenerator: () => 'minted-${++calls}',
+      );
+
+      final results = await Future.wait([
+        service.ensureDeviceId(),
+        service.ensureDeviceId(),
+        service.ensureDeviceId(),
+      ]);
+
+      expect(results.toSet(), hasLength(1));
+      expect(calls, 1);
+      expect(storage.get(cloudDeviceIdKey), results.first);
+    });
   });
 
   group('DeviceIdentityService defaults', () {

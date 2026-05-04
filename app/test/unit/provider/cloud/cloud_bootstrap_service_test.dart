@@ -313,6 +313,44 @@ void main() {
     });
   });
 
+  group('CloudBootstrapService re-emit safety', () {
+    test('does not re-run createAccount/registerDevice when auth re-emits the same UID', () async {
+      // Regression: a second Authenticated emit for the same UID
+      // (token refresh, hot reload, refena re-broadcast) used to slip
+      // past the in-flight guard and re-run the cloud calls. With
+      // ensureDeviceId's race, that produced two device docs under
+      // one account on first launch.
+      final spy = _CallableSpy();
+      final streams = _Streams();
+      final tester = Notifier.test<CloudBootstrapService, BootstrapState>(
+        notifier: CloudBootstrapService(
+          deps: _deps(
+            spy: spy,
+            streams: streams,
+            authInitial: const CloudAuthAuthenticated('uid-1'),
+            fcmInitial: const FcmTokenAcquiring(),
+            groupKeyReader: () => const GroupKeyMissing(),
+            ensureGroupKey: () async {},
+          ),
+          supportedOverride: true,
+        ),
+      );
+
+      await pumpEventQueue();
+      expect(tester.state, isA<BootstrapDone>());
+      expect(spy.createAccountCalls, 1);
+      expect(spy.registerDeviceCalls, 1);
+
+      // Re-emit the same Authenticated state — must be a no-op.
+      streams.auth.add(const CloudAuthAuthenticated('uid-1'));
+      await pumpEventQueue();
+
+      expect(spy.createAccountCalls, 1);
+      expect(spy.registerDeviceCalls, 1);
+      await streams.dispose();
+    });
+  });
+
   group('CloudBootstrapService failure path', () {
     test('CloudException on registerDevice surfaces as BootstrapFailed', () async {
       final spy = _CallableSpy()
