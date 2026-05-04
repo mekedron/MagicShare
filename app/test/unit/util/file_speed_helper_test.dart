@@ -1,5 +1,5 @@
-import 'package:magicshare_app/util/file_speed_helper.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:magicshare_app/util/file_speed_helper.dart';
 
 void main() {
   group('getRemainingTime', () {

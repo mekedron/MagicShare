@@ -1,6 +1,6 @@
 import 'package:basic_utils/basic_utils.dart';
-import 'package:magicshare_app/util/security_helper.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:magicshare_app/util/security_helper.dart';
 
 void main() {
   group('generateSecurityContext', () {

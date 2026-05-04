@@ -1,5 +1,5 @@
-import 'package:magicshare_app/util/native/content_uri_helper.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:magicshare_app/util/native/content_uri_helper.dart';
 
 void main() {
   group('getPathFromTreeUri', () {

@@ -1,5 +1,5 @@
-import 'package:magicshare_app/util/file_path_helper.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:magicshare_app/util/file_path_helper.dart';
 
 void main() {
   test('fileName with counter', () async {
