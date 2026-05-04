@@ -55,37 +55,38 @@ class AccountResetService {
 
   final AccountResetDeps _deps;
 
+  /// User explicitly opted to wipe everything. We attempt the cloud
+  /// wipe first, but a failure there does NOT block local cleanup —
+  /// the user's mental model is "make this device forget the group",
+  /// and leaving the local app in a half-bad state because the cloud
+  /// rejected our call (stale UID, emulator reset, transient 500)
+  /// produces a worse UX than letting potential orphan docs sit until
+  /// the 90-day GC. The cloud error is logged for diagnostics.
   Future<void> resetForGroupDeletion() async {
     _logger.info('Starting destroy-group flow');
-    await _runCloudStepIgnoringMissing(_deps.deleteAccountOnCloud);
+    try {
+      await _deps.deleteAccountOnCloud();
+    } catch (e, st) {
+      _logger.warning('Cloud-side deleteAccount failed; continuing with local reset', e, st);
+    }
     await _resetLocalState();
     _logger.info('Destroy-group flow complete');
   }
 
+  /// Leave-group only swallows notFound (the cloud already considers
+  /// this device gone, e.g. after another device removed it). Other
+  /// failures abort the flow because the rest of the group is supposed
+  /// to stay intact and a partial leave would corrupt that.
   Future<void> resetForLeaveGroup({required String currentDeviceId}) async {
     _logger.info('Starting leave-group flow for device $currentDeviceId');
-    await _runCloudStepIgnoringMissing(() => _deps.removeDeviceOnCloud(currentDeviceId));
+    try {
+      await _deps.removeDeviceOnCloud(currentDeviceId);
+    } on CloudException catch (e) {
+      if (e.code != CloudErrorCode.notFound) rethrow;
+      _logger.info('Cloud-side removeDevice returned notFound; proceeding with local reset');
+    }
     await _resetLocalState();
     _logger.info('Leave-group flow complete');
-  }
-
-  /// Runs the cloud-side step of a reset flow. If the cloud responds
-  /// with notFound (the account / device no longer exists — common
-  /// after the emulator was reset, or if another device just deleted
-  /// the group) we still proceed with local cleanup: the goal of a
-  /// reset is to start fresh, and the cloud is already in the desired
-  /// "gone" state. All other CloudExceptions still abort the flow so
-  /// the user can retry from a known state.
-  Future<void> _runCloudStepIgnoringMissing(Future<void> Function() step) async {
-    try {
-      await step();
-    } on CloudException catch (e) {
-      if (e.code == CloudErrorCode.notFound) {
-        _logger.info('Cloud-side step returned notFound; proceeding with local reset');
-        return;
-      }
-      rethrow;
-    }
   }
 
   Future<void> _resetLocalState() async {

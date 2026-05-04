@@ -31,7 +31,7 @@ void main() {
       expect(r.calls, ['deleteAccount', 'key', 'auth']);
     });
 
-    test('cloud failure short-circuits; local state is not wiped', () async {
+    test('cloud failure does NOT block local cleanup (destroy intent wins)', () async {
       final r = _Recorder();
       final service = AccountResetService(
         r.deps(
@@ -45,12 +45,10 @@ void main() {
         ),
       );
 
-      await expectLater(
-        service.resetForGroupDeletion(),
-        throwsA(isA<CloudException>()),
-      );
+      await service.resetForGroupDeletion();
 
-      expect(r.calls, ['deleteAccount']);
+      // Cloud step recorded but failed; local steps still ran.
+      expect(r.calls, ['deleteAccount', 'key', 'auth']);
     });
 
     test('group-key failure short-circuits; auth is not reset', () async {
