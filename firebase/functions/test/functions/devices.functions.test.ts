@@ -63,7 +63,6 @@ describe('registerDeviceLogic', () => {
 
     const result = await registerDeviceLogic(getDb(), UID, {
       ...baseRegisterInput(DEVICE_A),
-      displayName: 'Renamed Laptop',
       fcmToken: 'fcm-token-refreshed',
     });
 
@@ -71,8 +70,33 @@ describe('registerDeviceLogic', () => {
     const account = await readAccount(UID);
     expect(account?.deviceCount).toBe(1);
     const device = await readDevice(UID, DEVICE_A);
-    expect(device?.displayName).toBe('Renamed Laptop');
     expect(device?.fcmToken).toBe('fcm-token-refreshed');
+  });
+
+  it('preserves user-customised displayName and icon on re-register', async () => {
+    // Regression: every bootstrap calls registerDevice with the LAN
+    // alias as displayName. Without this guard, an earlier renameDevice
+    // would be silently overwritten on the next launch.
+    await seedAccount(UID, { deviceCount: 0 });
+    await registerDeviceLogic(getDb(), UID, baseRegisterInput(DEVICE_A));
+    // Simulate a renameDevice + setDeviceIcon by writing directly.
+    await getDb()
+      .doc(`accounts/${UID}/devices/${DEVICE_A}`)
+      .update({ displayName: 'Timetravels MacBook', icon: 'desktop' });
+
+    await registerDeviceLogic(getDb(), UID, {
+      ...baseRegisterInput(DEVICE_A),
+      // Bootstrap re-sends defaults — these must NOT clobber user edits.
+      displayName: "Niki's Laptop",
+      icon: 'laptop',
+      fcmToken: 'fcm-token-after-relaunch',
+    });
+
+    const device = await readDevice(UID, DEVICE_A);
+    expect(device?.displayName).toBe('Timetravels MacBook');
+    expect(device?.icon).toBe('desktop');
+    // Transient fields still refresh.
+    expect(device?.fcmToken).toBe('fcm-token-after-relaunch');
   });
 
   it('increments deviceCount for each new device', async () => {

@@ -401,6 +401,42 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as _i4.Future<void>);
 
   @override
+  bool getCloudWelcomeDismissed() =>
+      (super.noSuchMethod(
+            Invocation.method(#getCloudWelcomeDismissed, []),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  _i4.Future<void> setCloudWelcomeDismissed(bool? isDismissed) =>
+      (super.noSuchMethod(
+            Invocation.method(#setCloudWelcomeDismissed, [isDismissed]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> setCloudDeviceId(String? deviceId) =>
+      (super.noSuchMethod(
+            Invocation.method(#setCloudDeviceId, [deviceId]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> clearCloudDeviceId() =>
+      (super.noSuchMethod(
+            Invocation.method(#clearCloudDeviceId, []),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
   bool isQuickSave() =>
       (super.noSuchMethod(
             Invocation.method(#isQuickSave, []),

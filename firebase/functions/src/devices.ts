@@ -30,9 +30,20 @@ export interface UpdatePresenceResult {
 const PRESENCE_RATE_LIMIT_MS = 60_000;
 
 /**
- * Register a device under the caller's account, or update fields on an
- * existing device with the same `deviceId`. Idempotent: re-registering
- * the same device does not bump `deviceCount`.
+ * Register a device under the caller's account, or refresh transient
+ * fields on an existing device with the same `deviceId`. Idempotent:
+ * re-registering the same device does not bump `deviceCount`.
+ *
+ * Field-level contract:
+ * - On *create* (no existing doc): the full input is written. The
+ *   client's `defaultDisplayName` (LAN alias) and `defaultIcon`
+ *   become the initial values.
+ * - On *update* (doc already exists): only transient fields refresh
+ *   (`fcmToken`, `platform`, `lastSeenAt`, `presence`). User-edited
+ *   fields — `displayName` and `icon` — are preserved. Otherwise
+ *   every bootstrap on app relaunch would overwrite a previous
+ *   `renameDevice` or `setDeviceIcon` call. Subsequent renames go
+ *   through the dedicated callables.
  *
  * Pre-condition: `accounts/{uid}` must exist (call `createAccount` first).
  */
@@ -55,15 +66,26 @@ export async function registerDeviceLogic(
     const now = Timestamp.now();
     const created = !deviceSnap.exists;
 
-    const deviceDoc: DeviceDoc = {
-      displayName: input.displayName,
-      icon: input.icon,
-      fcmToken: input.fcmToken,
-      platform: input.platform,
-      lastSeenAt: now,
-      presence: 'online',
-    };
-    tx.set(deviceRef, deviceDoc);
+    if (created) {
+      const deviceDoc: DeviceDoc = {
+        displayName: input.displayName,
+        icon: input.icon,
+        fcmToken: input.fcmToken,
+        platform: input.platform,
+        lastSeenAt: now,
+        presence: 'online',
+      };
+      tx.set(deviceRef, deviceDoc);
+    } else {
+      // Preserve user-customisable displayName + icon on re-register.
+      const refresh: Partial<DeviceDoc> = {
+        fcmToken: input.fcmToken,
+        platform: input.platform,
+        lastSeenAt: now,
+        presence: 'online',
+      };
+      tx.update(deviceRef, refresh);
+    }
 
     const accountUpdate: Record<string, FieldValue | Timestamp> = {
       lastActiveAt: now,
