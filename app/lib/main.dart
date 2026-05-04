@@ -7,6 +7,8 @@ import 'package:magicshare_app/config/theme.dart';
 import 'package:magicshare_app/gen/strings.g.dart';
 import 'package:magicshare_app/model/persistence/color_mode.dart';
 import 'package:magicshare_app/pages/home_page.dart';
+import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
+import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/util/ui/dynamic_colors.dart';
@@ -54,13 +56,19 @@ class MagicShareApp extends StatelessWidget {
             switch (state) {
               case AppLifecycleState.resumed:
                 ref.redux(localIpProvider).dispatch(InitLocalIpAction());
+                ref.notifier(presenceHeartbeatProvider).markForeground();
+                ref.notifier(linuxWakePollerProvider).start();
+                break;
+              case AppLifecycleState.paused:
+              case AppLifecycleState.inactive:
+              case AppLifecycleState.hidden:
+                ref.notifier(presenceHeartbeatProvider).markBackground();
+                ref.notifier(linuxWakePollerProvider).stop();
                 break;
               case AppLifecycleState.detached:
                 // The main isolate is only exited when all child isolates are exited.
                 // https://github.com/localsend/localsend/issues/1568
                 ref.redux(parentIsolateProvider).dispatch(IsolateDisposeAction());
-                break;
-              default:
                 break;
             }
           },
