@@ -23,6 +23,7 @@ import 'package:magicshare_app/util/native/macos_channel.dart';
 import 'package:magicshare_app/util/native/pick_directory_path.dart';
 import 'package:magicshare_app/util/native/platform_check.dart';
 import 'package:magicshare_app/widget/about_magicshare_card.dart';
+import 'package:magicshare_app/widget/cloud/cloud_device_group_section.dart';
 import 'package:magicshare_app/widget/custom_dropdown_button.dart';
 import 'package:magicshare_app/widget/dialogs/encryption_disabled_notice.dart';
 import 'package:magicshare_app/widget/dialogs/pin_dialog.dart';
@@ -56,6 +57,7 @@ class SettingsTab extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 40),
                 children: [
                   SizedBox(height: 30 + MediaQuery.of(context).padding.top),
+                  const CloudDeviceGroupSection(),
                   _SettingsSection(
                     title: t.settingsTab.general.title,
                     children: [
