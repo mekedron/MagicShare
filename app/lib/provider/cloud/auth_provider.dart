@@ -124,16 +124,31 @@ class CloudAuthService extends Notifier<CloudAuthState> {
 
   @override
   CloudAuthState init() {
-    final currentUid = _gateway.currentUserId();
+    String? currentUid;
+    try {
+      currentUid = _gateway.currentUserId();
+    } catch (e, st) {
+      // Firebase isn't initialized on this run (cloud sync disabled,
+      // platform unsupported, init failure, etc.). Stay idle — the
+      // auth-state stream we'd attach below would also throw.
+      _logger.info('Firebase Auth unavailable; CloudAuthService idle: $e');
+      _logger.fine('Stack', st);
+      return const CloudAuthIdle();
+    }
     // Idempotent: NotifierTester invokes init() twice during construction;
     // production RefenaScope invokes it once. Subscribing twice would
     // double-bill the stream listener.
     if (!_started) {
       _started = true;
-      _subscription = _gateway.userIdChanges().listen(
-        _handleUidChange,
-        onError: _handleStreamError,
-      );
+      try {
+        _subscription = _gateway.userIdChanges().listen(
+          _handleUidChange,
+          onError: _handleStreamError,
+        );
+      } catch (e, st) {
+        _logger.warning('Could not attach to Firebase auth-state stream', e, st);
+        return const CloudAuthIdle();
+      }
     }
     if (currentUid != null) {
       return CloudAuthAuthenticated(currentUid);

@@ -200,6 +200,23 @@ class PersistenceService {
       await prefs.remove(launchMinimizedLegacyKey);
     }
 
+    // Migrate the old "Use without cloud" behaviour. The first iteration
+    // of the welcome card flipped settings.cloudSyncEnabled to false,
+    // which now hides the section entirely and breaks Firebase init for
+    // users mid-flight. The new code uses the dedicated
+    // ls_cloud_welcome_dismissed flag for that. If we see the legacy
+    // pattern (cloud sync explicitly disabled but welcome was never
+    // dismissed) carry the dismissal forward and re-enable cloud sync
+    // so the user lands on the post-dismissal setup card instead of a
+    // hidden section.
+    final legacyCloudOff = prefs.getBool(_cloudSyncEnabledKey) == false;
+    final dismissedNotSet = prefs.getBool(_cloudWelcomeDismissedKey) == null;
+    if (legacyCloudOff && dismissedNotSet) {
+      _logger.info('Migrating legacy "Use without cloud" choice to welcome-dismissed flag');
+      await prefs.setBool(_cloudWelcomeDismissedKey, true);
+      await prefs.setBool(_cloudSyncEnabledKey, true);
+    }
+
     return PersistenceService._(prefs, isFirstAppStart);
   }
 
