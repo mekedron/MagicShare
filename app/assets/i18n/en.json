@@ -225,6 +225,22 @@
         "title": "Cloud sync is off",
         "body": "Local Wi-Fi transfers still work. Re-enable cloud sync to wake other devices over push.",
         "enable": "Turn on cloud sync"
+      },
+      "pairing": {
+        "inviteDialog": {
+          "title": "Invite a device",
+          "subtitle": "Scan this QR or type the code on the other device.",
+          "manualCodeLabel": "Or type this code:",
+          "copyCode": "Copy code",
+          "copied": "Code copied",
+          "expiresIn": "Expires in {seconds}s",
+          "expired": "Refreshing…",
+          "successPaired": "A device joined the group"
+        },
+        "errors": {
+          "generic": "Something went wrong while pairing.",
+          "noLan": "This device isn't on a Wi-Fi network. Connect first, then try again."
+        }
       }
     },
     "other": {

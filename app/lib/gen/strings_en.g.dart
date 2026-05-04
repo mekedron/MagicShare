@@ -394,11 +394,8 @@ class TranslationsReceivePageEn {
   // Translations
 
   /// en: '(one) {wants to send you a file} (other) {wants to send you {n} files}'
-  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(
-    n,
-    one: 'wants to send you a file',
-    other: 'wants to send you ${n} files',
-  );
+  String subTitle({required num n}) =>
+      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'wants to send you a file', other: 'wants to send you ${n} files');
 
   /// en: 'sent you a message:'
   String get subTitleMessage => 'sent you a message:';
@@ -1210,6 +1207,7 @@ class TranslationsSettingsTabDeviceGroupEn {
 
   late final TranslationsSettingsTabDeviceGroupWelcomeEn welcome = TranslationsSettingsTabDeviceGroupWelcomeEn.internal(_root);
   late final TranslationsSettingsTabDeviceGroupCloudOffEn cloudOff = TranslationsSettingsTabDeviceGroupCloudOffEn.internal(_root);
+  late final TranslationsSettingsTabDeviceGroupPairingEn pairing = TranslationsSettingsTabDeviceGroupPairingEn.internal(_root);
 }
 
 // Path: settingsTab.other
@@ -2042,6 +2040,19 @@ class TranslationsSettingsTabDeviceGroupCloudOffEn {
   String get enable => 'Turn on cloud sync';
 }
 
+// Path: settingsTab.deviceGroup.pairing
+class TranslationsSettingsTabDeviceGroupPairingEn {
+  TranslationsSettingsTabDeviceGroupPairingEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+  late final TranslationsSettingsTabDeviceGroupPairingInviteDialogEn inviteDialog = TranslationsSettingsTabDeviceGroupPairingInviteDialogEn.internal(
+    _root,
+  );
+  late final TranslationsSettingsTabDeviceGroupPairingErrorsEn errors = TranslationsSettingsTabDeviceGroupPairingErrorsEn.internal(_root);
+}
+
 // Path: progressPage.total.title
 class TranslationsProgressPageTotalTitleEn {
   TranslationsProgressPageTotalTitleEn.internal(this._root);
@@ -2091,4 +2102,52 @@ class TranslationsSettingsTabDeviceGroupIconPickerDialogIconsEn {
 
   /// en: 'Generic'
   String get other => 'Generic';
+}
+
+// Path: settingsTab.deviceGroup.pairing.inviteDialog
+class TranslationsSettingsTabDeviceGroupPairingInviteDialogEn {
+  TranslationsSettingsTabDeviceGroupPairingInviteDialogEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Invite a device'
+  String get title => 'Invite a device';
+
+  /// en: 'Scan this QR or type the code on the other device.'
+  String get subtitle => 'Scan this QR or type the code on the other device.';
+
+  /// en: 'Or type this code:'
+  String get manualCodeLabel => 'Or type this code:';
+
+  /// en: 'Copy code'
+  String get copyCode => 'Copy code';
+
+  /// en: 'Code copied'
+  String get copied => 'Code copied';
+
+  /// en: 'Expires in {seconds}s'
+  String expiresIn({required Object seconds}) => 'Expires in ${seconds}s';
+
+  /// en: 'Refreshing…'
+  String get expired => 'Refreshing…';
+
+  /// en: 'A device joined the group'
+  String get successPaired => 'A device joined the group';
+}
+
+// Path: settingsTab.deviceGroup.pairing.errors
+class TranslationsSettingsTabDeviceGroupPairingErrorsEn {
+  TranslationsSettingsTabDeviceGroupPairingErrorsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Something went wrong while pairing.'
+  String get generic => 'Something went wrong while pairing.';
+
+  /// en: 'This device isn't on a Wi-Fi network. Connect first, then try again.'
+  String get noLan => 'This device isn\'t on a Wi-Fi network. Connect first, then try again.';
 }

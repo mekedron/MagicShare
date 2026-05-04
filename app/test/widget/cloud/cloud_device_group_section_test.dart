@@ -312,7 +312,7 @@ void main() {
       expect(find.text('Remove from group'), findsNothing);
     });
 
-    testWidgets('tapping Invite a device shows the coming-soon snackbar', (tester) async {
+    testWidgets('tapping Invite a device opens the invite dialog', (tester) async {
       final state = AccountReady(
         accountId: 'acc-1',
         currentDeviceId: 'current',
@@ -326,7 +326,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Coming soon'), findsOneWidget);
+      // The dialog renders its own title (uses the same string as the
+      // button); look for the Close action that's only present in the
+      // dialog and not on the device-group card.
+      expect(find.text('Close'), findsOneWidget);
     });
 
     testWidgets('tapping Delete this device group opens the confirmation dialog', (tester) async {

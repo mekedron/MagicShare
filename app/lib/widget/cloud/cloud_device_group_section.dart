@@ -20,6 +20,7 @@ import 'package:magicshare_app/widget/dialogs/cloud_device_leave_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/cloud_device_remove_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/cloud_device_rename_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/delete_device_group_dialog.dart';
+import 'package:magicshare_app/widget/dialogs/invite_device_dialog.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 /// Top-of-settings card listing every device in this user's group plus
@@ -373,7 +374,7 @@ class _ReadyCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.qr_code_2_outlined),
                   label: Text(t.settingsTab.deviceGroup.inviteDevice),
-                  onPressed: () => _showComingSoon(context),
+                  onPressed: () => _onInvite(context),
                 ),
               ),
               const SizedBox(width: 12),
@@ -543,6 +544,13 @@ class _ReadyCard extends StatelessWidget {
   void _showComingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(t.settingsTab.deviceGroup.comingSoon)),
+    );
+  }
+
+  Future<void> _onInvite(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const InviteDeviceDialog(),
     );
   }
 }

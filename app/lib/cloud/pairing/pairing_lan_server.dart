@@ -21,6 +21,28 @@ const Duration kDefaultPairingHandshakeTimeout = Duration(minutes: 5);
 /// pairing flow.
 const String kPairingExchangeKeyPath = '/v1/pair/exchange-key';
 
+/// Minimal abstract surface the issuing-side dialog talks to. The
+/// production implementation is [PairingLanServer]; widget tests use
+/// a fake to avoid binding a real socket and to drive the
+/// handshake-completed signal deterministically.
+abstract class PairingLanServerHandle {
+  /// Bind the listener and return the bound port. Idempotent: a
+  /// second call returns the existing port.
+  Future<int> start();
+
+  /// Tear down the underlying listener. Safe to call from any state;
+  /// subsequent calls are no-ops.
+  Future<void> stop();
+
+  /// The bound port. Throws [StateError] if [start] has not yet been
+  /// called or [stop] has already torn the server down.
+  int get port;
+
+  /// Resolves on a successful handshake; completes with a
+  /// [TimeoutException] if the lifetime expires without one.
+  Future<void> get handshakeCompleted;
+}
+
 /// One-shot LAN-side server hosted by the issuing device for the
 /// duration of the *Invite a device* dialog. Accepts a single key
 /// exchange request, hands the requesting device the group's shared
@@ -33,7 +55,7 @@ const String kPairingExchangeKeyPath = '/v1/pair/exchange-key';
 /// minted in this dialog. TLS would just add operational complexity
 /// (cert serving + hostname binding) without changing the threat
 /// model.
-class PairingLanServer {
+class PairingLanServer implements PairingLanServerHandle {
   PairingLanServer({
     required this.tokenId,
     required this.issuerPrivateKey,
@@ -57,10 +79,12 @@ class PairingLanServer {
   /// server open for the next attempt within the [_timeout] window.
   /// Completes with `TimeoutException` only if [_timeout] elapses
   /// without a successful exchange.
+  @override
   Future<void> get handshakeCompleted => _handshakeCompleted.future;
 
   /// The bound port. Throws [StateError] if [start] has not yet been
   /// called or [stop] has already torn the server down.
+  @override
   int get port {
     final s = _server;
     if (s == null) throw StateError('PairingLanServer not started');
@@ -70,6 +94,7 @@ class PairingLanServer {
   /// Bind on `anyIPv4:0` (a free port chosen by the OS). The bound
   /// port is read back via [port]. Idempotent: calling start twice
   /// returns the existing port.
+  @override
   Future<int> start() async {
     if (_server != null) return _server!.port;
     final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
@@ -92,6 +117,7 @@ class PairingLanServer {
 
   /// Tear down the underlying HTTP server. Safe to call from any
   /// state; subsequent calls are no-ops.
+  @override
   Future<void> stop() async {
     final timer = _timeoutTimer;
     _timeoutTimer = null;
