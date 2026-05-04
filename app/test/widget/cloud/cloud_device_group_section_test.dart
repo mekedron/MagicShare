@@ -375,9 +375,12 @@ void main() {
       );
 
       expect(find.text('Set up your device group'), findsOneWidget);
-      expect(find.text("Couldn't create the device group. Try again?"), findsOneWidget);
-      // Primary CTA flips to "Retry".
-      expect(find.text('Retry'), findsOneWidget);
+      expect(
+        find.textContaining('Something went wrong setting up your device group'),
+        findsOneWidget,
+      );
+      // Primary CTA flips to "Try again".
+      expect(find.text('Try again'), findsOneWidget);
     });
   });
 

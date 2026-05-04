@@ -42,9 +42,11 @@ void main() {
 
     expect(find.text('Delete this device group?'), findsOneWidget);
     expect(
-      find.text(
-        'All devices will leave the group. The group is destroyed everywhere. This device will create a fresh empty group.',
-      ),
+      find.textContaining('Every device leaves the group'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('setup screen again'),
       findsOneWidget,
     );
   });

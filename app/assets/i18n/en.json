@@ -188,12 +188,12 @@
       },
       "leaveDialog": {
         "title": "Leave this group?",
-        "body": "This device will leave the group and create a new one of its own. If it is the last device in the group, the group is destroyed.",
+        "body": "This device will leave the group. If it is the last device in the group, the group is destroyed. You'll see the setup screen again so you can pick how this device proceeds — create a new group, join another one, or run without cloud features.",
         "confirm": "Leave"
       },
       "deleteGroupDialog": {
         "title": "Delete this device group?",
-        "body": "All devices will leave the group. The group is destroyed everywhere. This device will create a fresh empty group.",
+        "body": "Every device leaves the group and the group is destroyed everywhere. You'll see the setup screen again so you can pick how this device proceeds — create a new group, join another one, or run without cloud features.",
         "confirm": "Delete group"
       },
       "snackbars": {
@@ -216,8 +216,8 @@
         "useWithoutCloud": "Use without cloud",
         "useWithoutCloudHint": "Skip the cloud features. The app keeps working over local Wi-Fi like vanilla LocalSend.",
         "creating": "Creating your device group…",
-        "createFailed": "Couldn't create the device group. Try again?",
-        "retry": "Retry"
+        "createFailed": "Something went wrong setting up your device group. Try again — or pick a different option below.",
+        "retry": "Try again"
       },
       "cloudOff": {
         "title": "Cloud sync is off",

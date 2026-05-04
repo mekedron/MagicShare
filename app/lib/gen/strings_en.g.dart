@@ -1914,9 +1914,9 @@ class TranslationsSettingsTabDeviceGroupLeaveDialogEn {
   /// en: 'Leave this group?'
   String get title => 'Leave this group?';
 
-  /// en: 'This device will leave the group and create a new one of its own. If it is the last device in the group, the group is destroyed.'
+  /// en: 'This device will leave the group. If it is the last device in the group, the group is destroyed. You'll see the setup screen again so you can pick how this device proceeds — create a new group, join another one, or run without cloud features.'
   String get body =>
-      'This device will leave the group and create a new one of its own. If it is the last device in the group, the group is destroyed.';
+      'This device will leave the group. If it is the last device in the group, the group is destroyed. You\'ll see the setup screen again so you can pick how this device proceeds — create a new group, join another one, or run without cloud features.';
 
   /// en: 'Leave'
   String get confirm => 'Leave';
@@ -1933,8 +1933,9 @@ class TranslationsSettingsTabDeviceGroupDeleteGroupDialogEn {
   /// en: 'Delete this device group?'
   String get title => 'Delete this device group?';
 
-  /// en: 'All devices will leave the group. The group is destroyed everywhere. This device will create a fresh empty group.'
-  String get body => 'All devices will leave the group. The group is destroyed everywhere. This device will create a fresh empty group.';
+  /// en: 'Every device leaves the group and the group is destroyed everywhere. You'll see the setup screen again so you can pick how this device proceeds — create a new group, join another one, or run without cloud features.'
+  String get body =>
+      'Every device leaves the group and the group is destroyed everywhere. You\'ll see the setup screen again so you can pick how this device proceeds — create a new group, join another one, or run without cloud features.';
 
   /// en: 'Delete group'
   String get confirm => 'Delete group';
@@ -2009,11 +2010,11 @@ class TranslationsSettingsTabDeviceGroupWelcomeEn {
   /// en: 'Creating your device group…'
   String get creating => 'Creating your device group…';
 
-  /// en: 'Couldn't create the device group. Try again?'
-  String get createFailed => 'Couldn\'t create the device group. Try again?';
+  /// en: 'Something went wrong setting up your device group. Try again — or pick a different option below.'
+  String get createFailed => 'Something went wrong setting up your device group. Try again — or pick a different option below.';
 
-  /// en: 'Retry'
-  String get retry => 'Retry';
+  /// en: 'Try again'
+  String get retry => 'Try again';
 }
 
 // Path: settingsTab.deviceGroup.cloudOff
