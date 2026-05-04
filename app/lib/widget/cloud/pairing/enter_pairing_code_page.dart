@@ -70,7 +70,10 @@ class _EnterPairingCodePageState extends State<EnterPairingCodePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(t.settingsTab.deviceGroup.pairing.snackbars.joined)),
     );
-    await Navigator.of(context).maybePop();
+    // Return `true` to the page that pushed us so the scanner page
+    // (or any other host) can also pop itself off the stack — the
+    // pairing flow is done.
+    Navigator.of(context).pop(true);
   }
 
   @override

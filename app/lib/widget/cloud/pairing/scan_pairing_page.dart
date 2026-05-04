@@ -98,11 +98,20 @@ class _ScanPairingPageState extends State<ScanPairingPage> {
   Future<void> _onManualFallback() async {
     await _controller.stop();
     if (!mounted) return;
-    await context.push(
+    final result = await context.push(
       () => EnterPairingCodePage(newDeviceIdentity: widget.newDeviceIdentity),
     );
+    final paired = result == true;
     if (!mounted) return;
-    // Resume scanning if the user came back without pairing.
+    if (paired) {
+      // Manual entry succeeded — also pop the scanner so the user
+      // lands back at the device-group settings instead of looking
+      // at a dormant camera surface.
+      _consumed = true;
+      await Navigator.of(context).maybePop();
+      return;
+    }
+    // User cancelled or failed — resume scanning.
     if (!_consumed) {
       await _controller.start();
     }
