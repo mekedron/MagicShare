@@ -325,7 +325,7 @@ lands.
     receive from a MagicShare client both ways; a request
     carrying a `wakeSessionId` parses correctly on both sides.
 
-- [ ] **Epic 10 — Settings: device group section.** Build the new
+- [x] **Epic 10 — Settings: device group section.** Build the new
   settings section: list of devices, bottom sheets, icon picker,
   delete-group button, plus localization.
 
