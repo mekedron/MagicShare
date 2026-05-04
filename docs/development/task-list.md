@@ -273,7 +273,7 @@ lands.
     ~1 s of launch; a test FCM data message reaches the app on
     at least one mobile platform.
 
-- [ ] **Epic 8 — Account and device state in the app.** Implement
+- [x] **Epic 8 — Account and device state in the app.** Implement
   the local state and bootstrap path that registers this device
   and keeps it talking to the cloud.
 
