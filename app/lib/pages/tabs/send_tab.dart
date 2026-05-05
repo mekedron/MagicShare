@@ -1,6 +1,5 @@
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:collection/collection.dart';
-import 'package:common/model/device.dart';
 import 'package:common/model/session_status.dart';
 import 'package:flutter/material.dart';
 import 'package:magicshare_app/config/theme.dart';
@@ -10,6 +9,7 @@ import 'package:magicshare_app/pages/selected_files_page.dart';
 import 'package:magicshare_app/pages/tabs/send_tab_vm.dart';
 import 'package:magicshare_app/pages/troubleshoot_page.dart';
 import 'package:magicshare_app/provider/animation_provider.dart';
+import 'package:magicshare_app/provider/cloud/merged_network_devices_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
 import 'package:magicshare_app/provider/network/scan_facade.dart';
 import 'package:magicshare_app/provider/network/send_provider.dart';
@@ -201,7 +201,7 @@ class SendTab extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (vm.nearbyDevices.isEmpty)
+                if (vm.networkDevices.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 10, left: _horizontalPadding, right: _horizontalPadding),
                     child: Opacity(
@@ -209,25 +209,39 @@ class SendTab extends StatelessWidget {
                       child: DevicePlaceholderListTile(),
                     ),
                   ),
-                ...vm.nearbyDevices.map((device) {
-                  final favoriteEntry = vm.favoriteDevices.findDevice(device);
+                ...vm.networkDevices.map((merged) {
+                  final device = merged.displayDevice;
+                  final favoriteEntry = merged.isLanReachable ? vm.favoriteDevices.findDevice(device) : null;
+                  final presence = merged.cloud == null
+                      ? null
+                      : NetworkPresenceInfo(
+                          isOnline: merged.isOnline,
+                          statusLabel: merged.isOnline ? t.general.online : t.general.offline,
+                          wakeLabel: merged.isOfflineCloud ? t.sendTab.wakeIndicator : null,
+                        );
+                  // Wake-on-offline arrives in the next subtask. Until then,
+                  // disable the tap on a cloud-only target so the user
+                  // doesn't run into a synthesized null-IP transfer.
+                  final canTapOffline = !merged.isOfflineCloud;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10, left: _horizontalPadding, right: _horizontalPadding),
                     child: Hero(
-                      tag: 'device-${device.ip}',
+                      tag: 'device-${merged.stableId}',
                       child: vm.sendMode == SendMode.multiple
                           ? _MultiSendDeviceListTile(
-                              device: device,
+                              merged: merged,
                               isFavorite: favoriteEntry != null,
                               nameOverride: favoriteEntry?.alias,
+                              networkPresence: presence,
                               vm: vm,
                             )
                           : DeviceListTile(
                               device: device,
                               isFavorite: favoriteEntry != null,
                               nameOverride: favoriteEntry?.alias,
-                              onFavoriteTap: () async => await vm.onToggleFavorite(context, device),
-                              onTap: () async => await vm.onTapDevice(context, device),
+                              networkPresence: presence,
+                              onFavoriteTap: merged.isLanReachable ? () async => await vm.onToggleFavorite(context, device) : null,
+                              onTap: canTapOffline ? () async => await vm.onTapDevice(context, device) : null,
                             ),
                     ),
                   );
@@ -525,22 +539,25 @@ class _SendModeButton extends StatelessWidget {
 
 /// An advanced list tile which shows the progress of the file transfer.
 class _MultiSendDeviceListTile extends StatelessWidget {
-  final Device device;
+  final MergedDevice merged;
   final bool isFavorite;
   final String? nameOverride;
+  final NetworkPresenceInfo? networkPresence;
   final SendTabVm vm;
 
   const _MultiSendDeviceListTile({
-    required this.device,
+    required this.merged,
     required this.isFavorite,
     required this.nameOverride,
+    required this.networkPresence,
     required this.vm,
   });
 
   @override
   Widget build(BuildContext context) {
+    final device = merged.displayDevice;
     final ref = context.ref;
-    final session = ref.watch(sendProvider).values.firstWhereOrNull((s) => s.target.ip == device.ip);
+    final session = merged.isLanReachable ? ref.watch(sendProvider).values.firstWhereOrNull((s) => s.target.ip == device.ip) : null;
     final double? progress;
     if (session != null) {
       final files = session.files.values.where((f) => f.token != null);
@@ -560,8 +577,9 @@ class _MultiSendDeviceListTile extends StatelessWidget {
       progress: progress,
       isFavorite: isFavorite,
       nameOverride: nameOverride,
-      onFavoriteTap: device.ip == null ? null : () async => await vm.onToggleFavorite(context, device),
-      onTap: () async => await vm.onTapDeviceMultiSend(context, device),
+      networkPresence: networkPresence,
+      onFavoriteTap: merged.isLanReachable && device.ip != null ? () async => await vm.onToggleFavorite(context, device) : null,
+      onTap: merged.isOfflineCloud ? null : () async => await vm.onTapDeviceMultiSend(context, device),
     );
   }
 }

@@ -1,9 +1,27 @@
 import 'package:common/model/device.dart';
 import 'package:flutter/material.dart';
 import 'package:magicshare_app/util/device_type_ext.dart';
+import 'package:magicshare_app/widget/cloud/presence_dot.dart';
 import 'package:magicshare_app/widget/custom_progress_bar.dart';
 import 'package:magicshare_app/widget/device_bage.dart';
 import 'package:magicshare_app/widget/list_tile/custom_list_tile.dart';
+
+/// Optional cloud-aware presence info for a device tile. When set, the
+/// tile renders a presence dot + status label in the subtitle row, and
+/// (for offline cloud-only devices) a "Wake" pill. When null, the tile
+/// renders exactly as it did before Epic 12.
+@immutable
+class NetworkPresenceInfo {
+  final bool isOnline;
+  final String statusLabel;
+  final String? wakeLabel;
+
+  const NetworkPresenceInfo({
+    required this.isOnline,
+    required this.statusLabel,
+    this.wakeLabel,
+  });
+}
 
 class DeviceListTile extends StatelessWidget {
   final Device device;
@@ -18,6 +36,11 @@ class DeviceListTile extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onFavoriteTap;
 
+  /// When non-null, the tile shows presence info (dot + status) plus an
+  /// optional "Wake" badge. Only set on tiles that represent the user's
+  /// own cloud-registered devices (Epic 12 Send-tab merge).
+  final NetworkPresenceInfo? networkPresence;
+
   const DeviceListTile({
     required this.device,
     this.isFavorite = false,
@@ -26,11 +49,14 @@ class DeviceListTile extends StatelessWidget {
     this.progress,
     this.onTap,
     this.onFavoriteTap,
+    this.networkPresence,
   });
 
   @override
   Widget build(BuildContext context) {
-    final badgeColor = Color.lerp(Theme.of(context).colorScheme.secondaryContainer, Colors.white, 0.3)!;
+    final theme = Theme.of(context);
+    final badgeColor = Color.lerp(theme.colorScheme.secondaryContainer, Colors.white, 0.3)!;
+    final wakeBadgeColor = Color.lerp(theme.colorScheme.tertiaryContainer, Colors.white, 0.2)!;
     return CustomListTile(
       icon: Icon(device.deviceType.icon, size: 46),
       title: Text(nameOverride ?? device.alias, style: const TextStyle(fontSize: 20)),
@@ -43,6 +69,7 @@ class DeviceListTile extends StatelessWidget {
       subTitle: Wrap(
         runSpacing: 10,
         spacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           if (info != null)
             Text(info!, style: const TextStyle(color: Colors.grey))
@@ -52,28 +79,60 @@ class DeviceListTile extends StatelessWidget {
               child: CustomProgressBar(progress: progress!),
             )
           else ...[
+            if (networkPresence != null)
+              _PresenceLabel(
+                isOnline: networkPresence!.isOnline,
+                label: networkPresence!.statusLabel,
+              ),
             if (device.ip != null)
               DeviceBadge(
                 backgroundColor: badgeColor,
-                foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                foregroundColor: theme.colorScheme.onSecondaryContainer,
                 label: 'LAN • HTTP',
               )
-            else
+            else if (networkPresence == null)
               DeviceBadge(
                 backgroundColor: badgeColor,
-                foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                foregroundColor: theme.colorScheme.onSecondaryContainer,
                 label: 'WebRTC',
               ),
             if (device.deviceModel != null)
               DeviceBadge(
                 backgroundColor: badgeColor,
-                foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+                foregroundColor: theme.colorScheme.onSecondaryContainer,
                 label: device.deviceModel!,
+              ),
+            if (networkPresence != null && !networkPresence!.isOnline && networkPresence!.wakeLabel != null)
+              DeviceBadge(
+                backgroundColor: wakeBadgeColor,
+                foregroundColor: theme.colorScheme.onTertiaryContainer,
+                label: networkPresence!.wakeLabel!,
               ),
           ],
         ],
       ),
       onTap: onTap,
+    );
+  }
+}
+
+class _PresenceLabel extends StatelessWidget {
+  final bool isOnline;
+  final String label;
+  const _PresenceLabel({required this.isOnline, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PresenceDot(isOnline: isOnline),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+      ],
     );
   }
 }

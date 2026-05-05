@@ -8,6 +8,7 @@ import 'package:magicshare_app/model/send_mode.dart';
 import 'package:magicshare_app/pages/progress_page.dart';
 import 'package:magicshare_app/pages/send_page.dart';
 import 'package:magicshare_app/pages/web_send_page.dart';
+import 'package:magicshare_app/provider/cloud/merged_network_devices_provider.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
@@ -28,7 +29,7 @@ class SendTabVm {
   final SendMode sendMode;
   final List<CrossFile> selectedFiles;
   final List<String> localIps;
-  final Iterable<Device> nearbyDevices;
+  final List<MergedDevice> networkDevices;
   final List<FavoriteDevice> favoriteDevices;
   final Future<void> Function(BuildContext context) onTapAddress;
   final Future<void> Function(BuildContext context) onTapFavorite;
@@ -41,7 +42,7 @@ class SendTabVm {
     required this.sendMode,
     required this.selectedFiles,
     required this.localIps,
-    required this.nearbyDevices,
+    required this.networkDevices,
     required this.favoriteDevices,
     required this.onTapAddress,
     required this.onTapFavorite,
@@ -56,14 +57,14 @@ final sendTabVmProvider = ViewProvider((ref) {
   final sendMode = ref.watch(settingsProvider.select((s) => s.sendMode));
   final selectedFiles = ref.watch(selectedSendingFilesProvider);
   final localIps = ref.watch(localIpProvider).localIps;
-  final nearbyDevices = ref.watch(nearbyDevicesProvider).allDevices.values;
+  final networkDevices = ref.watch(mergedNetworkDevicesProvider);
   final favoriteDevices = ref.watch(favoritesProvider);
 
   return SendTabVm(
     sendMode: sendMode,
     selectedFiles: selectedFiles,
     localIps: localIps,
-    nearbyDevices: nearbyDevices,
+    networkDevices: networkDevices,
     favoriteDevices: favoriteDevices,
     onTapAddress: (context) async {
       final files = ref.read(selectedSendingFilesProvider);

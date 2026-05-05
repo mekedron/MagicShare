@@ -82,7 +82,8 @@
     },
     "sendModeHelp": "Explanation",
     "help": "Please ensure that the desired target is also on the same Wi-Fi network.",
-    "placeItems": "Place items to share."
+    "placeItems": "Place items to share.",
+    "wakeIndicator": "Wake"
   },
   "settingsTab": {
     "title": "Settings",

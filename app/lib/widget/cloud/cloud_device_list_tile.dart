@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_icon_data.dart';
+import 'package:magicshare_app/widget/cloud/presence_dot.dart';
 import 'package:magicshare_app/widget/list_tile/custom_list_tile.dart';
 
 /// Renders a single device row in the device-group settings section. Pure
@@ -35,7 +36,7 @@ class CloudDeviceListTile extends StatelessWidget {
       title: Text(device.displayName, style: const TextStyle(fontSize: 20)),
       subTitle: Row(
         children: [
-          _PresenceDot(isOnline: isOnline),
+          PresenceDot(isOnline: isOnline),
           const SizedBox(width: 8),
           Text(
             isOnline ? onlineLabel : offlineLabel,
@@ -45,25 +46,6 @@ class CloudDeviceListTile extends StatelessWidget {
       ),
       trailing: isCurrent ? _ThisDeviceBadge(label: thisDeviceLabel) : null,
       onTap: onTap,
-    );
-  }
-}
-
-class _PresenceDot extends StatelessWidget {
-  final bool isOnline;
-  const _PresenceDot({required this.isOnline});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isOnline ? Colors.green.shade500 : Theme.of(context).disabledColor;
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isOnline ? color : Colors.transparent,
-        border: Border.all(color: color, width: 2),
-      ),
     );
   }
 }
