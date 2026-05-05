@@ -83,7 +83,10 @@
     "sendModeHelp": "Explanation",
     "help": "Please ensure that the desired target is also on the same Wi-Fi network.",
     "placeItems": "Place items to share.",
-    "wakeIndicator": "Wake"
+    "wakeIndicator": "Wake",
+    "wakingUp": "Waking up {device}…",
+    "wakeRetry": "Retry",
+    "wakeTimedOut": "Device did not respond. It might be offline."
   },
   "settingsTab": {
     "title": "Settings",

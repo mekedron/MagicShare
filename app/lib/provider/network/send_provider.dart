@@ -55,10 +55,16 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
   /// Starts a session.
   /// If [background] is true, then the session closes itself on success and no pages will be open
   /// If [background] is false, then this method will open pages by itself and waits for user input to close the session.
+  ///
+  /// When [wakeSessionId] is non-null the value is threaded onto the
+  /// outgoing `prepareUpload` request so the recipient — woken via a
+  /// matching FCM data message — can auto-accept by looking up the
+  /// nonce in its expected-nonces map (Epic 13).
   Future<void> startSession({
     required Device target,
     required List<CrossFile> files,
     required bool background,
+    String? wakeSessionId,
   }) async {
     final client = ref.read(httpProvider).v2;
     final sessionId = _uuid.v4();
@@ -125,6 +131,7 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
       files: {
         for (final entry in requestState.files.entries) entry.key: entry.value.file.toRust(),
       },
+      wakeSessionId: wakeSessionId,
     );
 
     state = state.updateSession(

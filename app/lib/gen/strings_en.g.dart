@@ -258,6 +258,15 @@ class TranslationsSendTabEn {
 
   /// en: 'Wake'
   String get wakeIndicator => 'Wake';
+
+  /// en: 'Waking up {device}…'
+  String wakingUp({required Object device}) => 'Waking up ${device}…';
+
+  /// en: 'Retry'
+  String get wakeRetry => 'Retry';
+
+  /// en: 'Device did not respond. It might be offline.'
+  String get wakeTimedOut => 'Device did not respond. It might be offline.';
 }
 
 // Path: settingsTab
