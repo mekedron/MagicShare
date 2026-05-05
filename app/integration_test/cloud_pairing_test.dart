@@ -56,6 +56,7 @@ void main() {
       icon: CloudDeviceIcon.phone,
       platform: CloudDevicePlatform.android,
       fcmToken: 'fcm-joiner',
+      fingerprint: null,
     );
 
     // Joiner previews + joins.
@@ -174,6 +175,7 @@ Future<_IssuerCtx> _bootstrapIssuer() async {
     icon: CloudDeviceIcon.laptop,
     platform: CloudDevicePlatform.macos,
     fcmToken: 'fcm-issuer',
+    fingerprint: null,
   );
   return _IssuerCtx(uid: uid, deviceId: deviceId, client: client);
 }

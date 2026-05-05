@@ -13,6 +13,12 @@ const DISPLAY_NAME_MAX = 80;
 const FCM_TOKEN_MAX = 4096;
 const TOKEN_ID_MAX = 128;
 /**
+ * LocalSend's cert hash is a SHA-256 hex digest (64 chars). 128 leaves
+ * headroom in case the upstream protocol switches digest. Below this
+ * the field is opaque to the backend — we don't validate the format.
+ */
+const FINGERPRINT_MAX = 128;
+/**
  * Encrypted wake/link payloads are AES-GCM ciphertext over a small
  * JSON envelope, base64-encoded by the client. 16 KiB is comfortable
  * headroom over the LocalSend wake metadata + nonce; well below FCM's
@@ -83,12 +89,29 @@ function assertFcmToken(value: unknown): string | null {
   return value as string;
 }
 
+function assertFingerprint(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string') fail('fingerprint', `expected a string or null`);
+  if ((value as string).length === 0) fail('fingerprint', `must not be empty`);
+  if ((value as string).length > FINGERPRINT_MAX) {
+    fail('fingerprint', `must be ${FINGERPRINT_MAX} characters or fewer`);
+  }
+  return value as string;
+}
+
 export interface RegisterDeviceInput {
   deviceId: string;
   displayName: string;
   icon: DeviceIcon;
   fcmToken: string | null;
   platform: DevicePlatform;
+  /**
+   * Optional. When the input omits the field entirely (older clients
+   * that pre-date the field), `parseRegisterDeviceInput` leaves the
+   * key undefined and `registerDeviceLogic` preserves whatever value
+   * is already on the doc.
+   */
+  fingerprint?: string | null;
 }
 
 export interface UpdatePresenceInput {
@@ -145,13 +168,17 @@ function asObject(raw: unknown): Record<string, unknown> {
 
 export function parseRegisterDeviceInput(raw: unknown): RegisterDeviceInput {
   const obj = asObject(raw);
-  return {
+  const result: RegisterDeviceInput = {
     deviceId: assertDeviceId(obj.deviceId),
     displayName: assertDisplayName(obj.displayName),
     icon: assertDeviceIcon(obj.icon),
     fcmToken: assertFcmToken(obj.fcmToken),
     platform: assertDevicePlatform(obj.platform),
   };
+  if (obj.fingerprint !== undefined) {
+    result.fingerprint = assertFingerprint(obj.fingerprint);
+  }
+  return result;
 }
 
 export function parseUpdatePresenceInput(raw: unknown): UpdatePresenceInput {

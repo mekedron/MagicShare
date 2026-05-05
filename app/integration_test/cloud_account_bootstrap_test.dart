@@ -49,6 +49,7 @@ void main() {
       icon: CloudDeviceIcon.phone,
       platform: CloudDevicePlatform.android,
       fcmToken: null,
+      fingerprint: null,
     );
     expect(reg.created, isTrue);
     stopwatch.stop();
@@ -90,6 +91,7 @@ void main() {
       icon: CloudDeviceIcon.desktop,
       platform: CloudDevicePlatform.macos,
       fcmToken: 'fcm-1',
+      fingerprint: null,
     );
 
     // Snapshot lastSeenAt for the bump assertion below.
@@ -106,6 +108,7 @@ void main() {
       icon: CloudDeviceIcon.desktop,
       platform: CloudDevicePlatform.macos,
       fcmToken: 'fcm-1',
+      fingerprint: null,
     );
 
     final accountSnap = await FirebaseFirestore.instance.doc('accounts/$uid').get();

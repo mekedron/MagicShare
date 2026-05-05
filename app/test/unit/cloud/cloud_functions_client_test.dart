@@ -69,6 +69,7 @@ void main() {
         icon: CloudDeviceIcon.laptop,
         platform: CloudDevicePlatform.macos,
         fcmToken: 'fcm-abc',
+        fingerprint: 'cert-hash-abc',
       );
 
       expect(inv.calls.single.name, 'registerDevice');
@@ -78,6 +79,7 @@ void main() {
         'icon': 'laptop',
         'platform': 'macos',
         'fcmToken': 'fcm-abc',
+        'fingerprint': 'cert-hash-abc',
       });
     });
 
@@ -91,10 +93,13 @@ void main() {
         icon: CloudDeviceIcon.server,
         platform: CloudDevicePlatform.linux,
         fcmToken: null,
+        fingerprint: null,
       );
 
       expect((inv.calls.single.data as Map)['fcmToken'], isNull);
       expect((inv.calls.single.data as Map).containsKey('fcmToken'), isTrue);
+      expect((inv.calls.single.data as Map)['fingerprint'], isNull);
+      expect((inv.calls.single.data as Map).containsKey('fingerprint'), isTrue);
     });
 
     test('updateDevicePresence encodes presence as enum.name', () async {

@@ -48,6 +48,14 @@ export interface DeviceDoc {
   lastSeenAt: Timestamp;
   presence: DevicePresence;
   /**
+   * The LocalSend cert hash that this device announces over multicast.
+   * Lets the Send tab dedup LAN-discovered devices against the cloud
+   * device list using a stable join key (cloud `deviceId` is a UUIDv4
+   * generated independently). Optional so devices that haven't
+   * re-registered since the field was introduced read as `null`.
+   */
+  fingerprint?: string | null;
+  /**
    * Sliding-window record of recent `sendWake` / `sendLinkNotification`
    * timestamps. Used by `src/rate-limit.ts` to enforce the soft
    * 30-sends-per-hour ceiling. Optional so existing devices migrate in

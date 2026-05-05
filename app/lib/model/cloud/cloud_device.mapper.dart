@@ -60,6 +60,12 @@ class CloudDeviceMapper extends ClassMapperBase<CloudDevice> {
     'presence',
     _$presence,
   );
+  static String? _$fingerprint(CloudDevice v) => v.fingerprint;
+  static const Field<CloudDevice, String> _f$fingerprint = Field(
+    'fingerprint',
+    _$fingerprint,
+    opt: true,
+  );
 
   @override
   final MappableFields<CloudDevice> fields = const {
@@ -70,6 +76,7 @@ class CloudDeviceMapper extends ClassMapperBase<CloudDevice> {
     #platform: _f$platform,
     #lastSeenAtMs: _f$lastSeenAtMs,
     #presence: _f$presence,
+    #fingerprint: _f$fingerprint,
   };
 
   static CloudDevice _instantiate(DecodingData data) {
@@ -81,6 +88,7 @@ class CloudDeviceMapper extends ClassMapperBase<CloudDevice> {
       platform: data.dec(_f$platform),
       lastSeenAtMs: data.dec(_f$lastSeenAtMs),
       presence: data.dec(_f$presence),
+      fingerprint: data.dec(_f$fingerprint),
     );
   }
 
@@ -152,6 +160,7 @@ abstract class CloudDeviceCopyWith<$R, $In extends CloudDevice, $Out>
     CloudDevicePlatform? platform,
     int? lastSeenAtMs,
     CloudDevicePresence? presence,
+    String? fingerprint,
   });
   CloudDeviceCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -173,6 +182,7 @@ class _CloudDeviceCopyWithImpl<$R, $Out>
     CloudDevicePlatform? platform,
     int? lastSeenAtMs,
     CloudDevicePresence? presence,
+    Object? fingerprint = $none,
   }) => $apply(
     FieldCopyWithData({
       if (deviceId != null) #deviceId: deviceId,
@@ -182,6 +192,7 @@ class _CloudDeviceCopyWithImpl<$R, $Out>
       if (platform != null) #platform: platform,
       if (lastSeenAtMs != null) #lastSeenAtMs: lastSeenAtMs,
       if (presence != null) #presence: presence,
+      if (fingerprint != $none) #fingerprint: fingerprint,
     }),
   );
   @override
@@ -193,6 +204,7 @@ class _CloudDeviceCopyWithImpl<$R, $Out>
     platform: data.get(#platform, or: $value.platform),
     lastSeenAtMs: data.get(#lastSeenAtMs, or: $value.lastSeenAtMs),
     presence: data.get(#presence, or: $value.presence),
+    fingerprint: data.get(#fingerprint, or: $value.fingerprint),
   );
 
   @override

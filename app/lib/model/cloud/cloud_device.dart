@@ -18,6 +18,13 @@ class CloudDevice with CloudDeviceMappable {
   final int lastSeenAtMs;
   final CloudDevicePresence presence;
 
+  /// LocalSend cert hash announced by this device on multicast. Mirrors
+  /// `DeviceDoc.fingerprint` in firebase/functions/src/models.ts. Lets
+  /// the Send tab dedup LAN-discovered devices against the cloud device
+  /// list. Null for devices that haven't re-registered since the field
+  /// was introduced.
+  final String? fingerprint;
+
   const CloudDevice({
     required this.deviceId,
     required this.displayName,
@@ -26,6 +33,7 @@ class CloudDevice with CloudDeviceMappable {
     required this.platform,
     required this.lastSeenAtMs,
     required this.presence,
+    this.fingerprint,
   });
 
   static const fromJson = CloudDeviceMapper.fromJson;

@@ -86,6 +86,7 @@ CloudBootstrapDeps _deps({
   int peerDeviceCount = 0,
   bool cloudSyncEnabled = true,
   DeviceIdentityService? identity,
+  String? Function()? fingerprintReader,
 }) {
   return CloudBootstrapDeps(
     authStateReader: () => authInitial,
@@ -98,6 +99,7 @@ CloudBootstrapDeps _deps({
     ensureGroupKey: ensureGroupKey,
     peerDeviceCountReader: () => peerDeviceCount,
     cloudSyncEnabledReader: () => cloudSyncEnabled,
+    fingerprintReader: fingerprintReader ?? () => 'fixture-fingerprint',
   );
 }
 
@@ -176,6 +178,29 @@ void main() {
       expect(spy.registerCalls.single['fcmToken'], isNull);
       expect(tester.state, isA<BootstrapDone>());
       expect((tester.state as BootstrapDone).accountId, 'uid-1');
+      await streams.dispose();
+    });
+
+    test('forwards the LocalSend fingerprint on registerDevice', () async {
+      final spy = _CallableSpy();
+      final streams = _Streams();
+      Notifier.test<CloudBootstrapService, BootstrapState>(
+        notifier: CloudBootstrapService(
+          deps: _deps(
+            spy: spy,
+            streams: streams,
+            authInitial: const CloudAuthAuthenticated('uid-1'),
+            fcmInitial: const FcmTokenAcquiring(),
+            groupKeyReader: () => const GroupKeyMissing(),
+            ensureGroupKey: () async {},
+            fingerprintReader: () => 'cert-hash-abc',
+          ),
+          supportedOverride: true,
+        ),
+      );
+
+      await pumpEventQueue();
+      expect(spy.registerCalls.single['fingerprint'], 'cert-hash-abc');
       await streams.dispose();
     });
 

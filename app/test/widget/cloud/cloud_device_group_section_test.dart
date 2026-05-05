@@ -87,6 +87,7 @@ class _FakeBootstrapService extends CloudBootstrapService {
           ensureGroupKey: () async {},
           peerDeviceCountReader: () => 0,
           cloudSyncEnabledReader: () => false,
+          fingerprintReader: () => null,
         ),
         supportedOverride: false,
       );

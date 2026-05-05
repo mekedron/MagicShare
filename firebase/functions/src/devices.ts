@@ -74,6 +74,7 @@ export async function registerDeviceLogic(
         platform: input.platform,
         lastSeenAt: now,
         presence: 'online',
+        fingerprint: input.fingerprint ?? null,
       };
       tx.set(deviceRef, deviceDoc);
     } else {
@@ -84,6 +85,12 @@ export async function registerDeviceLogic(
         lastSeenAt: now,
         presence: 'online',
       };
+      // Only refresh fingerprint when the caller actually supplied it.
+      // An older client that omits the field must not clobber whatever
+      // a newer client already wrote.
+      if (input.fingerprint !== undefined) {
+        refresh.fingerprint = input.fingerprint;
+      }
       tx.update(deviceRef, refresh);
     }
 

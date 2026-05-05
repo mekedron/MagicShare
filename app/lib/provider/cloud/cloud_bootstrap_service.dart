@@ -9,6 +9,7 @@ import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.da
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
 import 'package:magicshare_app/provider/cloud/fcm_provider.dart';
 import 'package:magicshare_app/provider/cloud/group_key_provider.dart';
+import 'package:magicshare_app/provider/security_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/util/native/cloud_platform.dart';
 import 'package:refena_flutter/refena_flutter.dart';
@@ -87,6 +88,7 @@ class CloudBootstrapDeps {
     required this.ensureGroupKey,
     required this.peerDeviceCountReader,
     required this.cloudSyncEnabledReader,
+    required this.fingerprintReader,
   });
 
   final CloudAuthState Function() authStateReader;
@@ -99,6 +101,13 @@ class CloudBootstrapDeps {
   final Future<void> Function() ensureGroupKey;
   final int Function() peerDeviceCountReader;
   final bool Function() cloudSyncEnabledReader;
+
+  /// Returns the LocalSend cert hash that this install announces over
+  /// multicast — the join key the Send tab uses to dedup LAN devices
+  /// against cloud devices. May be null if the security context hasn't
+  /// been generated yet (extremely early in boot); the bootstrap simply
+  /// forwards null and the next launch will refresh.
+  final String? Function() fingerprintReader;
 }
 
 /// Orchestrates first-launch (and post-restart) bootstrap of the cloud
@@ -214,6 +223,7 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
         icon: identity.defaultIcon(),
         platform: identity.currentPlatform(),
         fcmToken: fcmToken,
+        fingerprint: _deps.fingerprintReader(),
       );
       _lastUploadedFcmToken = fcmToken;
       state = BootstrapDone(accountId: uid, deviceId: deviceId);
@@ -242,6 +252,7 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
         icon: identity.defaultIcon(),
         platform: identity.currentPlatform(),
         fcmToken: token,
+        fingerprint: _deps.fingerprintReader(),
       );
       _lastUploadedFcmToken = token;
     } on CloudException catch (e, st) {
@@ -294,6 +305,7 @@ final cloudBootstrapProvider = NotifierProvider<CloudBootstrapService, Bootstrap
         return accountState.devices.where((device) => device.deviceId != currentDeviceId).length;
       },
       cloudSyncEnabledReader: () => ref.read(settingsProvider).cloudSyncEnabled,
+      fingerprintReader: () => ref.read(securityProvider).certificateHash,
     ),
   );
 });

@@ -52,6 +52,7 @@ A single MagicShare installation registered under a device group.
 | `platform`       | `DevicePlatform`    | One of `android \| ios \| macos \| windows \| linux`.                                                   |
 | `lastSeenAt`     | `Timestamp`         | Bumped by `updateDevicePresence` (rate-limited to one call per minute per device).                      |
 | `presence`       | `DevicePresence`    | `online` while the app is foregrounded; `offline` otherwise.                                            |
+| `fingerprint?`   | `string \| null`    | The LocalSend cert hash this device announces over multicast. Lets the Send tab dedup LAN-discovered devices against the cloud device list. Optional — older devices that pre-date the field read as `null` until they re-register. |
 | `recentSendsAt?` | `Timestamp[]`       | Sliding-window record of recent `sendWake` / `sendLinkNotification` calls (≤ 30 entries, ≤ 1 h old).    |
 
 - **Read:** authenticated user where `request.auth.uid == accountId`.

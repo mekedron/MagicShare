@@ -100,7 +100,7 @@ void main() {
   });
 
   group('CloudDevice round-trip', () {
-    test('with fcmToken', () {
+    test('with fcmToken and fingerprint', () {
       const fixture = {
         'deviceId': 'device-1',
         'displayName': 'Macbook Pro',
@@ -109,15 +109,17 @@ void main() {
         'platform': 'macos',
         'lastSeenAtMs': 1714780800000,
         'presence': 'online',
+        'fingerprint': 'cert-hash-abc',
       };
       final decoded = CloudDevice.fromJson(fixture);
       expect(decoded.icon, CloudDeviceIcon.laptop);
       expect(decoded.platform, CloudDevicePlatform.macos);
       expect(decoded.presence, CloudDevicePresence.online);
+      expect(decoded.fingerprint, 'cert-hash-abc');
       expect(decoded.toJson(), fixture);
     });
 
-    test('with null fcmToken', () {
+    test('with null fcmToken and null fingerprint', () {
       const fixture = {
         'deviceId': 'device-2',
         'displayName': 'Headless server',
@@ -126,12 +128,28 @@ void main() {
         'platform': 'linux',
         'lastSeenAtMs': 1714780800000,
         'presence': 'offline',
+        'fingerprint': null,
       };
       final decoded = CloudDevice.fromJson(fixture);
       expect(decoded.fcmToken, isNull);
+      expect(decoded.fingerprint, isNull);
       expect(decoded.icon, CloudDeviceIcon.server);
       expect(decoded.platform, CloudDevicePlatform.linux);
       expect(decoded.presence, CloudDevicePresence.offline);
+    });
+
+    test('decodes a doc that pre-dates the fingerprint field as null', () {
+      final decoded = CloudDevice.fromJson({
+        'deviceId': 'device-legacy',
+        'displayName': 'Legacy install',
+        'icon': 'laptop',
+        'fcmToken': null,
+        'platform': 'macos',
+        'lastSeenAtMs': 0,
+        'presence': 'offline',
+        // Note: no `fingerprint` key — older device that hasn't re-registered.
+      });
+      expect(decoded.fingerprint, isNull);
     });
 
     test('unknown icon falls back to other', () {

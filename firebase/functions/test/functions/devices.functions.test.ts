@@ -115,6 +115,43 @@ describe('registerDeviceLogic', () => {
       registerDeviceLogic(getDb(), UID, baseRegisterInput(DEVICE_A)),
     ).rejects.toMatchObject({ code: 'failed-precondition' });
   });
+
+  it('persists fingerprint on create and refreshes it on re-register', async () => {
+    await seedAccount(UID, { deviceCount: 0 });
+    await registerDeviceLogic(getDb(), UID, {
+      ...baseRegisterInput(DEVICE_A),
+      fingerprint: 'abc123',
+    });
+    let device = await readDevice(UID, DEVICE_A);
+    expect(device?.fingerprint).toBe('abc123');
+
+    await registerDeviceLogic(getDb(), UID, {
+      ...baseRegisterInput(DEVICE_A),
+      fingerprint: 'def456',
+    });
+    device = await readDevice(UID, DEVICE_A);
+    expect(device?.fingerprint).toBe('def456');
+  });
+
+  it('writes fingerprint = null on create when the input omits the field', async () => {
+    await seedAccount(UID, { deviceCount: 0 });
+    await registerDeviceLogic(getDb(), UID, baseRegisterInput(DEVICE_A));
+    const device = await readDevice(UID, DEVICE_A);
+    expect(device?.fingerprint).toBeNull();
+  });
+
+  it('preserves an existing fingerprint when an older client re-registers without the field', async () => {
+    // A v2 client wrote a fingerprint; a v1 client coming back online
+    // must not silently null it out by omitting the field.
+    await seedAccount(UID, { deviceCount: 0 });
+    await registerDeviceLogic(getDb(), UID, {
+      ...baseRegisterInput(DEVICE_A),
+      fingerprint: 'abc123',
+    });
+    await registerDeviceLogic(getDb(), UID, baseRegisterInput(DEVICE_A));
+    const device = await readDevice(UID, DEVICE_A);
+    expect(device?.fingerprint).toBe('abc123');
+  });
 });
 
 describe('updateDevicePresenceLogic', () => {

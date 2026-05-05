@@ -93,6 +93,7 @@ class CloudFunctionsClient {
     required CloudDeviceIcon icon,
     required CloudDevicePlatform platform,
     required String? fcmToken,
+    required String? fingerprint,
   }) {
     return _call(
       'registerDevice',
@@ -102,6 +103,7 @@ class CloudFunctionsClient {
         'icon': icon.name,
         'platform': platform.name,
         'fcmToken': fcmToken,
+        'fingerprint': fingerprint,
       },
       (raw) => RegisterDeviceResult.fromJson(_asMap(raw)),
     );

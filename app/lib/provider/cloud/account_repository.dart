@@ -359,6 +359,7 @@ CloudDevice _decodeDevice(String deviceId, Map<String, dynamic>? data) {
     presence: CloudDevicePresenceMapper.fromValue(
       raw['presence'] as String? ?? CloudDevicePresence.offline.name,
     ),
+    fingerprint: raw['fingerprint'] as String?,
   );
 }
 

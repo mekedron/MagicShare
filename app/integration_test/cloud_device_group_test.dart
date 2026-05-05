@@ -74,6 +74,7 @@ void main() {
       icon: CloudDeviceIcon.laptop,
       platform: CloudDevicePlatform.macos,
       fcmToken: null,
+      fingerprint: null,
     );
     await client.registerDevice(
       deviceId: deviceB,
@@ -81,6 +82,7 @@ void main() {
       icon: CloudDeviceIcon.phone,
       platform: CloudDevicePlatform.android,
       fcmToken: null,
+      fingerprint: null,
     );
 
     await client.removeDevice(deviceId: deviceB);
@@ -125,6 +127,7 @@ void main() {
       icon: CloudDeviceIcon.laptop,
       platform: CloudDevicePlatform.macos,
       fcmToken: null,
+      fingerprint: null,
     );
 
     // Mirror what the destroy-group UI flow does: cloud wipe → auth user
@@ -145,6 +148,7 @@ void main() {
       icon: CloudDeviceIcon.desktop,
       platform: CloudDevicePlatform.macos,
       fcmToken: null,
+      fingerprint: null,
     );
 
     final firestore = FirebaseFirestore.instance;
@@ -194,6 +198,7 @@ Future<_Ctx> _registerOneDevice() async {
     icon: CloudDeviceIcon.laptop,
     platform: CloudDevicePlatform.macos,
     fcmToken: null,
+    fingerprint: null,
   );
   return _Ctx(uid: uid, deviceId: deviceId, client: client);
 }
