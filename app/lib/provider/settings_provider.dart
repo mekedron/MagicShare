@@ -72,6 +72,7 @@ class SettingsService extends PureNotifier<SettingsState> {
     advancedSettings: _persistence.getAdvancedSettingsEnabled(),
     cloudSyncEnabled: _persistence.getCloudSyncEnabled(),
     cloudWelcomeDismissed: _persistence.getCloudWelcomeDismissed(),
+    encryptLinkNotifications: _persistence.getEncryptLinkNotifications(),
   );
 
   Future<void> setAlias(String alias) async {
@@ -261,6 +262,13 @@ class SettingsService extends PureNotifier<SettingsState> {
     await _persistence.setCloudWelcomeDismissed(isDismissed);
     state = state.copyWith(
       cloudWelcomeDismissed: isDismissed,
+    );
+  }
+
+  Future<void> setEncryptLinkNotifications(bool isEnabled) async {
+    await _persistence.setEncryptLinkNotifications(isEnabled);
+    state = state.copyWith(
+      encryptLinkNotifications: isEnabled,
     );
   }
 }

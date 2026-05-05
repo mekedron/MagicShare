@@ -86,7 +86,9 @@
     "wakeIndicator": "Wake",
     "wakingUp": "Waking up {device}…",
     "wakeRetry": "Retry",
-    "wakeTimedOut": "Device did not respond. It might be offline."
+    "wakeTimedOut": "Device did not respond. It might be offline.",
+    "linkSent": "Link sent to {device}.",
+    "linkSendFailed": "Could not send link: {reason}"
   },
   "settingsTab": {
     "title": "Settings",
@@ -113,7 +115,8 @@
       "launchAtStartup": "Autostart after login",
       "launchMinimized": "Autostart: Start hidden",
       "showInContextMenu": "Show MagicShare in context menu",
-      "animations": "Animations"
+      "animations": "Animations",
+      "encryptLinkNotifications": "Encrypt link notifications"
     },
     "receive": {
       "title": "Receive",

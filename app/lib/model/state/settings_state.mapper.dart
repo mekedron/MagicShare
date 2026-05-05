@@ -159,6 +159,12 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
     'cloudWelcomeDismissed',
     _$cloudWelcomeDismissed,
   );
+  static bool _$encryptLinkNotifications(SettingsState v) =>
+      v.encryptLinkNotifications;
+  static const Field<SettingsState, bool> _f$encryptLinkNotifications = Field(
+    'encryptLinkNotifications',
+    _$encryptLinkNotifications,
+  );
 
   @override
   final MappableFields<SettingsState> fields = const {
@@ -190,6 +196,7 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
     #advancedSettings: _f$advancedSettings,
     #cloudSyncEnabled: _f$cloudSyncEnabled,
     #cloudWelcomeDismissed: _f$cloudWelcomeDismissed,
+    #encryptLinkNotifications: _f$encryptLinkNotifications,
   };
 
   static SettingsState _instantiate(DecodingData data) {
@@ -222,6 +229,7 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
       advancedSettings: data.dec(_f$advancedSettings),
       cloudSyncEnabled: data.dec(_f$cloudSyncEnabled),
       cloudWelcomeDismissed: data.dec(_f$cloudWelcomeDismissed),
+      encryptLinkNotifications: data.dec(_f$encryptLinkNotifications),
     );
   }
 
@@ -320,6 +328,7 @@ abstract class SettingsStateCopyWith<$R, $In extends SettingsState, $Out>
     bool? advancedSettings,
     bool? cloudSyncEnabled,
     bool? cloudWelcomeDismissed,
+    bool? encryptLinkNotifications,
   });
   SettingsStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
 }
@@ -380,6 +389,7 @@ class _SettingsStateCopyWithImpl<$R, $Out>
     bool? advancedSettings,
     bool? cloudSyncEnabled,
     bool? cloudWelcomeDismissed,
+    bool? encryptLinkNotifications,
   }) => $apply(
     FieldCopyWithData({
       if (showToken != null) #showToken: showToken,
@@ -414,6 +424,8 @@ class _SettingsStateCopyWithImpl<$R, $Out>
       if (cloudSyncEnabled != null) #cloudSyncEnabled: cloudSyncEnabled,
       if (cloudWelcomeDismissed != null)
         #cloudWelcomeDismissed: cloudWelcomeDismissed,
+      if (encryptLinkNotifications != null)
+        #encryptLinkNotifications: encryptLinkNotifications,
     }),
   );
   @override
@@ -457,6 +469,10 @@ class _SettingsStateCopyWithImpl<$R, $Out>
     cloudWelcomeDismissed: data.get(
       #cloudWelcomeDismissed,
       or: $value.cloudWelcomeDismissed,
+    ),
+    encryptLinkNotifications: data.get(
+      #encryptLinkNotifications,
+      or: $value.encryptLinkNotifications,
     ),
   );
 

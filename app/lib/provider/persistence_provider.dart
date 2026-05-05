@@ -93,6 +93,7 @@ const _advancedSettingsKey = 'ls_advanced_settings';
 const _cloudSyncEnabledKey = 'ls_cloud_sync_enabled';
 const _cloudWelcomeDismissedKey = 'ls_cloud_welcome_dismissed';
 const _cloudDeviceIdPrefKey = 'ls_cloud_device_id';
+const _encryptLinkNotificationsKey = 'ls_encrypt_link_notifications';
 
 final persistenceProvider = Provider<PersistenceService>((ref) {
   throw Exception('persistenceProvider not initialized');
@@ -437,6 +438,19 @@ class PersistenceService {
 
   Future<void> setCloudSyncEnabled(bool isEnabled) async {
     await _prefs.setBool(_cloudSyncEnabledKey, isEnabled);
+  }
+
+  /// Whether outgoing link notifications go via FCM data-only (encrypted)
+  /// or visible-notification (plaintext) mode. Default off — visible
+  /// notifications are friendlier for the receiving end (no need to
+  /// foreground the app to follow a link), at the cost of letting the
+  /// cloud see the URL in transit.
+  bool getEncryptLinkNotifications() {
+    return _prefs.getBool(_encryptLinkNotificationsKey) ?? false;
+  }
+
+  Future<void> setEncryptLinkNotifications(bool isEnabled) async {
+    await _prefs.setBool(_encryptLinkNotificationsKey, isEnabled);
   }
 
   /// Whether the user has tapped *Use without cloud* on the

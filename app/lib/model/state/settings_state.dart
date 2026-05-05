@@ -37,6 +37,7 @@ class SettingsState with SettingsStateMappable {
   final bool advancedSettings;
   final bool cloudSyncEnabled;
   final bool cloudWelcomeDismissed;
+  final bool encryptLinkNotifications;
 
   const SettingsState({
     required this.showToken,
@@ -67,5 +68,6 @@ class SettingsState with SettingsStateMappable {
     required this.advancedSettings,
     required this.cloudSyncEnabled,
     required this.cloudWelcomeDismissed,
+    required this.encryptLinkNotifications,
   });
 }

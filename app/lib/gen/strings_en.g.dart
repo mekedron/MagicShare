@@ -267,6 +267,12 @@ class TranslationsSendTabEn {
 
   /// en: 'Device did not respond. It might be offline.'
   String get wakeTimedOut => 'Device did not respond. It might be offline.';
+
+  /// en: 'Link sent to {device}.'
+  String linkSent({required Object device}) => 'Link sent to ${device}.';
+
+  /// en: 'Could not send link: {reason}'
+  String linkSendFailed({required Object reason}) => 'Could not send link: ${reason}';
 }
 
 // Path: settingsTab
@@ -406,11 +412,8 @@ class TranslationsReceivePageEn {
   // Translations
 
   /// en: '(one) {wants to send you a file} (other) {wants to send you {n} files}'
-  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(
-    n,
-    one: 'wants to send you a file',
-    other: 'wants to send you ${n} files',
-  );
+  String subTitle({required num n}) =>
+      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'wants to send you a file', other: 'wants to send you ${n} files');
 
   /// en: 'sent you a message:'
   String get subTitleMessage => 'sent you a message:';
@@ -1052,6 +1055,9 @@ class TranslationsSettingsTabGeneralEn {
 
   /// en: 'Animations'
   String get animations => 'Animations';
+
+  /// en: 'Encrypt link notifications'
+  String get encryptLinkNotifications => 'Encrypt link notifications';
 }
 
 // Path: settingsTab.receive

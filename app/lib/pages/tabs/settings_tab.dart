@@ -151,6 +151,13 @@ class SettingsTab extends StatelessWidget {
                           await ref.notifier(settingsProvider).setEnableAnimations(b);
                         },
                       ),
+                      _BooleanEntry(
+                        label: t.settingsTab.general.encryptLinkNotifications,
+                        value: vm.settings.encryptLinkNotifications,
+                        onChanged: (b) async {
+                          await ref.notifier(settingsProvider).setEncryptLinkNotifications(b);
+                        },
+                      ),
                     ],
                   ),
                   _SettingsSection(
