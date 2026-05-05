@@ -427,7 +427,7 @@ lands.
     pairing across different LANs fails fast with the expected
     error.
 
-- [ ] **Epic 12 — Send tab integration.** Make network devices
+- [x] **Epic 12 — Send tab integration.** Make network devices
   first-class targets in the Send tab.
 
   - Merge LAN-discovered devices with `AccountRepository` devices
