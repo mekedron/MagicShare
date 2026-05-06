@@ -66,6 +66,19 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     required bool background,
     String? wakeSessionId,
   }) async {
+    // Guard against a target with no LAN reachability info (e.g. a
+    // synthesized cloud-only Device whose `ip` is null). Without this
+    // we'd crash on `target.ip!` deeper in the prepareUpload call.
+    // Reaches the user as a snackbar via the standard send-session
+    // error surface.
+    if (target.ip == null || target.ip!.isEmpty || target.port < 0) {
+      _logger.warning(
+        'startSession aborted: target has no LAN reachability '
+        '(alias=${target.alias}, ip=${target.ip}, port=${target.port}, '
+        'fingerprint=${target.fingerprint})',
+      );
+      return;
+    }
     final client = ref.read(httpProvider).v2;
     final sessionId = _uuid.v4();
 

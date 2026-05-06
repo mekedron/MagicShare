@@ -4,6 +4,7 @@ import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
+import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
 import 'package:magicshare_app/provider/security_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
@@ -78,7 +79,9 @@ List<MergedDevice> mergeNetworkDevices({
   required Iterable<CloudDevice> cloud,
   required String? currentDeviceId,
   String? ownFingerprint,
+  Iterable<String>? ownLocalIps,
 }) {
+  final ownIpSet = ownLocalIps == null ? const <String>{} : ownLocalIps.toSet();
   final byKey = <String, MergedDevice>{};
   for (final lanDevice in lan) {
     final fp = lanDevice.fingerprint;
@@ -86,6 +89,16 @@ List<MergedDevice> mergeNetworkDevices({
     if (ownFingerprint != null && ownFingerprint.isNotEmpty && fp == ownFingerprint) {
       // Defensive: drop a LAN announce carrying this install's own
       // cert hash (the Android-emulator multicast-loopback case).
+      continue;
+    }
+    final ip = lanDevice.ip;
+    if (ip != null && ip.isNotEmpty && ownIpSet.contains(ip)) {
+      // Same machine, different fingerprint — typically a stock
+      // LocalSend instance running side-by-side with MagicShare on
+      // the same host. The user can't actually transfer to itself,
+      // and seeing it in the receiver list invites the "Null check
+      // operator used on a null value" crash on tap (the synthesized
+      // Device for a cloud-only twin has ip: null). Drop it.
       continue;
     }
     byKey[fp] = MergedDevice(
@@ -157,10 +170,12 @@ final mergedNetworkDevicesProvider = ViewProvider<List<MergedDevice>>((ref) {
   final cloud = accountState is AccountReady ? accountState.devices : const <CloudDevice>[];
   final currentDeviceId = accountState is AccountReady ? accountState.currentDeviceId : null;
   final ownFingerprint = ref.watch(securityProvider).certificateHash;
+  final ownLocalIps = ref.watch(localIpProvider).localIps;
   return mergeNetworkDevices(
     lan: lan,
     cloud: cloud,
     currentDeviceId: currentDeviceId,
     ownFingerprint: ownFingerprint,
+    ownLocalIps: ownLocalIps,
   );
 });

@@ -189,6 +189,40 @@ void main() {
       expect(merged.map((m) => m.displayDevice.alias), ['Peer']);
     });
 
+    test('drops a LAN device whose IP equals one of our local IPs', () {
+      // Reproduces a stock-LocalSend instance running side-by-side
+      // with MagicShare on the same host (or any other same-machine
+      // setup): same IP as the sender, different fingerprint, and
+      // the user can't actually transfer to itself.
+      final samesie = _lan(
+        fingerprint: 'fp-other',
+        alias: 'Fine Mango',
+        ip: '192.168.101.126',
+      );
+      final peer = _lan(
+        fingerprint: 'fp-peer',
+        alias: 'Peer',
+        ip: '192.168.101.42',
+      );
+      final merged = mergeNetworkDevices(
+        lan: [samesie, peer],
+        cloud: const [],
+        currentDeviceId: null,
+        ownLocalIps: const ['192.168.101.126', 'fe80::1'],
+      );
+      expect(merged.map((m) => m.displayDevice.alias), ['Peer']);
+    });
+
+    test('null / empty ownLocalIps does not block any LAN device', () {
+      final lan = _lan(fingerprint: 'fp-1');
+      final merged = mergeNetworkDevices(
+        lan: [lan],
+        cloud: const [],
+        currentDeviceId: null,
+      );
+      expect(merged, hasLength(1));
+    });
+
     test('treats null / empty ownFingerprint as no-self-filter', () {
       // Bootstrap may not have a stored security context yet on very
       // first launch. Falling through to the existing behaviour is
