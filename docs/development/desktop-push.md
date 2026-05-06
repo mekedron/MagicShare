@@ -70,6 +70,41 @@ Linux and Windows fully cloud-capable:
 4. Linux desktop notification surfacing via
    `flutter_local_notifications` once the inbox items arrive.
 
+## Epic 13 dispatcher hook for Linux poller (Epic 16)
+
+Epic 13 lands a stateless `CloudMessageDispatcher` plus a
+`LocalNotificationsService` that the Linux poller can call once its
+REST transport is in place. The integration shape Epic 16 should
+adopt:
+
+```dart
+// Inside LinuxWakePollerService.pollOnce, after pollPendingWakes returns:
+for (final item in pending.items) {
+  final result = dispatcher.dispatch(
+    <String, dynamic>{
+      'type': item.type.name,
+      if (item.encryptedPayload != null) 'payload': item.encryptedPayload!,
+      if (item.plaintextPayload != null) ...{
+        'url': item.plaintextPayload!.url,
+        if (item.plaintextPayload!.title != null) 'title': item.plaintextPayload!.title!,
+      },
+    },
+    groupKey: groupKey,
+  );
+  switch (result) {
+    case WakeMessage():
+      registry.register(result.nonce, expiry);
+    case LinkMessage():
+      await notifications.showLinkNotification(url: result.url, title: result.title);
+    case CloudMessageError():
+      // log and drop
+  }
+}
+```
+
+The dispatcher is identical to the foreground / background path, so
+the poller doesn't need its own decoding logic — only the transport.
+
 ## Epic 7 prerequisite (Firebase Console rename)
 
 The per-platform configs in `app/{android,ios,macos}` were patched to
