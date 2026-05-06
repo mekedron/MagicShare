@@ -51,7 +51,7 @@ void main() {
       final lan = _lan(fingerprint: 'fp-1', alias: 'Stock-LocalSend-default-name');
       final cloud = _cloud(
         deviceId: 'cloud-1',
-        displayName: 'Time Travels laptop',
+        displayName: 'Living-room laptop',
         fingerprint: 'fp-1',
         presence: CloudDevicePresence.online,
       );
@@ -67,7 +67,7 @@ void main() {
       expect(entry.isLanReachable, isTrue);
       expect(
         entry.displayDevice.alias,
-        'Time Travels laptop',
+        'Living-room laptop',
         reason: 'cloud-side display name wins over the LAN-announced auto-generated alias',
       );
       expect(entry.isOnline, isTrue);
@@ -97,7 +97,7 @@ void main() {
       final lan = _lan(fingerprint: 'fp-1', ip: '10.0.0.42');
       final cloud = _cloud(
         deviceId: 'cloud-1',
-        displayName: 'Niki MBP',
+        displayName: 'Laptop A',
         fingerprint: 'fp-1',
       );
       final merged = mergeNetworkDevices(
@@ -107,7 +107,7 @@ void main() {
       );
 
       final display = merged.single.displayDevice;
-      expect(display.alias, 'Niki MBP');
+      expect(display.alias, 'Laptop A');
       expect(display.ip, '10.0.0.42', reason: 'LAN ip retained for actual transport');
       expect(display.port, 53317);
       expect(display.fingerprint, 'fp-1');

@@ -32,8 +32,8 @@ Future<void> _pumpTile(WidgetTester tester, DeviceListTile tile) async {
 void main() {
   group('DeviceListTile', () {
     testWidgets('renders the device alias', (tester) async {
-      await _pumpTile(tester, DeviceListTile(device: _device(alias: 'Niki MBP')));
-      expect(find.text('Niki MBP'), findsOneWidget);
+      await _pumpTile(tester, DeviceListTile(device: _device(alias: 'Living-room laptop')));
+      expect(find.text('Living-room laptop'), findsOneWidget);
     });
 
     testWidgets('without networkPresence: no PresenceDot, original LAN badge', (tester) async {

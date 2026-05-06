@@ -208,7 +208,7 @@ void main() {
         tokenId: 'tok-1',
         deviceId: 'd-1',
         newDevice: const JoinNetworkNewDevice(
-          displayName: 'Niki Pixel',
+          displayName: 'Pixel 8',
           icon: CloudDeviceIcon.phone,
           platform: CloudDevicePlatform.android,
           fcmToken: 'fcm-fresh',
@@ -219,7 +219,7 @@ void main() {
         'tokenId': 'tok-1',
         'deviceId': 'd-1',
         'newDevice': {
-          'displayName': 'Niki Pixel',
+          'displayName': 'Pixel 8',
           'icon': 'phone',
           'platform': 'android',
           'fcmToken': 'fcm-fresh',
