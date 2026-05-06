@@ -1,16 +1,20 @@
 import 'package:common/isolate.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:magicshare_app/cloud/wake/cloud_background_handler.dart';
 import 'package:magicshare_app/config/init.dart';
 import 'package:magicshare_app/config/init_error.dart';
 import 'package:magicshare_app/config/theme.dart';
 import 'package:magicshare_app/gen/strings.g.dart';
 import 'package:magicshare_app/model/persistence/color_mode.dart';
 import 'package:magicshare_app/pages/home_page.dart';
+import 'package:magicshare_app/provider/cloud/cloud_message_listener_provider.dart';
 import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
+import 'package:magicshare_app/util/native/cloud_platform.dart';
 import 'package:magicshare_app/util/native/platform_check.dart';
 import 'package:magicshare_app/util/ui/dynamic_colors.dart';
 import 'package:magicshare_app/widget/watcher/life_cycle_watcher.dart';
@@ -30,6 +34,14 @@ Future<void> main(List<String> args) async {
       stackTrace: stackTrace,
     );
     return;
+  }
+
+  // Register the background FCM handler before runApp. The handler runs
+  // in its own isolate when the OS delivers a wake / link data message
+  // while the main isolate is paused or terminated; it persists wake
+  // nonces and lets the main isolate pick them up on next foreground.
+  if (checkPlatformSupportsFcm()) {
+    FirebaseMessaging.onBackgroundMessage(cloudBackgroundMessageHandler);
   }
 
   runApp(
@@ -71,6 +83,11 @@ class MagicShareApp extends StatelessWidget {
                 ref.redux(localIpProvider).dispatch(InitLocalIpAction());
                 ref.notifier(presenceHeartbeatProvider).markForeground();
                 ref.notifier(linuxWakePollerProvider).start();
+                // Background FCM isolate may have persisted wake nonces
+                // while we were paused; drain them into the in-memory
+                // registry so an incoming prepareUpload auto-accepts.
+                // ignore: discarded_futures
+                ref.notifier(cloudMessageListenerProvider).drainPersistence();
                 break;
               case AppLifecycleState.paused:
               case AppLifecycleState.hidden:
