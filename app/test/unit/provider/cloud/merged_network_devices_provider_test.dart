@@ -48,8 +48,13 @@ CloudDevice _cloud({
 void main() {
   group('mergeNetworkDevices', () {
     test('dedups a LAN device against a cloud device by fingerprint', () {
-      final lan = _lan(fingerprint: 'fp-1', alias: 'Niki MBP');
-      final cloud = _cloud(deviceId: 'cloud-1', fingerprint: 'fp-1', presence: CloudDevicePresence.online);
+      final lan = _lan(fingerprint: 'fp-1', alias: 'Stock-LocalSend-default-name');
+      final cloud = _cloud(
+        deviceId: 'cloud-1',
+        displayName: 'Time Travels laptop',
+        fingerprint: 'fp-1',
+        presence: CloudDevicePresence.online,
+      );
       final merged = mergeNetworkDevices(
         lan: [lan],
         cloud: [cloud],
@@ -60,8 +65,52 @@ void main() {
       final entry = merged.single;
       expect(entry.cloud, cloud);
       expect(entry.isLanReachable, isTrue);
-      expect(entry.displayDevice.alias, 'Niki MBP', reason: 'LAN-side label wins on dedup');
+      expect(
+        entry.displayDevice.alias,
+        'Time Travels laptop',
+        reason: 'cloud-side display name wins over the LAN-announced auto-generated alias',
+      );
       expect(entry.isOnline, isTrue);
+    });
+
+    test('cloud-side icon wins on dedup', () {
+      // LAN announces deviceType=desktop (LocalSend default). The user
+      // chose the phone icon in the device-group settings, so the tile
+      // must render with the phone icon — not be reset to desktop on
+      // every LAN refresh.
+      final lan = _lan(fingerprint: 'fp-1');
+      final cloud = _cloud(
+        deviceId: 'cloud-1',
+        fingerprint: 'fp-1',
+        icon: CloudDeviceIcon.phone,
+      );
+      final merged = mergeNetworkDevices(
+        lan: [lan],
+        cloud: [cloud],
+        currentDeviceId: null,
+      );
+
+      expect(merged.single.displayDevice.deviceType, DeviceType.mobile);
+    });
+
+    test('LAN-side ip / port / fingerprint survive the cloud-side override', () {
+      final lan = _lan(fingerprint: 'fp-1', ip: '10.0.0.42');
+      final cloud = _cloud(
+        deviceId: 'cloud-1',
+        displayName: 'Niki MBP',
+        fingerprint: 'fp-1',
+      );
+      final merged = mergeNetworkDevices(
+        lan: [lan],
+        cloud: [cloud],
+        currentDeviceId: null,
+      );
+
+      final display = merged.single.displayDevice;
+      expect(display.alias, 'Niki MBP');
+      expect(display.ip, '10.0.0.42', reason: 'LAN ip retained for actual transport');
+      expect(display.port, 53317);
+      expect(display.fingerprint, 'fp-1');
     });
 
     test('keeps a stock-LocalSend LAN peer (no cloud match) untouched', () {

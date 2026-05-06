@@ -85,8 +85,16 @@ List<MergedDevice> mergeNetworkDevices({
     if (fp != null && fp.isNotEmpty) {
       final existing = byKey[fp];
       if (existing != null) {
+        // The user explicitly chose the cloud-side display name and
+        // icon in the device-group settings; the LAN-side `alias` is
+        // just the auto-generated default the receiving LocalSend
+        // instance announces. Cloud-side metadata wins; LAN keeps the
+        // network reachability fields (ip, port, https, etc.).
         byKey[fp] = MergedDevice(
-          displayDevice: existing.displayDevice,
+          displayDevice: existing.displayDevice.copyWith(
+            alias: cloudDevice.displayName,
+            deviceType: _mapCloudIconToDeviceType(cloudDevice.icon),
+          ),
           cloud: cloudDevice,
           isLanReachable: true,
         );
