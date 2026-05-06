@@ -147,6 +147,65 @@ void main() {
       expect(merged.single.stableId, 'cloud-legacy');
     });
 
+    test('folds a cloud row whose fingerprint drifted from the LAN cert hash by alias', () {
+      // Real-world reproduction of the lingering hot-restart-duplicate
+      // report. A previous install left a cloud device row whose
+      // fingerprint no longer matches the current install's cert hash
+      // (cert regeneration during dev iteration, app reinstall, etc.).
+      // Without an alias fallback the merge produced both a LAN tile
+      // and a synthesized cloud-only tile for the same physical device.
+      final lan = _lan(fingerprint: 'fp-current-cert', alias: 'Solid Lemon');
+      final staleCloud = _cloud(
+        deviceId: 'cloud-stale',
+        displayName: 'Solid Lemon',
+        fingerprint: 'fp-from-old-install',
+      );
+      final merged = mergeNetworkDevices(
+        lan: [lan],
+        cloud: [staleCloud],
+        currentDeviceId: null,
+      );
+      expect(merged, hasLength(1));
+      expect(merged.single.cloud, staleCloud);
+      expect(merged.single.isLanReachable, isTrue);
+      expect(merged.single.displayDevice.alias, 'Solid Lemon');
+    });
+
+    test('folds a cloud row with null fingerprint into a same-alias LAN entry', () {
+      // Legacy cloud rows missing the `fingerprint` field — pre-dating
+      // the field being populated — should still dedup against their
+      // LAN twin instead of rendering as a separate cloud-only tile.
+      final lan = _lan(fingerprint: 'fp-current', alias: 'Pixel 8');
+      final legacyCloud = _cloud(deviceId: 'legacy', displayName: 'Pixel 8');
+      final merged = mergeNetworkDevices(
+        lan: [lan],
+        cloud: [legacyCloud],
+        currentDeviceId: null,
+      );
+      expect(merged, hasLength(1));
+      expect(merged.single.cloud, legacyCloud);
+      expect(merged.single.isLanReachable, isTrue);
+    });
+
+    test('cloud rows with mismatched display names still surface as separate cloud-only tiles', () {
+      // Negative case: if the user edits the cloud display name to
+      // something that no LAN-announced alias resembles, we can't fold
+      // confidently. Render as a cloud-only tile so the user can
+      // still wake-then-send to it.
+      final lan = _lan(fingerprint: 'fp-A', alias: 'Solid Lemon');
+      final unrelated = _cloud(
+        deviceId: 'cloud-other',
+        displayName: 'Living-room laptop',
+        fingerprint: 'fp-B',
+      );
+      final merged = mergeNetworkDevices(
+        lan: [lan],
+        cloud: [unrelated],
+        currentDeviceId: null,
+      );
+      expect(merged, hasLength(2));
+    });
+
     test('LAN online + cloud presence offline reports the device as offline', () {
       // Cloud presence is authoritative for cloud-known peers. A LAN
       // announce can outrun the heartbeat (the peer is mid-shutdown),

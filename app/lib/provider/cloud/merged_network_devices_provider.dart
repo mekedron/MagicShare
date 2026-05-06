@@ -142,6 +142,31 @@ List<MergedDevice> mergeNetworkDevices({
         continue;
       }
     }
+    // No fingerprint match. Before we synthesize a separate cloud-only
+    // tile, look for an existing entry whose alias / display name lines
+    // up — this catches:
+    //   * stale cloud rows from a previous install that minted a fresh
+    //     deviceId and never cleaned up the old row (alias matches the
+    //     current device's announced alias),
+    //   * cloud rows whose `fingerprint` field is null because they
+    //     pre-date the field being populated,
+    //   * the hot-restart race where the cert hash hasn't yet
+    //     propagated back to the cloud doc.
+    // Fold the cloud info into the existing tile rather than render
+    // the same physical device twice. Prefer LAN-reachable matches.
+    final aliasMatchKey = _findAliasMatch(byKey, cloudDevice.displayName);
+    if (aliasMatchKey != null) {
+      final existing = byKey[aliasMatchKey]!;
+      byKey[aliasMatchKey] = MergedDevice(
+        displayDevice: existing.displayDevice.copyWith(
+          alias: cloudDevice.displayName,
+          deviceType: _mapCloudIconToDeviceType(cloudDevice.icon),
+        ),
+        cloud: cloudDevice,
+        isLanReachable: existing.isLanReachable,
+      );
+      continue;
+    }
     final key = (fp != null && fp.isNotEmpty) ? fp : 'cloud:${cloudDevice.deviceId}';
     byKey[key] = MergedDevice(
       displayDevice: _synthesizeDevice(cloudDevice),
@@ -150,6 +175,19 @@ List<MergedDevice> mergeNetworkDevices({
     );
   }
   return byKey.values.toList(growable: false);
+}
+
+String? _findAliasMatch(Map<String, MergedDevice> byKey, String alias) {
+  if (alias.isEmpty) return null;
+  // Prefer a LAN-reachable match so the picked tile keeps a working
+  // ip+port for direct transfer.
+  String? cloudOnlyMatch;
+  for (final entry in byKey.entries) {
+    if (entry.value.displayDevice.alias != alias) continue;
+    if (entry.value.isLanReachable) return entry.key;
+    cloudOnlyMatch ??= entry.key;
+  }
+  return cloudOnlyMatch;
 }
 
 Device _synthesizeDevice(CloudDevice cloud) {
