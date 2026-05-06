@@ -459,7 +459,7 @@ lands.
     fast-path with both setting modes; UX states for waking /
     retrying / error all reachable.
 
-- [ ] **Epic 13 — Notification reception.** Make sure
+- [x] **Epic 13 — Notification reception.** Make sure
   notifications actually do the right thing on every platform
   when they arrive.
 
