@@ -174,7 +174,14 @@ class CloudMessageListenerService extends Notifier<CloudMessageListenerState> {
 
   void _handleRemoteMessage(RemoteMessage message) {
     final data = Map<String, dynamic>.from(message.data);
+    _logger.info(
+      'Foreground FCM event received (type=${data['type']}, '
+      'hasPayload=${data['payload'] != null}, hasUrl=${data['url'] != null})',
+    );
     final groupKey = _resolveGroupKey();
+    if (groupKey == null) {
+      _logger.info('No group key on this device — encrypted payloads will be dropped');
+    }
     final result = _dispatcher.dispatch(data, groupKey: groupKey);
     switch (result) {
       case WakeMessage():
@@ -182,7 +189,7 @@ class CloudMessageListenerService extends Notifier<CloudMessageListenerState> {
       case LinkMessage():
         unawaited(_onLink(result));
       case CloudMessageError():
-        _logger.fine('Dispatcher returned error: ${result.reason}');
+        _logger.warning('Dispatcher returned error: ${result.reason}');
     }
   }
 
@@ -200,6 +207,7 @@ class CloudMessageListenerService extends Notifier<CloudMessageListenerState> {
   }
 
   Future<void> _onLink(LinkMessage link) async {
+    _logger.info('Link message: opening ${link.url}');
     Uri? uri;
     try {
       uri = Uri.parse(link.url);
@@ -215,6 +223,8 @@ class CloudMessageListenerService extends Notifier<CloudMessageListenerState> {
       final ok = await _launchUrl(uri);
       if (!ok) {
         _logger.warning('launchUrl reported failure for ${link.url}');
+      } else {
+        _logger.info('launchUrl succeeded for ${link.url}');
       }
     } catch (e, st) {
       _logger.warning('launchUrl threw for ${link.url}', e, st);

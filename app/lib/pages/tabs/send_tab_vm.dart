@@ -5,6 +5,7 @@ import 'package:common/model/device.dart';
 import 'package:common/model/file_type.dart';
 import 'package:common/model/session_status.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:magicshare_app/cloud/wake/link_payload.dart';
 import 'package:magicshare_app/cloud/wake/link_payload_codec.dart';
 import 'package:magicshare_app/gen/strings.g.dart';
@@ -37,6 +38,8 @@ import 'package:magicshare_app/widget/dialogs/favorite_edit_dialog.dart';
 import 'package:magicshare_app/widget/dialogs/no_files_dialog.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
+
+final _sendTabLogger = Logger('SendTab');
 
 class SendTabVm {
   final SendMode sendMode;
@@ -298,18 +301,26 @@ Future<void> _dispatchUrlFastPath({
   required CloudDevice target,
   required String url,
 }) async {
+  _sendTabLogger.info(
+    'URL fast-path: target=${target.deviceId} (${target.displayName}, '
+    'fcmToken=${target.fcmToken == null ? 'null' : 'set'}, '
+    'platform=${target.platform.name})',
+  );
   final accountState = ref.read(accountRepositoryProvider);
   if (accountState is! AccountReady) {
+    _sendTabLogger.warning('Cloud not ready (accountState=${accountState.runtimeType})');
     _showLinkError(context, 'Cloud not ready');
     return;
   }
   final encryptMode = ref.read(settingsProvider).encryptLinkNotifications;
+  _sendTabLogger.info('Link mode: ${encryptMode ? 'encrypted' : 'plaintext'}');
   final client = ref.read(cloudFunctionsClientProvider);
 
   late SendLinkNotificationRequest request;
   if (encryptMode) {
     final keyState = ref.read(groupKeyProvider);
     if (keyState is! GroupKeyReady) {
+      _sendTabLogger.warning('Encrypted link mode but group key not loaded (state=${keyState.runtimeType})');
       _showLinkError(context, 'Group key not available');
       return;
     }
@@ -328,12 +339,16 @@ Future<void> _dispatchUrlFastPath({
   }
 
   try {
-    await client.sendLinkNotification(request);
+    final result = await client.sendLinkNotification(request);
+    _sendTabLogger.info(
+      'sendLinkNotification returned: delivered=${result.delivered}, channel=${result.channel}',
+    );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(t.sendTab.linkSent(device: target.displayName))),
     );
   } on CloudException catch (e) {
+    _sendTabLogger.warning('sendLinkNotification CloudException: ${e.code} ${e.message}');
     if (!context.mounted) return;
     _showLinkError(context, e.message);
   }
