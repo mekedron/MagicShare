@@ -73,10 +73,18 @@ class MagicShareApp extends StatelessWidget {
             //   it should stay "online" — flipping to offline on every
             //   focus change makes the device look offline to peers
             //   while the user is actively using the same machine.
-            // - Android / iOS: `paused`/`hidden`/`inactive` mean the
-            //   OS suspended the app. It can't respond to LAN sends
-            //   until FCM wakes it. We mark offline so peers fall back
-            //   to the wake-then-send path.
+            // - Android / iOS: `paused` / `hidden` mean the OS
+            //   suspended the app — it can't respond to LAN sends until
+            //   FCM wakes it. We mark offline so peers fall back to the
+            //   wake-then-send path. `inactive` is intentionally NOT
+            //   treated as offline: on Android (and especially Android
+            //   emulator running inside a macOS window), `inactive` is
+            //   a transient signal — system overlay, host-window focus
+            //   change, etc. — that comes and goes within seconds.
+            //   Flipping presence on it makes the device look like it
+            //   is rapidly going offline / online whenever the user
+            //   touches a different window, which the user actually
+            //   reported.
             final isDesktop = checkPlatformIsDesktop();
             switch (state) {
               case AppLifecycleState.resumed:
@@ -103,10 +111,8 @@ class MagicShareApp extends StatelessWidget {
                 // only stopped on `detached`.
                 break;
               case AppLifecycleState.inactive:
-                if (!isDesktop) {
-                  ref.notifier(presenceHeartbeatProvider).markBackground();
-                  ref.notifier(linuxWakePollerProvider).stop();
-                }
+                // No presence change on either platform — see the
+                // comment above the switch.
                 // Desktop: another app stole focus, we're still here.
                 break;
               case AppLifecycleState.detached:
