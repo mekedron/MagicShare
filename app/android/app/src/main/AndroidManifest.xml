@@ -15,6 +15,12 @@
 
     <uses-permission android:name="android.permission.BIND_QUICK_SETTINGS_TILE" tools:targetApi="24" />
 
+    <!-- MagicShare cloud sync: required on Android 13 (API 33) and above for
+         the app to surface FCM-driven wake / link notifications. Requested
+         contextually on cloud-sync onboarding (welcome card *Create* /
+         *Join*) via NotificationPermissionService. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Android TV -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:magicshare_app/cloud/cloud_functions_client.dart';
 import 'package:magicshare_app/config/theme.dart';
@@ -13,6 +15,7 @@ import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
+import 'package:magicshare_app/provider/cloud/notification_permission_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_detail_sheet.dart';
@@ -197,6 +200,10 @@ class _SetupCard extends StatelessWidget {
 
   Future<void> _onCreate(BuildContext context) async {
     final ref = context.ref;
+    // Contextual permission request — the user just chose to enable
+    // cloud sync, so the prompt has obvious motivation. Non-blocking:
+    // a denial logs and continues; the rest of cloud sync still works.
+    unawaited(ref.read(notificationPermissionProvider).request());
     final auth = ref.notifier(cloudAuthProvider);
     // Stale Authenticated state: discard the dead session before signing
     // in fresh, or signInForNewGroup will treat us as already signed in
@@ -212,6 +219,8 @@ class _SetupCard extends StatelessWidget {
   }
 
   Future<void> _onJoin(BuildContext context) async {
+    // Same contextual permission ask as the Create path. Non-blocking.
+    unawaited(context.ref.read(notificationPermissionProvider).request());
     // Welcome-card route: no anon sign-in has happened yet, so the
     // backend has no source-account doc to copy a device identity
     // from. Build one from local platform defaults and hand it to
