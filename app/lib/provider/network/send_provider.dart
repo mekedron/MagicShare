@@ -221,6 +221,34 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
               ),
             );
             return;
+          case 412:
+            // 412 Self-discovered. The receive-side rejects requests
+            // whose sender fingerprint matches its own — i.e. the
+            // request looped back to our own server. Common cause on
+            // a dev host running an Android emulator: qemu's user-mode
+            // NAT translates the emulator's multicast announce so the
+            // host sees it arriving from the host's own IP, the merge
+            // lists the emulator with that loopback address, and the
+            // direct send POSTs to ourselves. The 412 guard caught it,
+            // but the raw error text is unhelpful — surface a clearer
+            // diagnostic instead.
+            _logger.warning(
+              'prepareUpload returned 412 Self-discovered to ${target.ip}:${target.port} — '
+              "the target tile's IP matches one of our own (likely an "
+              'Android-emulator multicast loopback)',
+            );
+            state = state.updateSession(
+              sessionId: sessionId,
+              state: (s) => s?.copyWith(
+                status: SessionStatus.finishedWithErrors,
+                errorMessage:
+                    "Can't reach ${target.alias} — its LAN announce loops "
+                    'back to this machine. This is a known limitation of '
+                    'the Android emulator on the same host as the sender; '
+                    'use a real device on the same Wi-Fi for file transfer.',
+              ),
+            );
+            return;
           default:
             state = state.updateSession(
               sessionId: sessionId,
