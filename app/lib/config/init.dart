@@ -24,6 +24,7 @@ import 'package:magicshare_app/provider/app_arguments_provider.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
+import 'package:magicshare_app/provider/cloud/cloud_message_listener_provider.dart';
 import 'package:magicshare_app/provider/cloud/fcm_provider.dart';
 import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
@@ -220,6 +221,7 @@ Future<RefenaContainer> preInit(List<String> args) async {
   container.read(accountRepositoryProvider);
   container.read(cloudBootstrapProvider);
   container.read(presenceHeartbeatProvider);
+  container.read(cloudMessageListenerProvider);
 
   return container;
 }

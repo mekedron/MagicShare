@@ -25,6 +25,7 @@ import 'package:magicshare_app/pages/home_page.dart';
 import 'package:magicshare_app/pages/home_page_controller.dart';
 import 'package:magicshare_app/pages/progress_page.dart';
 import 'package:magicshare_app/pages/receive_page.dart';
+import 'package:magicshare_app/provider/cloud/wake_nonce_registry_provider.dart';
 import 'package:magicshare_app/provider/device_info_provider.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/http_provider.dart';
@@ -267,8 +268,17 @@ class ReceiveController {
         quickSave = true;
       }
     }
+    // MagicShare wake → P2P bridge: this prepareUpload may carry a
+    // session nonce that arrived earlier in an encrypted FCM wake
+    // payload. A matching, single-use consume short-circuits the
+    // Accept prompt the same way quickSave does. Tracked separately
+    // from quickSave so settings semantics stay clean across upstream
+    // rebases.
+    final wakeSessionId = dto.wakeSessionId;
+    final autoAcceptViaWake = wakeSessionId != null && server.ref.read(wakeNonceRegistryProvider).consume(wakeSessionId);
+    final bool acceptAll = quickSave || autoAcceptViaWake;
     final Map<String, String>? selection;
-    if (quickSave) {
+    if (acceptAll) {
       // accept all files
       selection = {
         for (final f in dto.files.values) f.id: f.fileName,
@@ -392,7 +402,7 @@ class ReceiveController {
       },
     );
 
-    if (quickSave) {
+    if (acceptAll) {
       // ignore: use_build_context_synchronously, unawaited_futures
       Routerino.context.pushImmediately(
         () => ProgressPage(
