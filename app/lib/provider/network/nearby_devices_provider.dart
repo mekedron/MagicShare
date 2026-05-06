@@ -88,9 +88,22 @@ class RegisterDeviceAction extends AsyncReduxAction<NearbyDevicesService, Nearby
     } else {
       await Future.microtask(() {});
     }
-    return state.copyWith(
-      devices: {...state.devices}..update(device.ip!, (_) => device, ifAbsent: () => device),
-    );
+    // The map is keyed by IP. When a peer's IP shifts — e.g. an
+    // Android emulator hot-restarts and qemu's user-mode NAT picks a
+    // different source IP for the new socket, or a real device
+    // reconnects on a different network interface — the old IP-keyed
+    // entry is stale and should be evicted before we add the new one.
+    // Otherwise the same physical device shows up twice in the Send
+    // tab (and the user's "after I hit Shift+R got a new copy of the
+    // device in Nearby Devices" report). Dedup by fingerprint here.
+    final next = <String, Device>{};
+    state.devices.forEach((ip, existing) {
+      if (existing.fingerprint != device.fingerprint) {
+        next[ip] = existing;
+      }
+    });
+    next[device.ip!] = device;
+    return state.copyWith(devices: next);
   }
 }
 
