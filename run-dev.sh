@@ -81,7 +81,8 @@ running_emulator_id() {
 }
 
 # Default AVD: prefer ANDROID_AVD; otherwise the first one
-# `flutter emulators` lists.
+# `flutter emulators` lists. Skips the column header row (`Id` …)
+# and the iOS simulator row.
 pick_avd() {
   if [[ -n "$ANDROID_AVD" ]]; then
     echo "$ANDROID_AVD"
@@ -89,7 +90,7 @@ pick_avd() {
   fi
   cd "$APP_DIR" \
     && fvm flutter emulators 2>/dev/null \
-    | awk '/^[a-zA-Z0-9_]+ +• +/ && $1 != "apple_ios_simulator" { print $1; exit }'
+    | awk '/^[a-z0-9_]+ +• +/ && $1 != "apple_ios_simulator" { print $1; exit }'
 }
 
 ensure_emulator_running() {
