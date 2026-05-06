@@ -35,45 +35,6 @@
 # Result: pairing works regardless of the host's actual LAN config,
 # in any direction across the three runtimes.
 #
-# Direct-send-friendly setup (macOS / iOS → Android emulator)
-# -----------------------------------------------------------
-# qemu user-mode NAT also breaks the *opposite* direction: the
-# emulator's outbound multicast announce hits the host with the
-# source IP rewritten to the host's own LAN IP, so macOS / iOS
-# Simulator can never derive a routable address for the emulator.
-# Even if the loopback were accepted, the emulator's HTTP listener
-# at <emulator-ip>:53317 is not reachable from the host without
-# explicit port forwarding.
-#
-# Workaround:
-# 1. `adb forward tcp:LOCALSEND_FORWARD_PORT tcp:53317` on the host
-#    (host:LOCALSEND_FORWARD_PORT routes to emulator:53317).
-# 2. `--dart-define=DEV_EMULATOR_FORWARD_PORT=<port>` on the macOS
-#    and iOS runs. The receiver-side code (see
-#    `nearby_devices_provider.dart`) detects the qemu-NAT loopback
-#    case (source IP equals our own LAN IP, fingerprint differs)
-#    and rewrites the registration to `127.0.0.1:<port>` so direct
-#    sends route through the adb-forward tunnel.
-#
-# Without this, the macOS instance silently drops the emulator's
-# announce as an unreachable loopback and the user-facing symptom
-# is "Android shows up on Android but not on macOS" (see the
-# session 2026-05-06 troubleshooting trail).
-#
-# iOS Simulator ↔ Android emulator limitation
-# -------------------------------------------
-# Direct LAN discovery between the iOS Simulator and the Android
-# emulator does NOT work in this dev setup, regardless of any
-# configuration here. The iOS Simulator's multicast socket and the
-# qemu user-mode-NAT'd Android emulator's multicast socket bind to
-# different network namespaces; multicast packets do not traverse
-# the boundary in either direction, so neither runtime ever sees
-# the other's announces. The cloud-sync layer (heartbeat, wake,
-# pairing, signaling) and the macOS↔iOS / macOS↔Android paths all
-# work, but if you need to test Android↔iOS direct send specifically
-# you'll want a physical iOS device (or Mac on a real LAN paired
-# with the emulator).
-#
 # Each `flutter run` is mirrored through `tee` to a timestamped log
 # under <repo>/logs/, with `latest-<platform>.log` symlinks for easy
 # tailing:
@@ -100,22 +61,6 @@
 #                                 PAIRING_LAN_PORT + 1). Must differ
 #                                 from PAIRING_LAN_PORT — they share
 #                                 the host's loopback.
-#   LOCALSEND_FORWARD_PORT=<n>    host port that adb-forwards to the
-#                                 emulator's LocalSend listener
-#                                 (default 53318). Must differ from
-#                                 53317 (the host's own LocalSend
-#                                 instance binds that). Passed into
-#                                 the macOS / iOS runs as
-#                                 DEV_EMULATOR_FORWARD_PORT.
-#   IOS_LOCALSEND_PORT=<n>        port the iOS Simulator binds for
-#                                 its LocalSend listener (default
-#                                 53319). Must differ from 53317
-#                                 (macOS) and LOCALSEND_FORWARD_PORT
-#                                 (53318) — they all share the host's
-#                                 loopback. Passed into the iOS run
-#                                 as LOCALSEND_PORT, and reverse-
-#                                 forwarded so Android can reach iOS
-#                                 via `localhost:IOS_LOCALSEND_PORT`.
 #   SKIP_IOS=1                    don't launch the iOS Simulator
 #   LOG_DIR=<path>                where to write per-run log files
 #                                 (default <repo>/logs)
@@ -132,23 +77,6 @@ FIREBASE_EMULATOR_HOST="${FIREBASE_EMULATOR_HOST:-10.0.2.2}"
 PAIRING_LAN_PORT="${PAIRING_LAN_PORT:-51820}"
 IOS_PAIRING_LAN_PORT="${IOS_PAIRING_LAN_PORT:-$((PAIRING_LAN_PORT + 1))}"
 EMULATOR_BOOT_TIMEOUT_SECONDS="${EMULATOR_BOOT_TIMEOUT_SECONDS:-180}"
-# Host-side port that tunnels to the Android emulator's LocalSend
-# listener via `adb forward`. Lets the macOS instance route a
-# direct LAN send to the emulator after a wake (qemu user-mode NAT
-# otherwise loops the announce back to the host's own IP — see
-# nearby_devices_provider.dart's DEV_EMULATOR_FORWARD_PORT branch).
-# Pick something out of the way so it doesn't collide with the
-# host's own LocalSend instance bound to 53317.
-LOCALSEND_FORWARD_PORT="${LOCALSEND_FORWARD_PORT:-53318}"
-# LocalSend HTTP / multicast port the iOS Simulator binds to. Must
-# differ from 53317 (macOS already binds that on the same host
-# loopback) and from LOCALSEND_FORWARD_PORT (53318 routes to the
-# Android emulator via adb forward). Default 53319 stays out of the
-# way of the well-known ports of all three runtimes. Passed into
-# the iOS run as `--dart-define=LOCALSEND_PORT` and reverse-
-# forwarded onto the Android emulator so Android can reach the iOS
-# Simulator at `localhost:IOS_LOCALSEND_PORT`.
-IOS_LOCALSEND_PORT="${IOS_LOCALSEND_PORT:-53319}"
 
 if [[ "$IOS_PAIRING_LAN_PORT" == "$PAIRING_LAN_PORT" ]]; then
   echo "error: IOS_PAIRING_LAN_PORT must differ from PAIRING_LAN_PORT (both = $PAIRING_LAN_PORT) — they share the host's loopback." >&2
@@ -325,11 +253,6 @@ setup_adb_reverse() {
   local ports=("${FIREBASE_EMULATOR_PORTS[@]}" "$PAIRING_LAN_PORT")
   if [[ -z "$SKIP_IOS" ]]; then
     ports+=("$IOS_PAIRING_LAN_PORT")
-    # The iOS Simulator's LocalSend listener — Android must be able
-    # to reach it via `localhost:IOS_LOCALSEND_PORT` (qemu user-mode
-    # NAT can't route to the simulator's network namespace
-    # directly).
-    ports+=("$IOS_LOCALSEND_PORT")
   fi
   for port in "${ports[@]}"; do
     if "$adb_bin" reverse "tcp:$port" "tcp:$port" >/dev/null 2>&1; then
@@ -340,29 +263,10 @@ setup_adb_reverse() {
   done
 }
 
-# adb forward: host's localhost:<host-port> → emulator's localhost:53317.
-# Pairs with the DEV_EMULATOR_FORWARD_PORT dart-define passed to the
-# macOS run. Lets the macOS instance reach the emulator's LocalSend
-# listener directly (the qemu user-mode NAT otherwise blocks the
-# host->emulator direction). Idempotent — `adb forward` overwrites.
-setup_adb_forward() {
-  if [[ -z "$adb_bin" ]]; then
-    echo "warning: adb not on PATH; skipping forward port. macOS->emulator direct send won't work in dev." >&2
-    return
-  fi
-  if "$adb_bin" forward "tcp:$LOCALSEND_FORWARD_PORT" "tcp:53317" >/dev/null 2>&1; then
-    echo "  adb forward tcp:$LOCALSEND_FORWARD_PORT (host) → tcp:53317 (emulator)"
-  else
-    echo "  warning: adb forward tcp:$LOCALSEND_FORWARD_PORT → tcp:53317 failed" >&2
-  fi
-}
-
 ensure_emulator_running
 ensure_ios_simulator_running
 echo "Wiring adb reverse port forwards (emulator → host) for pairing + Firebase:"
 setup_adb_reverse
-echo "Wiring adb forward port forwards (host → emulator) for macOS direct send:"
-setup_adb_forward
 
 open_terminal_window() {
   local title="$1"
@@ -388,25 +292,18 @@ open_terminal_window "MagicShare · macOS" "$MACOS_LOG" \
   "fvm flutter run -d macos \
     --dart-define=USE_FIREBASE_EMULATOR=true \
     --dart-define=CLOUD_PAIRING_LAN_HOST=127.0.0.1 \
-    --dart-define=CLOUD_PAIRING_LAN_PORT=$PAIRING_LAN_PORT \
-    --dart-define=DEV_EMULATOR_FORWARD_PORT=$LOCALSEND_FORWARD_PORT"
+    --dart-define=CLOUD_PAIRING_LAN_PORT=$PAIRING_LAN_PORT"
 
 # iOS Simulator: shares the host's loopback with macOS, so it can
 # advertise 127.0.0.1 directly — but it must bind a different port
 # than macOS. The Android emulator reaches this port via the matching
-# adb-reverse tunnel set up above. DEV_EMULATOR_FORWARD_PORT applies
-# here too: iOS Simulator hits the same qemu-NAT loopback case as
-# macOS (it shares the host's loopback / multicast view), so it
-# needs the same rewrite to register the emulator at
-# 127.0.0.1:LOCALSEND_FORWARD_PORT.
+# adb-reverse tunnel set up above.
 if [[ -z "$SKIP_IOS" ]]; then
   open_terminal_window "MagicShare · iOS ($IOS_DEVICE)" "$IOS_LOG" \
     "fvm flutter run -d $IOS_DEVICE \
       --dart-define=USE_FIREBASE_EMULATOR=true \
       --dart-define=CLOUD_PAIRING_LAN_HOST=127.0.0.1 \
-      --dart-define=CLOUD_PAIRING_LAN_PORT=$IOS_PAIRING_LAN_PORT \
-      --dart-define=DEV_EMULATOR_FORWARD_PORT=$LOCALSEND_FORWARD_PORT \
-      --dart-define=LOCALSEND_PORT=$IOS_LOCALSEND_PORT"
+      --dart-define=CLOUD_PAIRING_LAN_PORT=$IOS_PAIRING_LAN_PORT"
 fi
 
 open_terminal_window "MagicShare · Android ($ANDROID_DEVICE)" "$ANDROID_LOG" \
@@ -439,15 +336,6 @@ Pairing ports:
   macOS issuer            127.0.0.1:$PAIRING_LAN_PORT
 $( [[ -z "$SKIP_IOS" ]] && echo "  iOS Simulator issuer    127.0.0.1:$IOS_PAIRING_LAN_PORT" )
   Android emulator        joins via adb reverse on the ports above
-
-Direct send to emulator:
-  host -> emulator        127.0.0.1:$LOCALSEND_FORWARD_PORT (adb forward → emulator:53317)
-                          DEV_EMULATOR_FORWARD_PORT=$LOCALSEND_FORWARD_PORT propagated to macOS$( [[ -z "$SKIP_IOS" ]] && printf '\n%s' "                          and iOS so the qemu-NAT loopback rewrites correctly")
-
-LocalSend listener ports (must all differ, share host loopback):
-  macOS                   53317 (well-known LocalSend default)
-$( [[ -z "$SKIP_IOS" ]] && echo "  iOS Simulator           $IOS_LOCALSEND_PORT (LOCALSEND_PORT dart-define)" )
-  Android emulator        53317 (inside emulator network namespace)
 
 The macOS- and iOS-side QR / manual codes will advertise 127.0.0.1
 — that's the right value for this dev setup; do NOT change them to

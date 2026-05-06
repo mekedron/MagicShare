@@ -1,39 +1,23 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'package:common/isolate.dart';
 import 'package:common/util/network_interfaces.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:logging/logging.dart';
 import 'package:magicshare_app/model/state/network_state.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/util/native/platform_check.dart';
+import 'package:logging/logging.dart';
 import 'package:network_info_plus/network_info_plus.dart' as plugin;
 import 'package:refena_flutter/refena_flutter.dart';
 
 final _logger = Logger('NetworkInfo');
 
-final localIpProvider = ReduxProvider<LocalIpService, NetworkState>(
-  (ref) {
-    return LocalIpService(
-      ref.notifier(settingsProvider),
-    );
-  },
-  onChanged: (prev, next, ref) {
-    // Push refreshed LAN IPs into the multicast isolate so the
-    // dev-mode loopback detection in `multicast_discovery.dart` can
-    // catch packets that qemu / iOS-Simulator rewrote to one of
-    // these. No-op in production where the loopback rewrite is
-    // disabled by default.
-    if (prev.localIps == next.localIps) return;
-    ref
-        .redux(parentIsolateProvider)
-        .dispatch(
-          IsolateSyncLocalIpsAction(ownLocalIps: next.localIps.toSet()),
-        );
-  },
-);
+final localIpProvider = ReduxProvider<LocalIpService, NetworkState>((ref) {
+  return LocalIpService(
+    ref.notifier(settingsProvider),
+  );
+});
 
 StreamSubscription? _subscription;
 

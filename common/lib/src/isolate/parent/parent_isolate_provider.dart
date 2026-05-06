@@ -7,7 +7,6 @@ import 'package:common/src/isolate/child/upload_isolate.dart';
 import 'package:common/src/isolate/dto/isolate_task.dart';
 import 'package:common/src/isolate/dto/isolate_task_result.dart';
 import 'package:common/src/isolate/dto/send_to_isolate_data.dart';
-import 'package:common/src/task/discovery/multicast_event.dart';
 import 'package:common/src/util/isolate_helper.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:logging/logging.dart';
@@ -24,7 +23,7 @@ const _uploadIsolateCount = 2;
 class ParentIsolateState with ParentIsolateStateMappable {
   final SyncState syncState;
   final IsolateConnector<IsolateTaskStreamResult<Device>, SendToIsolateData<IsolateTask<HttpScanTask>>>? httpScanDiscovery;
-  final IsolateConnector<MulticastEvent, SendToIsolateData<MulticastTask>>? multicastDiscovery;
+  final IsolateConnector<Device, SendToIsolateData<MulticastTask>>? multicastDiscovery;
   final List<IsolateConnector<IsolateTaskStreamResult<double>, SendToIsolateData<IsolateTask<BaseHttpUploadTask>>>> httpUpload;
   int get uploadIsolateCount => httpUpload.length;
 
@@ -83,7 +82,7 @@ class IsolateSetupAction extends AsyncReduxAction<IsolateController, ParentIsola
       ),
     );
 
-    final multicastDiscovery = await startIsolate<MulticastEvent, SendToIsolateData<MulticastTask>, InitialData>(
+    final multicastDiscovery = await startIsolate<Device, SendToIsolateData<MulticastTask>, InitialData>(
       task: setupMulticastDiscoveryIsolate,
       param: InitialData(
         syncState: state.syncState,
@@ -117,20 +116,10 @@ class IsolateSetupAction extends AsyncReduxAction<IsolateController, ParentIsola
       growable: false,
     );
 
-    // Resolve all isolate futures before reading `state`. The previous
-    // form had `httpUpload: await Future.wait(...)` *inside* the
-    // copyWith call, which evaluated `state` (and the copyWith proxy's
-    // `$value` snapshot) before the await. Any concurrent action that
-    // mutated state during that final await — e.g. the localIpProvider's
-    // onChanged listener firing IsolateSyncLocalIpsAction — was lost
-    // when the captured proxy's `_make` ran on the stale `$value`.
-    // Read `state` AFTER all awaits so the snapshot reflects everything
-    // that landed while the isolates were spawning.
-    final uploads = await Future.wait(httpUploadIsolates);
     return state.copyWith(
       httpScanDiscovery: httpScanDiscovery,
       multicastDiscovery: multicastDiscovery,
-      httpUpload: uploads,
+      httpUpload: await Future.wait(httpUploadIsolates),
     );
   }
 }

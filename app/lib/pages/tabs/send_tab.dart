@@ -360,15 +360,7 @@ class _ScanButton extends StatelessWidget {
           reverse: true,
           child: CustomIconButton(
             onPressed: () async {
-              // Don't clear the device list — clearing strips the
-              // lastSeenAt stamps and forces every dot to flicker
-              // grey-then-green as the next round of announces
-              // arrives. The user sees this as the badge wildly
-              // flapping every refresh tap. Drop the clear; let the
-              // TTL prune ([PruneStaleDevicesAction]) handle stale
-              // entries, and just kick off a fresh scan to refresh
-              // anyone who's still around.
-              context.redux(nearbyDevicesProvider).dispatch(PruneStaleDevicesAction());
+              context.redux(nearbyDevicesProvider).dispatch(ClearFoundDevicesAction());
               await context.global.dispatchAsync(StartSmartScan(forceLegacy: true));
             },
             child: Icon(Icons.sync, color: iconColor),
@@ -380,9 +372,7 @@ class _ScanButton extends StatelessWidget {
     return _CircularPopupButton(
       tooltip: t.sendTab.scan,
       onSelected: (ip) async {
-        // Same rationale as the single-interface refresh button above:
-        // prune stale entries instead of dropping the whole list.
-        context.redux(nearbyDevicesProvider).dispatch(PruneStaleDevicesAction());
+        context.redux(nearbyDevicesProvider).dispatch(ClearFoundDevicesAction());
         await context.global.dispatchAsync(StartLegacySubnetScan(subnets: [ip]));
       },
       itemBuilder: (_) {

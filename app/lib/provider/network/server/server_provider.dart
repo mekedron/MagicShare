@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:common/constants.dart';
 import 'package:common/isolate.dart';
 import 'package:common/model/dto/multicast_dto.dart';
-import 'package:logging/logging.dart';
 import 'package:magicshare_app/model/cross_file.dart';
 import 'package:magicshare_app/model/state/server/server_state.dart';
 import 'package:magicshare_app/provider/network/server/controller/receive_controller.dart';
@@ -14,6 +13,7 @@ import 'package:magicshare_app/provider/security_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/util/alias_generator.dart';
 import 'package:magicshare_app/util/simple_server.dart';
+import 'package:logging/logging.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 final _logger = Logger('Server');

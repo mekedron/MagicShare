@@ -20,17 +20,6 @@ class MulticastDto with MulticastDtoMappable {
   final bool? announcement; // v1
   final bool? announce; // v2
 
-  /// MagicShare extension: when `true` this packet means "I'm leaving",
-  /// not "I'm here". Receivers drop the matching fingerprint from their
-  /// nearby-devices list immediately instead of waiting for the TTL.
-  ///
-  /// Backward-compatible with stock LocalSend: the field is optional
-  /// (default `null`) and dart_mappable's deserializer ignores unknown
-  /// fields, so a stock peer treats the packet as a normal announcement
-  /// — at worst it briefly re-registers the device, which then ages
-  /// out via the TTL on the receiving MagicShare side anyway.
-  final bool? goodbye;
-
   const MulticastDto({
     required this.alias,
     required this.version,
@@ -42,7 +31,6 @@ class MulticastDto with MulticastDtoMappable {
     required this.download,
     required this.announcement,
     required this.announce,
-    this.goodbye,
   });
 
   static const fromJson = MulticastDtoMapper.fromJson;

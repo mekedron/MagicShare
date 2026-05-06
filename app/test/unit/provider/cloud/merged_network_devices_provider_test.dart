@@ -32,7 +32,6 @@ CloudDevice _cloud({
   CloudDeviceIcon icon = CloudDeviceIcon.laptop,
   CloudDevicePresence presence = CloudDevicePresence.online,
   String? fingerprint,
-  int? lastSeenAtMs,
 }) {
   return CloudDevice(
     deviceId: deviceId,
@@ -40,10 +39,7 @@ CloudDevice _cloud({
     icon: icon,
     fcmToken: null,
     platform: CloudDevicePlatform.macos,
-    // Default to "just heartbeated" so the freshness check passes for
-    // tests that don't care about staleness. Tests that exercise
-    // staleness pass an explicit older timestamp.
-    lastSeenAtMs: lastSeenAtMs ?? DateTime.now().millisecondsSinceEpoch,
+    lastSeenAtMs: 0,
     presence: presence,
     fingerprint: fingerprint,
   );
@@ -309,17 +305,16 @@ void main() {
   });
 
   group('MergedDevice presence semantics', () {
-    test('isOnline requires LAN reachability AND cloud heartbeat freshness for cloud-known peers', () {
-      // The dot promises "transferable right now", not just "device
-      // alive somewhere". A cloud peer with no LAN entry is on a
-      // different network or behind multicast-blocking Wi-Fi (or the
-      // qemu user-mode NAT setup before the dev forward kicks in) and
-      // direct send won't work — show grey, route the tap through the
-      // wake flow via [isOfflineCloud].
+    test('isOnline tracks cloud presence even when no LAN entry exists', () {
+      // Android-emulator-from-macOS scenario: qemu user-mode NAT silently
+      // drops the emulator's multicast announce on the way to the host,
+      // so macOS never sees a LAN entry. The badge follows the heartbeat
+      // — Online when presence=online, Offline when stale — and the
+      // tap is still routed through the wake flow via [isOfflineCloud].
       final cloud = _cloud(deviceId: 'c', fingerprint: 'fp', presence: CloudDevicePresence.online);
-      final mergedNoLan = mergeNetworkDevices(lan: const [], cloud: [cloud], currentDeviceId: null);
-      expect(mergedNoLan.single.isOnline, isFalse, reason: 'no LAN entry → cannot promise direct send');
-      expect(mergedNoLan.single.isOfflineCloud, isTrue, reason: 'tap routes through wake flow');
+      final mergedOnline = mergeNetworkDevices(lan: const [], cloud: [cloud], currentDeviceId: null);
+      expect(mergedOnline.single.isOnline, isTrue);
+      expect(mergedOnline.single.isOfflineCloud, isTrue, reason: 'tap still routes through wake flow');
 
       final stale = _cloud(deviceId: 'c', fingerprint: 'fp', presence: CloudDevicePresence.offline);
       final mergedOffline = mergeNetworkDevices(lan: const [], cloud: [stale], currentDeviceId: null);
@@ -331,46 +326,6 @@ void main() {
       final cloud = _cloud(deviceId: 'c', fingerprint: 'fp', presence: CloudDevicePresence.online);
       final merged = mergeNetworkDevices(lan: [lan], cloud: [cloud], currentDeviceId: null);
       expect(merged.single.isOnline, isTrue);
-    });
-
-    test('isOnline goes false once cloud heartbeat ages past kCloudHeartbeatStaleAfter even with LAN reachable', () {
-      // Mirrors the original bug report: the receiving device went
-      // background, its rate-limited offline write was rejected, so
-      // its `presence` field stays "online" in Firestore. But its
-      // heartbeat timer is cancelled, so `lastSeenAtMs` freezes. The
-      // LAN entry might still be there briefly (kernel buffers, TTL
-      // not yet hit) but the app process is paused — direct send
-      // would fail.
-      final pretendNow = DateTime.now().millisecondsSinceEpoch;
-      final stale = _cloud(
-        deviceId: 'c',
-        fingerprint: 'fp',
-        presence: CloudDevicePresence.online,
-        lastSeenAtMs: pretendNow - kCloudHeartbeatStaleAfter.inMilliseconds - 1000,
-      );
-      final lan = _lan(fingerprint: 'fp');
-      final merged = mergeNetworkDevices(lan: [lan], cloud: [stale], currentDeviceId: null);
-      expect(merged.single.isOnline, isFalse, reason: 'stale heartbeat → offline even though LAN entry present');
-    });
-
-    test('cloudDeviceIsOnline is deterministic with explicit nowMs', () {
-      final fresh = _cloud(
-        deviceId: 'c',
-        presence: CloudDevicePresence.online,
-        lastSeenAtMs: 1_700_000_000_000,
-      );
-      expect(cloudDeviceIsOnline(fresh, nowMs: 1_700_000_050_000), isTrue, reason: '50 s old, well within window');
-      expect(cloudDeviceIsOnline(fresh, nowMs: 1_700_000_500_000), isFalse, reason: '500 s old, beyond window');
-    });
-
-    test('isOnline is false when cloud presence is offline even if LAN reachable', () {
-      // Cloud-known device whose heartbeat process has wedged or whose
-      // host has just lost network — multicast may keep flowing from
-      // kernel buffers briefly but the heartbeat is dead.
-      final lan = _lan(fingerprint: 'fp');
-      final cloud = _cloud(deviceId: 'c', fingerprint: 'fp', presence: CloudDevicePresence.offline);
-      final merged = mergeNetworkDevices(lan: [lan], cloud: [cloud], currentDeviceId: null);
-      expect(merged.single.isOnline, isFalse);
     });
   });
 }

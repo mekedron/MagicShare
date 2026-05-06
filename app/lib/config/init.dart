@@ -30,7 +30,6 @@ import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
 import 'package:magicshare_app/provider/cloud/local_notifications_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/device_info_provider.dart';
-import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
 import 'package:magicshare_app/provider/network/server/server_provider.dart';
 import 'package:magicshare_app/provider/network/webrtc/signaling_provider.dart';
@@ -63,21 +62,6 @@ import 'package:share_handler/share_handler.dart';
 import 'package:window_manager/window_manager.dart';
 
 final _logger = Logger('Init');
-
-/// Dev-mode loopback rewrite. When the macOS / iOS instances run on
-/// the same host as a qemu Android emulator, the emulator's outbound
-/// multicast announce arrives back at the host with its source IP
-/// rewritten to one of the host's own LAN IPs (qemu user-mode NAT).
-/// iOS Simulator announces look the same because it shares the host's
-/// loopback. Without a rewrite, the multicast listener registers the
-/// peer at our own IP and direct sends loop back to ourselves.
-///
-/// `run-dev.sh` sets this dart-define to the host port that
-/// `adb forward`s to the emulator's LocalSend listener (default
-/// 53318 → emulator:53317). Production builds don't set the define
-/// so the value defaults to 0 (rewrite disabled).
-const _devLoopbackRewritePort = int.fromEnvironment('DEV_EMULATOR_FORWARD_PORT', defaultValue: 0);
-const _devLoopbackRewriteHost = String.fromEnvironment('DEV_EMULATOR_FORWARD_HOST', defaultValue: '127.0.0.1');
 
 /// Will be called before the MaterialApp started
 Future<RefenaContainer> preInit(List<String> args) async {
@@ -205,24 +189,6 @@ Future<RefenaContainer> preInit(List<String> args) async {
             deviceInfo: ref.read(deviceInfoProvider),
             alias: settings.alias,
             port: settings.port,
-            // Decouple the multicast port from the HTTP port so the
-            // run-dev.sh setup (macOS + iOS Simulator on the same
-            // loopback, each with its own LOCALSEND_PORT) keeps every
-            // co-located instance bound to the same well-known
-            // multicast port. Without this, iOS bound to 53319 would
-            // silently miss every announce sent to 53317. Production
-            // builds default the override to 0, so the two ports
-            // align and behavior matches stock LocalSend.
-            multicastPort: persistenceService.getMulticastPort(),
-            // Dev-mode: pre-seed the multicast listener with our
-            // current LAN IPs so it can detect loopback announces
-            // (qemu user-mode NAT / iOS Simulator shared loopback)
-            // and rewrite peer addresses on the fly. The runtime
-            // refresh is handled by [InitLocalIpAction] dispatching
-            // an [UpdateSyncStateAction] when interfaces change.
-            ownLocalIps: ref.read(localIpProvider).localIps.toSet(),
-            devLoopbackRewriteHost: _devLoopbackRewritePort > 0 ? _devLoopbackRewriteHost : null,
-            devLoopbackRewritePort: _devLoopbackRewritePort > 0 ? _devLoopbackRewritePort : null,
             networkWhitelist: settings.networkWhitelist,
             networkBlacklist: settings.networkBlacklist,
             protocol: settings.https ? ProtocolType.https : ProtocolType.http,
