@@ -320,8 +320,15 @@ Future<void> _dispatchUrlFastPath({
   if (encryptMode) {
     final keyState = ref.read(groupKeyProvider);
     if (keyState is! GroupKeyReady) {
-      _sendTabLogger.warning('Encrypted link mode but group key not loaded (state=${keyState.runtimeType})');
-      _showLinkError(context, 'Group key not available');
+      _sendTabLogger.warning(
+        'Encrypted link mode but group key not loaded '
+        '(state=${keyState.runtimeType}, accountState=${accountState.runtimeType})',
+      );
+      _showLinkError(
+        context,
+        'Group key missing on this device — open Settings → Device group → '
+        'Delete this device group, then create or join a group again.',
+      );
       return;
     }
     final encoded = encodeLinkPayload(LinkPayload(url: url), keyState.key);
@@ -348,9 +355,16 @@ Future<void> _dispatchUrlFastPath({
       SnackBar(content: Text(t.sendTab.linkSent(device: target.displayName))),
     );
   } on CloudException catch (e) {
-    _sendTabLogger.warning('sendLinkNotification CloudException: ${e.code} ${e.message}');
+    _sendTabLogger.warning(
+      'sendLinkNotification CloudException: code=${e.code.name} '
+      'message="${e.message}" details=${e.details}',
+    );
     if (!context.mounted) return;
-    _showLinkError(context, e.message);
+    // The default e.message for an `internal` Firebase Functions error is
+    // a useless "An internal error has occurred…". Surface the code too
+    // so the user (and the run log) has something to act on.
+    final reason = e.code.name == 'internal' ? '${e.message} (code=${e.code.name})' : e.message;
+    _showLinkError(context, reason);
   }
 }
 

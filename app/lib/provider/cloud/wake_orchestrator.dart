@@ -116,7 +116,20 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
     }
     final groupKey = _deps.groupKeyReader();
     if (groupKey == null) {
-      _setStatus(target.deviceId, const WakeStatusError(message: 'Group key not available', timedOut: false));
+      _logger.warning(
+        'Wake aborted: group key missing on this device '
+        '(target=${target.deviceId})',
+      );
+      _setStatus(
+        target.deviceId,
+        const WakeStatusError(
+          message:
+              'Group key missing on this device — open Settings → '
+              'Device group → Delete this device group, then create or '
+              'join a group again.',
+          timedOut: false,
+        ),
+      );
       return;
     }
     final sourceFingerprint = _deps.sourceFingerprintReader();
@@ -147,10 +160,19 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
         payload: encoded,
       );
     } on CloudException catch (e, st) {
-      _logger.warning('sendWake failed (${e.code.name})', e, st);
+      _logger.warning(
+        'sendWake failed: code=${e.code.name} message="${e.message}" details=${e.details}',
+        e,
+        st,
+      );
+      // Default Firebase Functions text for `internal` is "An internal
+      // error has occurred…", which gives the user nothing to act on.
+      // Tag the surface message with the code so the run log + on-screen
+      // text both point at the same thing.
+      final surface = e.code.name == 'internal' ? '${e.message} (code=${e.code.name})' : e.message;
       _setStatus(
         target.deviceId,
-        WakeStatusError(message: e.message, timedOut: false),
+        WakeStatusError(message: surface, timedOut: false),
       );
       return;
     }
