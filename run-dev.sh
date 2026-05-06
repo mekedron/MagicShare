@@ -7,15 +7,35 @@
 # `--dart-define=USE_FIREBASE_EMULATOR=true`. Make sure
 # `cd firebase/functions && npm run dev` is up before launching.
 #
-# If no Android emulator is connected, the script launches one
-# (prefers ANDROID_AVD, otherwise the first AVD `flutter emulators`
-# reports) and waits up to ~3 min for it to come online.
+# Pairing-friendly setup
+# ----------------------
+# The Android emulator can't reach the macOS host's real LAN IP
+# reliably (qemu user-mode NAT, captive portals, IPv6-only
+# interfaces, host firewall, etc. — all of these break the LAN
+# reachability probe and surface as "Both devices need to be on
+# the same Wi-Fi to pair"). So we use the same trick documented in
+# `docs/development/pairing-testing.md` Recipe 3, applied to the
+# more common direction (macOS issuer ↔ emulator joiner):
+#
+# 1. Pin the LAN handshake server on macOS to a known port via
+#    CLOUD_PAIRING_LAN_PORT.
+# 2. Tell macOS to advertise `127.0.0.1:<port>` in the QR / manual
+#    code via CLOUD_PAIRING_LAN_HOST.
+# 3. `adb reverse tcp:<port> tcp:<port>` so the emulator's own
+#    `localhost:<port>` routes to the host's `localhost:<port>` —
+#    where the macOS pairing server is now bound. Same trick used
+#    for the Firebase emulator ports.
+#
+# Result: pairing works regardless of the host's actual LAN config.
 #
 # Overrides:
 #   ANDROID_DEVICE=<id>           connect to a specific device id
 #   ANDROID_AVD=<avd-name>        boot a specific AVD when none is up
 #   FIREBASE_EMULATOR_HOST=<ip>   how the Android emulator reaches
 #                                 the host (default 10.0.2.2)
+#   PAIRING_LAN_PORT=<n>          fixed port for the LAN handshake
+#                                 server on macOS (default 51820).
+#                                 Anything in the ephemeral range works.
 
 set -euo pipefail
 
@@ -24,7 +44,12 @@ APP_DIR="$REPO_ROOT/app"
 ANDROID_DEVICE="${ANDROID_DEVICE:-}"
 ANDROID_AVD="${ANDROID_AVD:-}"
 FIREBASE_EMULATOR_HOST="${FIREBASE_EMULATOR_HOST:-10.0.2.2}"
+PAIRING_LAN_PORT="${PAIRING_LAN_PORT:-51820}"
 EMULATOR_BOOT_TIMEOUT_SECONDS="${EMULATOR_BOOT_TIMEOUT_SECONDS:-180}"
+
+# Firebase emulator ports the Android app needs to reach. Mirror of
+# `app/lib/config/cloud/firebase_init.dart` `_emulator*Port` consts.
+FIREBASE_EMULATOR_PORTS=(9099 8080 5001)
 
 if [[ ! -d "$APP_DIR" ]]; then
   echo "error: $APP_DIR not found — run this from the repo root." >&2
@@ -109,7 +134,25 @@ EOF
   exit 1
 }
 
+# adb reverse: emulator's localhost:<port> → host's localhost:<port>.
+# Idempotent — `adb reverse` overwrites the existing mapping silently.
+setup_adb_reverse() {
+  if [[ -z "$adb_bin" ]]; then
+    echo "warning: adb not on PATH; skipping reverse port forwards. Pairing may fail." >&2
+    return
+  fi
+  for port in "${FIREBASE_EMULATOR_PORTS[@]}" "$PAIRING_LAN_PORT"; do
+    if "$adb_bin" reverse "tcp:$port" "tcp:$port" >/dev/null 2>&1; then
+      echo "  adb reverse tcp:$port → host tcp:$port"
+    else
+      echo "  warning: adb reverse tcp:$port failed" >&2
+    fi
+  done
+}
+
 ensure_emulator_running
+echo "Wiring adb reverse port forwards (emulator → host) for pairing + Firebase:"
+setup_adb_reverse
 
 open_terminal_window() {
   local title="$1"
@@ -122,17 +165,31 @@ end tell
 EOF
 }
 
+# macOS issuer: pin the pairing port and advertise 127.0.0.1 in the
+# QR / manual code so the emulator joiner reaches it via the
+# adb-reverse tunnel set up above. Production builds ignore both
+# defines (defaults to ephemeral port + auto-detected IP).
 open_terminal_window "MagicShare · macOS" \
-  "fvm flutter run -d macos --dart-define=USE_FIREBASE_EMULATOR=true"
+  "fvm flutter run -d macos \
+    --dart-define=USE_FIREBASE_EMULATOR=true \
+    --dart-define=CLOUD_PAIRING_LAN_HOST=127.0.0.1 \
+    --dart-define=CLOUD_PAIRING_LAN_PORT=$PAIRING_LAN_PORT"
 
 open_terminal_window "MagicShare · Android ($ANDROID_DEVICE)" \
-  "fvm flutter run -d $ANDROID_DEVICE --dart-define=USE_FIREBASE_EMULATOR=true --dart-define=FIREBASE_EMULATOR_HOST=$FIREBASE_EMULATOR_HOST"
+  "fvm flutter run -d $ANDROID_DEVICE \
+    --dart-define=USE_FIREBASE_EMULATOR=true \
+    --dart-define=FIREBASE_EMULATOR_HOST=$FIREBASE_EMULATOR_HOST"
 
-cat <<'NOTE'
+cat <<NOTE
 
-Two Terminal windows are opening. Each `flutter run` keeps a TTY:
+Two Terminal windows are opening. Each \`flutter run\` keeps a TTY:
   r        hot reload
   R        hot restart
   q        quit
   Ctrl+C   exit (also tears down the running app)
+
+Pairing is wired host↔emulator over adb reverse on port $PAIRING_LAN_PORT.
+The macOS-side QR / manual code will advertise 127.0.0.1:$PAIRING_LAN_PORT
+— that's the right value for this dev setup; do NOT change it from a
+real LAN IP.
 NOTE
