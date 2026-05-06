@@ -21,20 +21,74 @@ class NearbyDevicesState with NearbyDevicesStateMappable {
     required this.signalingDevices,
   });
 
+  /// All devices we know about, deduplicated to a single entry per
+  /// physical device regardless of which channel observed them.
+  ///
+  /// Two distinct dedup problems converge here, both surfaced by the
+  /// hot-restart "duplicate copy of the device shows up in Nearby
+  /// Devices" report:
+  ///
+  /// 1. **Mixed-key bug.** [devices] is keyed by IP (multicast /
+  ///    HTTP-register) and [signalingDevices] is keyed by fingerprint,
+  ///    so the old getter — which `addAll`'d the IP-keyed map and then
+  ///    wrote the signaling entries under fingerprint keys — produced
+  ///    two map entries for one device whenever both channels had
+  ///    observed it.
+  /// 2. **Cross-channel fingerprint drift.** The WebRTC signaling
+  ///    handshake generates a fresh keypair on every connection
+  ///    (signaling_provider.dart marks this with a TODO), so the
+  ///    `token` the signaling server hands us as the peer's fingerprint
+  ///    is *different* from the LocalSend cert hash that the multicast
+  ///    announce carries. After a hot-restart the *new* signaling
+  ///    fingerprint also differs from the *old* signaling fingerprint
+  ///    — and until the signaling server's `Left` event arrives the
+  ///    receiver has both stale and fresh signaling entries. None of
+  ///    those share a fingerprint with the multicast entry, so a pure
+  ///    fingerprint-keyed dedup leaves them all visible.
+  ///
+  /// The strategy: re-key everything by fingerprint, then collapse
+  /// signaling-only fingerprints into a co-aliased multicast entry
+  /// (preferring the LAN ip+port for the transport layer). When no
+  /// alias-matched LAN entry exists the signaling entry stays under
+  /// its own fingerprint key — that's the legitimate "WebRTC-only
+  /// peer the user is talking to remotely" case.
   Map<String, Device> get allDevices {
-    final Map<String, Device> allDevices = {};
-    allDevices.addAll(devices);
-    for (final devices in signalingDevices.values) {
-      for (final device in devices) {
-        final currentDevice = allDevices[device.fingerprint];
-        if (currentDevice != null && currentDevice.alias == device.alias) {
-          allDevices[device.fingerprint] = currentDevice.merge(device);
-        } else {
-          allDevices[device.fingerprint] = device;
+    final byFingerprint = <String, Device>{};
+    for (final device in devices.values) {
+      if (device.fingerprint.isEmpty) continue;
+      byFingerprint[device.fingerprint] = device;
+    }
+    for (final group in signalingDevices.values) {
+      for (final candidate in group) {
+        if (candidate.fingerprint.isEmpty) continue;
+        final fingerprintMatch = byFingerprint[candidate.fingerprint];
+        if (fingerprintMatch != null) {
+          if (fingerprintMatch.alias == candidate.alias) {
+            byFingerprint[candidate.fingerprint] = fingerprintMatch.merge(candidate);
+          }
+          // else: keep the LAN-side entry as-is; alias mismatch on the
+          // same fingerprint is unexpected.
+          continue;
         }
+        // Fold signaling entries into a same-alias multicast / HTTP-
+        // register entry under the LAN-side fingerprint, so we don't
+        // render the same physical device twice when the signaling
+        // token differs from the cert hash.
+        String? aliasMatchKey;
+        for (final entry in byFingerprint.entries) {
+          if (entry.value.alias == candidate.alias) {
+            aliasMatchKey = entry.key;
+            break;
+          }
+        }
+        if (aliasMatchKey != null) {
+          byFingerprint[aliasMatchKey] = byFingerprint[aliasMatchKey]!.merge(candidate);
+          continue;
+        }
+        byFingerprint[candidate.fingerprint] = candidate;
       }
     }
-    return allDevices;
+    return byFingerprint;
   }
 }
 
