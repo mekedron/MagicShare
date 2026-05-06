@@ -33,6 +33,10 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+        // Required by flutter_local_notifications (used by Epic 13 for the
+        // encrypted-link tap surface). Backports java.time and other
+        // post-API-26 stdlib calls onto our minSdkVersion.
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
@@ -96,6 +100,9 @@ dependencies {
     // version stays in sync with the firebase_messaging Flutter plugin.
     implementation platform('com.google.firebase:firebase-bom:33.5.1')
     implementation 'com.google.firebase:firebase-messaging'
+    // Pairs with `coreLibraryDesugaringEnabled true` above — required by
+    // flutter_local_notifications.
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
 
 // To comply with F-Droid version code schema
