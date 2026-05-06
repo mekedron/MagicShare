@@ -296,11 +296,19 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     } else {
       try {
         fileMap = response.response!.files;
-        final sessionId = response.response!.sessionId;
+        // The receiver's sessionId from the prepareUpload response.
+        // We threaded it onto every upload URL, but until this fix the
+        // variable was named `sessionId` — shadowing the local
+        // `sessionId` used as the state-map key, so updateSession
+        // indexed by the receiver's id (no entry there) and
+        // remoteSessionId stayed null on the local entry. Result: the
+        // upload URL was built without `?sessionId=...`, the receiver
+        // returned 400 "Missing parameters", and the file never moved.
+        final remoteSessionId = response.response!.sessionId;
         state = state.updateSession(
           sessionId: sessionId,
           state: (s) => s?.copyWith(
-            remoteSessionId: sessionId,
+            remoteSessionId: remoteSessionId,
           ),
         );
       } catch (e) {
