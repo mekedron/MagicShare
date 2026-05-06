@@ -171,6 +171,44 @@ void main() {
       final merged = mergeNetworkDevices(lan: [lan], cloud: const [], currentDeviceId: null);
       expect(merged, isEmpty);
     });
+
+    test('drops a LAN device whose fingerprint equals our own (Android-emulator loopback)', () {
+      // Reproduces what the user reported: on the Android emulator,
+      // multicast loopback lets the device's own announce reach itself.
+      // The upstream multicast listener already filters this out, but
+      // we keep a defensive filter at the merge layer so the Send tab
+      // never lists the user themselves regardless of upstream behaviour.
+      final selfLan = _lan(fingerprint: 'fp-self', alias: 'Solid Lemon');
+      final peer = _lan(fingerprint: 'fp-peer', alias: 'Peer');
+      final merged = mergeNetworkDevices(
+        lan: [selfLan, peer],
+        cloud: const [],
+        currentDeviceId: null,
+        ownFingerprint: 'fp-self',
+      );
+      expect(merged.map((m) => m.displayDevice.alias), ['Peer']);
+    });
+
+    test('treats null / empty ownFingerprint as no-self-filter', () {
+      // Bootstrap may not have a stored security context yet on very
+      // first launch. Falling through to the existing behaviour is
+      // safer than dropping every LAN device because we couldn't
+      // identify ourselves.
+      final lan = _lan(fingerprint: 'fp-1');
+      final mergedNull = mergeNetworkDevices(
+        lan: [lan],
+        cloud: const [],
+        currentDeviceId: null,
+      );
+      final mergedEmpty = mergeNetworkDevices(
+        lan: [lan],
+        cloud: const [],
+        currentDeviceId: null,
+        ownFingerprint: '',
+      );
+      expect(mergedNull, hasLength(1));
+      expect(mergedEmpty, hasLength(1));
+    });
   });
 
   group('MergedDevice presence semantics', () {

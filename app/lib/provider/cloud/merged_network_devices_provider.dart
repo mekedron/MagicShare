@@ -5,6 +5,7 @@ import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
+import 'package:magicshare_app/provider/security_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 /// Combined record for a single physical device the user can target from
@@ -63,16 +64,30 @@ class MergedDevice {
 /// key is `Device.fingerprint` (LocalSend cert hash) on both sides; a
 /// cloud doc whose `fingerprint` field is null can't be deduped against
 /// LAN, so it shows up only as a cloud-only tile.
+///
+/// [ownFingerprint] is this install's LocalSend cert hash. The
+/// upstream multicast listener already filters out our own announces
+/// in `multicast_discovery.dart` line 59, but on the Android emulator
+/// the multicast loopback can let a self-announce slip through —
+/// either as a duplicated packet or a re-emit from the qemu NAT
+/// stack. Keep this as a defence-in-depth filter so the Send tab
+/// never lists the user themselves regardless of upstream's behaviour.
 @visibleForTesting
 List<MergedDevice> mergeNetworkDevices({
   required Iterable<Device> lan,
   required Iterable<CloudDevice> cloud,
   required String? currentDeviceId,
+  String? ownFingerprint,
 }) {
   final byKey = <String, MergedDevice>{};
   for (final lanDevice in lan) {
     final fp = lanDevice.fingerprint;
     if (fp.isEmpty) continue;
+    if (ownFingerprint != null && ownFingerprint.isNotEmpty && fp == ownFingerprint) {
+      // Defensive: drop a LAN announce carrying this install's own
+      // cert hash (the Android-emulator multicast-loopback case).
+      continue;
+    }
     byKey[fp] = MergedDevice(
       displayDevice: lanDevice,
       cloud: null,
@@ -141,9 +156,11 @@ final mergedNetworkDevicesProvider = ViewProvider<List<MergedDevice>>((ref) {
   final accountState = ref.watch(accountRepositoryProvider);
   final cloud = accountState is AccountReady ? accountState.devices : const <CloudDevice>[];
   final currentDeviceId = accountState is AccountReady ? accountState.currentDeviceId : null;
+  final ownFingerprint = ref.watch(securityProvider).certificateHash;
   return mergeNetworkDevices(
     lan: lan,
     cloud: cloud,
     currentDeviceId: currentDeviceId,
+    ownFingerprint: ownFingerprint,
   );
 });
