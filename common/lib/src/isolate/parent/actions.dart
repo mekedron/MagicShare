@@ -113,6 +113,26 @@ class IsolateSendMulticastRestartListenerAction extends ReduxAction<IsolateContr
   }
 }
 
+/// Tells the multicast isolate to broadcast a goodbye packet so peers
+/// drop this device from their nearby list immediately. Wired to the
+/// mobile lifecycle paused / hidden transitions in main.dart.
+class IsolateSendMulticastGoodbyeAction extends ReduxAction<IsolateController, ParentIsolateState> {
+  @override
+  ParentIsolateState reduce() {
+    final connection = state.multicastDiscovery;
+    if (connection == null) {
+      throw StateError('multicastDiscovery is not initialized');
+    }
+
+    connection.sendToIsolate(SendToIsolateData(
+      syncState: null,
+      data: MulticastGoodbyeTask.instance,
+    ));
+
+    return state;
+  }
+}
+
 class IsolateHttpUploadActionResult {
   final int taskId;
   final Stream<double> progress;

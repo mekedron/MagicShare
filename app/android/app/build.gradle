@@ -77,7 +77,7 @@ android {
             signingConfig signingConfigs.release
         }
         debug {
-            applicationIdSuffix ".debug"
+            // applicationIdSuffix ".debug"  // disabled locally so debug builds can use the existing google-services.json client
         }
     }
 

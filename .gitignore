@@ -10,3 +10,10 @@
 
 # FVM Version Cache
 .fvm/
+
+# run-dev.sh per-platform log mirrors
+/logs/
+
+# build_runner / Flutter generated artifacts
+common/build/
+**/.DS_Store

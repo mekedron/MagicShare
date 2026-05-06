@@ -13,6 +13,7 @@ import 'package:magicshare_app/provider/cloud/cloud_message_listener_provider.da
 import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/local_ip_provider.dart';
+import 'package:magicshare_app/provider/network/lan_liveness_service.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/util/native/cloud_platform.dart';
 import 'package:magicshare_app/util/native/platform_check.dart';
@@ -96,6 +97,7 @@ class MagicShareApp extends StatelessWidget {
               case AppLifecycleState.inactive:
                 ref.redux(localIpProvider).dispatch(InitLocalIpAction());
                 ref.notifier(presenceHeartbeatProvider).markForeground();
+                ref.notifier(lanLivenessProvider).markForeground();
                 ref.notifier(linuxWakePollerProvider).start();
                 // Background FCM isolate may have persisted wake nonces
                 // while we were paused; drain them into the in-memory
@@ -107,14 +109,16 @@ class MagicShareApp extends StatelessWidget {
               case AppLifecycleState.hidden:
                 if (!isDesktop) {
                   ref.notifier(presenceHeartbeatProvider).markBackground();
+                  ref.notifier(lanLivenessProvider).markBackground();
                   ref.notifier(linuxWakePollerProvider).stop();
                 }
                 // Desktop: window minimised, hidden, or moved to
                 // another Space — the process is still alive and the
                 // LAN listener still works. Stay online so peers
                 // don't see us flap to offline every time the user
-                // switches windows. The heartbeat continues; it's
-                // only stopped on `detached`.
+                // switches windows. The heartbeat and the LAN
+                // re-announce loop continue; they only stop on
+                // `detached`.
                 break;
               case AppLifecycleState.detached:
                 // The main isolate is only exited when all child isolates are exited.

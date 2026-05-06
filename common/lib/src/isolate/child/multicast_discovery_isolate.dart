@@ -1,7 +1,7 @@
-import 'package:common/model/device.dart';
 import 'package:common/src/isolate/child/main.dart';
 import 'package:common/src/isolate/dto/send_to_isolate_data.dart';
 import 'package:common/src/task/discovery/multicast_discovery.dart';
+import 'package:common/src/task/discovery/multicast_event.dart';
 import 'package:meta/meta.dart';
 
 sealed class MulticastTask {}
@@ -25,10 +25,20 @@ class MulticastRestartListenerTask implements MulticastTask {
   const MulticastRestartListenerTask._();
 }
 
+/// Broadcasts a goodbye packet so peers drop this device from their
+/// nearby list immediately. Fired on mobile lifecycle paused / hidden
+/// transitions; complements the periodic re-announce by handling the
+/// graceful exit case.
+class MulticastGoodbyeTask implements MulticastTask {
+  static const instance = MulticastGoodbyeTask._();
+
+  const MulticastGoodbyeTask._();
+}
+
 @internal
 Future<void> setupMulticastDiscoveryIsolate(
   Stream<SendToIsolateData<MulticastTask>> receiveFromMain,
-  void Function(Device) sendToMain,
+  void Function(MulticastEvent) sendToMain,
   InitialData initialData,
 ) async {
   await setupChildIsolateHelper(
@@ -48,6 +58,9 @@ Future<void> setupMulticastDiscoveryIsolate(
           break;
         case MulticastRestartListenerTask():
           ref.read(multicastDiscoveryProvider).restartListener();
+          break;
+        case MulticastGoodbyeTask():
+          await ref.read(multicastDiscoveryProvider).sendGoodbye();
           break;
       }
     },

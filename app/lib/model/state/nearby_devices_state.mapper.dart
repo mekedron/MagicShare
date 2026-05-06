@@ -37,6 +37,10 @@ class NearbyDevicesStateMapper extends ClassMapperBase<NearbyDevicesState> {
   static Map<String, Device> _$devices(NearbyDevicesState v) => v.devices;
   static const Field<NearbyDevicesState, Map<String, Device>> _f$devices =
       Field('devices', _$devices);
+  static Map<String, DateTime> _$lastSeenAt(NearbyDevicesState v) =>
+      v.lastSeenAt;
+  static const Field<NearbyDevicesState, Map<String, DateTime>> _f$lastSeenAt =
+      Field('lastSeenAt', _$lastSeenAt);
   static Map<String, Set<Device>> _$signalingDevices(NearbyDevicesState v) =>
       v.signalingDevices;
   static const Field<NearbyDevicesState, Map<String, Set<Device>>>
@@ -47,6 +51,7 @@ class NearbyDevicesStateMapper extends ClassMapperBase<NearbyDevicesState> {
     #runningFavoriteScan: _f$runningFavoriteScan,
     #runningIps: _f$runningIps,
     #devices: _f$devices,
+    #lastSeenAt: _f$lastSeenAt,
     #signalingDevices: _f$signalingDevices,
   };
 
@@ -55,6 +60,7 @@ class NearbyDevicesStateMapper extends ClassMapperBase<NearbyDevicesState> {
       runningFavoriteScan: data.dec(_f$runningFavoriteScan),
       runningIps: data.dec(_f$runningIps),
       devices: data.dec(_f$devices),
+      lastSeenAt: data.dec(_f$lastSeenAt),
       signalingDevices: data.dec(_f$signalingDevices),
     );
   }
@@ -132,6 +138,8 @@ abstract class NearbyDevicesStateCopyWith<
     implements ClassCopyWith<$R, $In, $Out> {
   MapCopyWith<$R, String, Device, DeviceCopyWith<$R, Device, Device>>
   get devices;
+  MapCopyWith<$R, String, DateTime, ObjectCopyWith<$R, DateTime, DateTime>>
+  get lastSeenAt;
   MapCopyWith<
     $R,
     String,
@@ -143,6 +151,7 @@ abstract class NearbyDevicesStateCopyWith<
     bool? runningFavoriteScan,
     Set<String>? runningIps,
     Map<String, Device>? devices,
+    Map<String, DateTime>? lastSeenAt,
     Map<String, Set<Device>>? signalingDevices,
   });
   NearbyDevicesStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
@@ -166,6 +175,13 @@ class _NearbyDevicesStateCopyWithImpl<$R, $Out>
     (v) => call(devices: v),
   );
   @override
+  MapCopyWith<$R, String, DateTime, ObjectCopyWith<$R, DateTime, DateTime>>
+  get lastSeenAt => MapCopyWith(
+    $value.lastSeenAt,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(lastSeenAt: v),
+  );
+  @override
   MapCopyWith<
     $R,
     String,
@@ -182,6 +198,7 @@ class _NearbyDevicesStateCopyWithImpl<$R, $Out>
     bool? runningFavoriteScan,
     Set<String>? runningIps,
     Map<String, Device>? devices,
+    Map<String, DateTime>? lastSeenAt,
     Map<String, Set<Device>>? signalingDevices,
   }) => $apply(
     FieldCopyWithData({
@@ -189,6 +206,7 @@ class _NearbyDevicesStateCopyWithImpl<$R, $Out>
         #runningFavoriteScan: runningFavoriteScan,
       if (runningIps != null) #runningIps: runningIps,
       if (devices != null) #devices: devices,
+      if (lastSeenAt != null) #lastSeenAt: lastSeenAt,
       if (signalingDevices != null) #signalingDevices: signalingDevices,
     }),
   );
@@ -200,6 +218,7 @@ class _NearbyDevicesStateCopyWithImpl<$R, $Out>
     ),
     runningIps: data.get(#runningIps, or: $value.runningIps),
     devices: data.get(#devices, or: $value.devices),
+    lastSeenAt: data.get(#lastSeenAt, or: $value.lastSeenAt),
     signalingDevices: data.get(#signalingDevices, or: $value.signalingDevices),
   );
 

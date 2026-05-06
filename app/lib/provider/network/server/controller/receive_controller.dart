@@ -50,6 +50,7 @@ import 'package:magicshare_app/widget/dialogs/open_file_dialog.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -288,8 +289,38 @@ class ReceiveController {
     final wakeSessionId = dto.wakeSessionId;
     final autoAcceptViaWake = wakeSessionId != null && server.ref.read(wakeNonceRegistryProvider).consume(wakeSessionId);
     final bool acceptAll = quickSave || autoAcceptViaWake;
+
+    // Link auto-open: when the prepareUpload is a single text-mode file
+    // whose preview is an http(s) URL, open it in the browser, log a
+    // history entry, and respond 204 — matching the "message" UX (no
+    // file bytes to download) without showing the receive page. Wins
+    // over quickSave / autoAcceptViaWake because opening a URL in the
+    // browser is the right action regardless of save preferences.
+    final messagePreview = server.getState().session?.message;
+    final linkUri = _tryParseHttpUri(messagePreview);
+
     final Map<String, String>? selection;
-    if (acceptAll) {
+    if (linkUri != null) {
+      _logger.info('Auto-opening received link: $linkUri');
+      // ignore: unawaited_futures
+      launchUrl(linkUri, mode: LaunchMode.externalApplication);
+      await server.ref
+          .redux(receiveHistoryProvider)
+          .dispatchAsync(
+            AddHistoryEntryAction(
+              entryId: const Uuid().v4(),
+              fileName: messagePreview!,
+              fileType: FileType.text,
+              path: null,
+              savedToGallery: false,
+              isMessage: true,
+              fileSize: utf8.encode(messagePreview).length,
+              senderAlias: server.getState().session!.senderAlias,
+              timestamp: DateTime.now().toUtc(),
+            ),
+          );
+      selection = {};
+    } else if (acceptAll) {
       // accept all files
       selection = {
         for (final f in dto.files.values) f.id: f.fileName,
@@ -855,6 +886,23 @@ class ReceiveController {
     );
     server.ref.notifier(progressProvider).removeSession(sessionId);
   }
+}
+
+/// Returns the parsed URI when [text] is a single-line http(s) URL;
+/// null otherwise. NB: deliberately does not use `Uri.isAbsolute` —
+/// per dart:core docs that getter is false whenever a fragment is
+/// present, which would reject Google Docs/Sheets URLs and any
+/// hash-routed SPA link. Checking scheme + host is the right shape
+/// for "is this a launchable web URL".
+Uri? _tryParseHttpUri(String? text) {
+  if (text == null) return null;
+  final trimmed = text.trim();
+  if (trimmed.isEmpty || trimmed.contains(RegExp(r'\s'))) return null;
+  final uri = Uri.tryParse(trimmed);
+  if (uri == null) return null;
+  if (uri.scheme != 'http' && uri.scheme != 'https') return null;
+  if (uri.host.isEmpty) return null;
+  return uri;
 }
 
 void _cancelBySender(ServerUtils server) {

@@ -71,6 +71,27 @@ class IsolateSyncSettingsAction extends ReduxAction<IsolateController, ParentIso
   }
 }
 
+/// Publishes the host's current LAN IPs to all child isolates so the
+/// multicast listener can detect loopback announces (qemu user-mode
+/// NAT and iOS Simulator both rewrite the source IP to one of these).
+/// Only meaningful in the dev setup that sets DEV_EMULATOR_FORWARD_PORT;
+/// in production the multicast listener doesn't act on this field.
+class IsolateSyncLocalIpsAction extends ReduxAction<IsolateController, ParentIsolateState> {
+  final Set<String> ownLocalIps;
+
+  IsolateSyncLocalIpsAction({required this.ownLocalIps});
+
+  @override
+  ParentIsolateState reduce() {
+    dispatch(_PublishSyncStateAction(
+      syncState: state.syncState.copyWith(
+        ownLocalIps: ownLocalIps,
+      ),
+    ));
+    return state;
+  }
+}
+
 class IsolateSyncServerStateAction extends ReduxAction<IsolateController, ParentIsolateState> {
   final String alias;
   final int port;

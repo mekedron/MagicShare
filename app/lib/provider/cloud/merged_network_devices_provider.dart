@@ -9,6 +9,35 @@ import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
 import 'package:magicshare_app/provider/security_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
+/// Heartbeat freshness window. The foreground heartbeat fires every 70 s
+/// (`heartbeatPeriod` in `presence_heartbeat_service.dart`) so allowing
+/// ~3× plus a slack second covers one missed tick + clock skew /
+/// network jitter without flapping. After this window the device is
+/// considered "actually offline" regardless of what `presence` says
+/// in the Firestore doc — that field can lag by up to 10 minutes
+/// when the going-offline write is rate-limited (1 call/min/device).
+///
+/// `lastSeenAtMs` is updated by the cloud function on every accepted
+/// heartbeat, so a foregrounded device always has a fresh value; a
+/// backgrounded device's value freezes at its last successful tick
+/// and ages out within this window.
+const Duration kCloudHeartbeatStaleAfter = Duration(seconds: 220);
+
+/// Pure helper. Used by both the Send tab merge logic and the
+/// settings-page device-group tile so they cannot diverge again
+/// (the user reported settings + send-tab disagreeing on a single
+/// device's status; root cause was the settings tile reading raw
+/// `presence` while the send tab read the merged signal).
+///
+/// Pass `nowMs` to make the result deterministic in tests.
+bool cloudDeviceIsOnline(CloudDevice device, {int? nowMs}) {
+  if (device.presence != CloudDevicePresence.online) return false;
+  if (device.lastSeenAtMs <= 0) return false;
+  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+  final age = now - device.lastSeenAtMs;
+  return age <= kCloudHeartbeatStaleAfter.inMilliseconds;
+}
+
 /// Combined record for a single physical device the user can target from
 /// the Send tab. Pure LAN peers (e.g. a stock LocalSend client) appear
 /// with [cloud] == null; the user's own cloud-registered devices appear
@@ -36,27 +65,40 @@ class MergedDevice {
     required this.isLanReachable,
   });
 
-  /// Whether the user should perceive this device as "online" — i.e. the
-  /// app on the other side is alive and we can hand a transfer over to
-  /// it (directly via LAN or via the wake-then-send fallback).
+  /// Whether the user should perceive this device as "online" — i.e. we
+  /// have actually heard from it recently AND we can hand a transfer
+  /// over to it directly. The dot promises *transferable right now*,
+  /// not just *device alive somewhere*.
   ///
-  /// For a cloud-known peer the heartbeat presence is authoritative;
-  /// LAN reachability is just the fast path. The Android emulator
-  /// scenario is the canonical example: qemu user-mode NAT silently
-  /// drops the emulator's multicast announce on its way to the host,
-  /// so the macOS instance never sees an LAN entry for it. Returning
-  /// `false` there made a foregrounded emulator render as "Offline" on
-  /// the host even though presence said online — and tapping it still
-  /// produced the wake-then-send flow because [isOfflineCloud] kicked
-  /// in. The badge is now driven by presence; [isOfflineCloud] still
-  /// gates the wake routing on tap.
+  /// For a cloud-known peer this requires both signals together:
+  /// `cloudDeviceIsOnline(cloud)` (heartbeat fresh) AND
+  /// [isLanReachable] (we have a working IP+port). The two cover
+  /// different failure modes and disagreeing flips the dot grey:
+  /// - LAN-only (cloud says alive, no LAN entry) → either the peer
+  ///   is on a different network (cross-subnet / qemu user-mode NAT
+  ///   without the dev forward / multicast-blocked Wi-Fi) or its
+  ///   announce was lost. Direct send won't work; tap must route
+  ///   through the wake flow via [isOfflineCloud].
+  /// - Cloud-only (LAN says reachable, heartbeat stale) → the app
+  ///   process backgrounded but kernel buffers / TTL keep the LAN
+  ///   entry briefly. Tap WILL fail because the listener is paused.
   ///
-  /// Stock LocalSend peers (cloud == null) have no presence signal, so
-  /// LAN reachability is the only thing we can trust.
+  /// Heartbeat freshness handles the original "macOS shows Android
+  /// online for 10 min after backgrounding" report: when the
+  /// receiving Android backgrounds, its `markBackground` →
+  /// `updateDevicePresence(offline)` is often rate-limited and
+  /// silently swallowed, so the Firestore doc keeps `presence ==
+  /// online` for up to 10 min. But `lastSeenAtMs` freezes when the
+  /// heartbeat timer cancels, so [cloudDeviceIsOnline] flips false
+  /// within ~220 s.
+  ///
+  /// Stock LocalSend peers (cloud == null) have no heartbeat signal
+  /// — LAN reachability backed by [kLanDeviceTtl] is the only thing
+  /// we can trust.
   bool get isOnline {
     final cloudDev = cloud;
     if (cloudDev == null) return isLanReachable;
-    return cloudDev.presence == CloudDevicePresence.online;
+    return cloudDeviceIsOnline(cloudDev) && isLanReachable;
   }
 
   /// True when only the cloud side knows this device — the sender must
@@ -188,6 +230,19 @@ String? _findAliasMatch(Map<String, MergedDevice> byKey, String alias) {
     cloudOnlyMatch ??= entry.key;
   }
   return cloudOnlyMatch;
+}
+
+/// Builds a [MergedDevice] for a [CloudDevice] that has no LAN twin.
+/// Public so the settings page can fabricate a fallback for the
+/// current-device row (which is intentionally filtered out of the
+/// main merge by [mergeNetworkDevices], so a lookup by `deviceId`
+/// returns nothing for it).
+MergedDevice synthesizeCloudOnlyMergedDevice(CloudDevice cloud) {
+  return MergedDevice(
+    displayDevice: _synthesizeDevice(cloud),
+    cloud: cloud,
+    isLanReachable: false,
+  );
 }
 
 Device _synthesizeDevice(CloudDevice cloud) {

@@ -46,7 +46,18 @@ class ReceivePageVm {
     required this.onAccept,
     required this.onDecline,
     required this.onClose,
-  }) : isLink = message != null && !message.trim().contains(RegExp(r'\s')) && (Uri.tryParse(message.trim())?.isAbsolute ?? false);
+  }) : isLink = _isHttpUrl(message);
+
+  static bool _isHttpUrl(String? text) {
+    if (text == null) return false;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || trimmed.contains(RegExp(r'\s'))) return false;
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null) return false;
+    if (uri.scheme != 'http' && uri.scheme != 'https') return false;
+    if (uri.host.isEmpty) return false;
+    return true;
+  }
 }
 
 class ReceivePage extends StatefulWidget {

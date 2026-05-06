@@ -9,6 +9,15 @@ class NearbyDevicesState with NearbyDevicesStateMappable {
   final Set<String> runningIps; // list of local ips
   final Map<String, Device> devices; // ip -> device
 
+  /// Wall-clock timestamp of the most recent multicast / register / scan
+  /// signal we received per device, keyed identically to [devices] (by
+  /// IP). Drives TTL-based pruning so a peer that goes silent — because
+  /// it backgrounded, crashed, or lost the network — eventually
+  /// disappears from the list. Lives in RAM only; never serialised over
+  /// the wire (kept off [Device] to preserve stock-LocalSend
+  /// compatibility).
+  final Map<String, DateTime> lastSeenAt;
+
   /// Devices that are discovered via signaling server.
   /// The key is the fingerprint of the device.
   /// We do not trust the fingerprint, so we allow multiple devices with the same fingerprint.
@@ -18,6 +27,7 @@ class NearbyDevicesState with NearbyDevicesStateMappable {
     required this.runningFavoriteScan,
     required this.runningIps,
     required this.devices,
+    required this.lastSeenAt,
     required this.signalingDevices,
   });
 

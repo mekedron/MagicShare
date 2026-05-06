@@ -128,7 +128,7 @@ class _ScanPairingPageState extends State<ScanPairingPage> {
             child: MobileScanner(
               controller: _controller,
               onDetect: _onDetect,
-              errorBuilder: (context, error, _) {
+              errorBuilder: (context, error) {
                 return _ScannerError(
                   message: error.errorCode == MobileScannerErrorCode.permissionDenied ? l.permissionDenied : l.instructions,
                 );

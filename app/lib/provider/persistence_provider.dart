@@ -31,6 +31,16 @@ part 'persistence_provider_migrations.dart';
 
 final _logger = Logger('PersistenceService');
 
+/// Dev-mode override for the LocalSend HTTP / multicast port. When
+/// the macOS app and the iOS Simulator run on the same Mac (the
+/// `run-dev.sh` setup) they share the host's loopback, so they
+/// cannot both bind 0.0.0.0:53317. Pass
+/// `--dart-define=LOCALSEND_PORT=<port>` to the iOS run to give it
+/// its own port; macOS keeps the default 53317. 0 → no override
+/// (the saved-prefs value or the [defaultPort] constant wins, which
+/// is what production builds want).
+const _devLocalSendPortOverride = int.fromEnvironment('LOCALSEND_PORT', defaultValue: 0);
+
 String get _windowsFile {
   final appData = Platform.environment['APPDATA'];
   return '$appData\\MagicShare\\settings.json';
@@ -341,6 +351,24 @@ class PersistenceService {
   }
 
   int getPort() {
+    if (_devLocalSendPortOverride > 0) {
+      // Dev override takes precedence so the iOS Simulator launched
+      // by run-dev.sh doesn't crash trying to bind 0.0.0.0:53317
+      // alongside macOS. Production builds never set this define.
+      return _devLocalSendPortOverride;
+    }
+    return _prefs.getInt(_portKey) ?? defaultPort;
+  }
+
+  /// Port the multicast discovery socket binds + sends on. Stays at
+  /// the saved-prefs value (or [defaultPort]) regardless of the
+  /// [_devLocalSendPortOverride] LOCALSEND_PORT dart-define — that
+  /// override only retargets the HTTP listener so two instances on
+  /// the same loopback don't fight over a port. Multicast must keep
+  /// using the well-known port across every co-located instance, or
+  /// receivers bound to a different port silently miss every
+  /// announce.
+  int getMulticastPort() {
     return _prefs.getInt(_portKey) ?? defaultPort;
   }
 

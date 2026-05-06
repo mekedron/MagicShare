@@ -103,9 +103,17 @@ class PresenceHeartbeatService extends Notifier<HeartbeatState> {
   /// Marks the device online and starts the periodic loop. Idempotent: a
   /// second call while already running is a no-op (no stacked timers).
   void markForeground() {
-    if (!_isSupported || !_isEnabled) return;
-    if (_timer != null && _timer!.isActive) return;
+    if (!_isSupported || !_isEnabled) {
+      _logger.fine('[presence:cloud-foreground] skipped supported=$_isSupported enabled=$_isEnabled');
+      return;
+    }
+    if (_timer != null && _timer!.isActive) {
+      _logger.fine('[presence:cloud-foreground] already running, no-op');
+      return;
+    }
+    _logger.info('[presence:cloud-foreground] starting heartbeat period=${_period.inSeconds}s');
     _timer = _timerFactory(_period, (_) {
+      _logger.fine('[presence:cloud-tick] heartbeat');
       unawaited(_send(CloudDevicePresence.online));
     });
     state = const HeartbeatRunning();
@@ -114,7 +122,11 @@ class PresenceHeartbeatService extends Notifier<HeartbeatState> {
 
   /// Marks the device offline (best-effort) and cancels the timer.
   void markBackground() {
-    if (!_isSupported || !_isEnabled) return;
+    if (!_isSupported || !_isEnabled) {
+      _logger.fine('[presence:cloud-background] skipped supported=$_isSupported enabled=$_isEnabled');
+      return;
+    }
+    _logger.info('[presence:cloud-background] cancelling heartbeat + writing offline');
     final timer = _timer;
     _timer = null;
     timer?.cancel();
@@ -128,23 +140,26 @@ class PresenceHeartbeatService extends Notifier<HeartbeatState> {
       // Bootstrap hasn't reached a registered device yet — silently skip;
       // the next heartbeat tick (or the next foreground / background
       // transition) will catch up.
+      _logger.fine('[presence:cloud-send] skipped — no deviceId yet');
       return;
     }
+    final shortDev = deviceId.length <= 8 ? deviceId : deviceId.substring(0, 8);
     try {
       await _deps.client().updateDevicePresence(
         deviceId: deviceId,
         presence: presence,
       );
+      _logger.info('[presence:cloud-send] OK device=$shortDev presence=${presence.name}');
     } on CloudException catch (e) {
       // Rate-limit (1 call/min/device) is expected when foreground +
       // background flap quickly. Quietly swallow at debug level.
       if (e.code == CloudErrorCode.resourceExhausted) {
-        _logger.fine('Presence dispatch rate-limited: ${e.message}');
+        _logger.warning('[presence:cloud-send] RATE-LIMITED device=$shortDev presence=${presence.name} — Firestore doc unchanged');
         return;
       }
-      _logger.warning('Presence dispatch failed (${e.code.name})', e);
+      _logger.warning('[presence:cloud-send] failed device=$shortDev presence=${presence.name} code=${e.code.name}', e);
     } catch (e, st) {
-      _logger.warning('Presence dispatch failed', e, st);
+      _logger.warning('[presence:cloud-send] failed device=$shortDev presence=${presence.name}', e, st);
     }
   }
 

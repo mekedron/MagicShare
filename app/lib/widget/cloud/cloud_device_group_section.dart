@@ -6,7 +6,6 @@ import 'package:magicshare_app/config/theme.dart';
 import 'package:magicshare_app/gen/strings.g.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
@@ -15,6 +14,7 @@ import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
+import 'package:magicshare_app/provider/cloud/merged_network_devices_provider.dart';
 import 'package:magicshare_app/provider/cloud/notification_permission_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
@@ -376,6 +376,16 @@ class _ReadyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sorted = _sortedDevices(devices, currentDeviceId);
+    // Look up the merged record for each cloud device so the tile uses
+    // the same online predicate the Send tab applies. Falls back to a
+    // synthetic cloud-only [MergedDevice] when no LAN twin exists —
+    // the merged provider already does this for us, we just dedup by
+    // cloud `deviceId`.
+    final merged = context.ref.watch(mergedNetworkDevicesProvider);
+    final mergedByDeviceId = {
+      for (final m in merged)
+        if (m.cloud != null) m.cloud!.deviceId: m,
+    };
     return _SectionShell(
       showRefresh: true,
       child: Column(
@@ -384,7 +394,14 @@ class _ReadyCard extends StatelessWidget {
           for (final device in sorted) ...[
             const SizedBox(height: 8),
             CloudDeviceListTile(
-              device: device,
+              merged:
+                  mergedByDeviceId[device.deviceId] ??
+                  // The merge filters out the current device by id,
+                  // so the user's own row will always miss the
+                  // lookup. Fabricate a cloud-only [MergedDevice] for
+                  // it (the tile's `isCurrent` branch ignores the
+                  // synthetic display fields anyway).
+                  synthesizeCloudOnlyMergedDevice(device),
               isCurrent: device.deviceId == currentDeviceId,
               thisDeviceLabel: t.settingsTab.deviceGroup.thisDevice,
               onlineLabel: t.settingsTab.deviceGroup.presenceOnline,
@@ -594,8 +611,11 @@ List<CloudDevice> _sortedDevices(List<CloudDevice> devices, String currentDevice
     final aCurrent = a.deviceId == currentDeviceId;
     final bCurrent = b.deviceId == currentDeviceId;
     if (aCurrent != bCurrent) return aCurrent ? -1 : 1;
-    final aOnline = a.presence == CloudDevicePresence.online;
-    final bOnline = b.presence == CloudDevicePresence.online;
+    // Sort using the same online predicate the tile renders with, so a
+    // device whose Firestore presence is stale doesn't get bubbled up
+    // to the top while its dot is grey.
+    final aOnline = cloudDeviceIsOnline(a);
+    final bOnline = cloudDeviceIsOnline(b);
     if (aOnline != bOnline) return aOnline ? -1 : 1;
     return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
   });

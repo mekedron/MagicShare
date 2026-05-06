@@ -57,6 +57,7 @@ void main() {
         runningFavoriteScan: false,
         runningIps: const {},
         devices: {lan.ip!: lan},
+        lastSeenAt: const {},
         signalingDevices: {
           'fp-shared': {signaling},
         },
@@ -80,6 +81,7 @@ void main() {
         runningFavoriteScan: false,
         runningIps: const {},
         devices: {lan.ip!: lan},
+        lastSeenAt: const {},
         signalingDevices: const {},
       );
       expect(state.allDevices.keys.toList(), ['fp-1']);
@@ -91,6 +93,7 @@ void main() {
         runningFavoriteScan: false,
         runningIps: const {},
         devices: {lan.ip!: lan},
+        lastSeenAt: const {},
         signalingDevices: const {},
       );
       expect(state.allDevices, isEmpty);
@@ -106,6 +109,7 @@ void main() {
         runningFavoriteScan: false,
         runningIps: const {},
         devices: {lan.ip!: lan},
+        lastSeenAt: const {},
         signalingDevices: {
           'fp-1': {signaling},
         },
@@ -121,6 +125,7 @@ void main() {
         runningFavoriteScan: false,
         runningIps: const {},
         devices: const {},
+        lastSeenAt: const {},
         signalingDevices: {
           'fp-only-signaling': {signaling},
         },
@@ -153,6 +158,7 @@ void main() {
         runningFavoriteScan: false,
         runningIps: const {},
         devices: {lan.ip!: lan},
+        lastSeenAt: const {},
         signalingDevices: {
           'fp-fresh-signaling-token': {freshSignaling},
           'fp-stale-signaling-token': {staleSignaling},
