@@ -88,7 +88,7 @@ describe('sendWakeLogic', () => {
     expect(messaging.send).not.toHaveBeenCalled();
   });
 
-  it('sends a data-only FCM message to a non-Linux target', async () => {
+  it('sends an FCM message with a tappable wake notification to a non-Linux target', async () => {
     const messaging = fakeMessaging();
 
     const result = await sendWakeLogic(getDb(), messaging, UID, {
@@ -103,9 +103,13 @@ describe('sendWakeLogic', () => {
     expect(sent).toMatchObject({
       token: 'fcm-pixel',
       data: { type: 'wake', payload: 'opaque-blob' },
-      android: { priority: 'high' },
+      android: {
+        priority: 'high',
+        notification: { channelId: 'magicshare_cloud_sync' },
+      },
     });
-    expect(sent.notification).toBeUndefined();
+    expect(sent.notification?.title).toBe('MagicShare');
+    expect(sent.notification?.body).toContain('My laptop');
   });
 
   it('writes a Linux inbox item instead of calling FCM', async () => {

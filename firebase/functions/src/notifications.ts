@@ -56,6 +56,7 @@ export interface SendWakeResult {
 interface FcmRoute {
   kind: 'fcm';
   fcmToken: string;
+  senderDisplayName: string;
 }
 interface InboxRoute {
   kind: 'inbox';
@@ -65,7 +66,7 @@ interface NoneRoute {
 }
 type Route = FcmRoute | InboxRoute | NoneRoute;
 
-function pickRoute(target: DeviceDoc): Route {
+function pickRoute(target: DeviceDoc, source: DeviceDoc): Route {
   // Linux clients have no FCM support per the spec — they pull from
   // the inbox subcollection on a 30 s timer. Routing by platform (not
   // by `fcmToken == null`) makes the decision deterministic even when
@@ -78,18 +79,41 @@ function pickRoute(target: DeviceDoc): Route {
   if (!target.fcmToken) {
     return { kind: 'none' };
   }
-  return { kind: 'fcm', fcmToken: target.fcmToken };
+  return {
+    kind: 'fcm',
+    fcmToken: target.fcmToken,
+    senderDisplayName: source.displayName ?? '',
+  };
 }
 
-function buildWakeFcmMessage(token: string, payload: string): Message {
-  // Wake notifications are silent: data-only on Android, and rely on
-  // APNs `content-available: 1` on iOS so the system delivers the
-  // payload to a backgrounded app without surfacing UI. The
-  // foreground/background dispatch lives in Epic 13.
+function buildWakeFcmMessage(token: string, payload: string, senderDisplayName: string): Message {
+  // Wake notifications carry a visible Android notification so the user
+  // can see the wake landed and tap to bring the app forward when the
+  // OS has suspended/killed the receiver app — modern Android battery
+  // optimisations make purely-silent wakes unreliable in practice.
+  // When the receiver app is foregrounded, FCM does NOT auto-show the
+  // notification; the foreground listener handles the data payload
+  // directly and the receive flow proceeds without an extra UI tap.
+  // When backgrounded/killed, the system shows the notification, the
+  // background handler still fires (data is delivered alongside), and
+  // the notification tap brings the app forward to complete the wake
+  // handshake. iOS path stays silent (content-available + push-type
+  // background) — iOS notification-extension wake is a separate path.
+  const title = 'MagicShare';
+  const body = senderDisplayName.length > 0
+    ? `Tap to receive incoming files from ${senderDisplayName}`
+    : 'Tap to receive incoming files';
   return {
     token,
     data: { type: 'wake', payload },
-    android: { priority: 'high' },
+    notification: { title, body },
+    android: {
+      priority: 'high',
+      notification: {
+        // Reuse the channel declared in app/android/app/src/main/AndroidManifest.xml.
+        channelId: 'magicshare_cloud_sync',
+      },
+    },
     apns: {
       headers: { 'apns-priority': '5', 'apns-push-type': 'background' },
       payload: { aps: { contentAvailable: true } },
@@ -136,7 +160,7 @@ export async function sendWakeLogic(
 
     const now = Timestamp.now();
     const newQuota = consumeSendQuota(source.doc.recentSendsAt, now);
-    const route = pickRoute(target.doc);
+    const route = pickRoute(target.doc, source.doc);
 
     tx.update(source.ref, { recentSendsAt: newQuota });
     tx.update(accountRef, { lastActiveAt: now });
@@ -157,7 +181,9 @@ export async function sendWakeLogic(
   });
 
   if (decision.kind === 'fcm') {
-    await messaging.send(buildWakeFcmMessage(decision.fcmToken, input.payload));
+    await messaging.send(
+      buildWakeFcmMessage(decision.fcmToken, input.payload, decision.senderDisplayName),
+    );
     return { delivered: true, channel: 'fcm' };
   }
   if (decision.kind === 'inbox') {
@@ -246,7 +272,7 @@ export async function sendLinkNotificationLogic(
 
     const now = Timestamp.now();
     const newQuota = consumeSendQuota(source.doc.recentSendsAt, now);
-    const route = pickRoute(target.doc);
+    const route = pickRoute(target.doc, source.doc);
 
     tx.update(source.ref, { recentSendsAt: newQuota });
     tx.update(accountRef, { lastActiveAt: now });
