@@ -36,14 +36,27 @@ class MergedDevice {
     required this.isLanReachable,
   });
 
-  /// Per spec §5.3 *Send Flow*: Online = LAN-reachable AND foregrounded
-  /// recently. Stock LocalSend peers (cloud == null) are treated as
-  /// online whenever they're LAN-reachable since we have no presence
-  /// signal for them.
+  /// Whether the user should perceive this device as "online" — i.e. the
+  /// app on the other side is alive and we can hand a transfer over to
+  /// it (directly via LAN or via the wake-then-send fallback).
+  ///
+  /// For a cloud-known peer the heartbeat presence is authoritative;
+  /// LAN reachability is just the fast path. The Android emulator
+  /// scenario is the canonical example: qemu user-mode NAT silently
+  /// drops the emulator's multicast announce on its way to the host,
+  /// so the macOS instance never sees an LAN entry for it. Returning
+  /// `false` there made a foregrounded emulator render as "Offline" on
+  /// the host even though presence said online — and tapping it still
+  /// produced the wake-then-send flow because [isOfflineCloud] kicked
+  /// in. The badge is now driven by presence; [isOfflineCloud] still
+  /// gates the wake routing on tap.
+  ///
+  /// Stock LocalSend peers (cloud == null) have no presence signal, so
+  /// LAN reachability is the only thing we can trust.
   bool get isOnline {
-    if (!isLanReachable) return false;
-    final cloudPresence = cloud?.presence;
-    return cloudPresence == null || cloudPresence == CloudDevicePresence.online;
+    final cloudDev = cloud;
+    if (cloudDev == null) return isLanReachable;
+    return cloudDev.presence == CloudDevicePresence.online;
   }
 
   /// True when only the cloud side knows this device — the sender must

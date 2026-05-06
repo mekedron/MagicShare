@@ -148,9 +148,9 @@ void main() {
     });
 
     test('LAN online + cloud presence offline reports the device as offline', () {
-      // Edge case: heartbeat hasn't caught up. Spec rule: Online =
-      // LAN-reachable AND foregrounded recently. Cloud presence=offline
-      // wins on a same-fingerprint match.
+      // Cloud presence is authoritative for cloud-known peers. A LAN
+      // announce can outrun the heartbeat (the peer is mid-shutdown),
+      // so presence=offline wins on a same-fingerprint match.
       final lan = _lan(fingerprint: 'fp-3');
       final cloud = _cloud(deviceId: 'cloud-3', fingerprint: 'fp-3', presence: CloudDevicePresence.offline);
       final merged = mergeNetworkDevices(lan: [lan], cloud: [cloud], currentDeviceId: null);
@@ -246,10 +246,20 @@ void main() {
   });
 
   group('MergedDevice presence semantics', () {
-    test('isOnline is false when offline-cloud (no LAN entry)', () {
+    test('isOnline tracks cloud presence even when no LAN entry exists', () {
+      // Android-emulator-from-macOS scenario: qemu user-mode NAT silently
+      // drops the emulator's multicast announce on the way to the host,
+      // so macOS never sees a LAN entry. The badge follows the heartbeat
+      // — Online when presence=online, Offline when stale — and the
+      // tap is still routed through the wake flow via [isOfflineCloud].
       final cloud = _cloud(deviceId: 'c', fingerprint: 'fp', presence: CloudDevicePresence.online);
-      final merged = mergeNetworkDevices(lan: const [], cloud: [cloud], currentDeviceId: null);
-      expect(merged.single.isOnline, isFalse, reason: 'cloud presence=online without LAN ≠ online per spec');
+      final mergedOnline = mergeNetworkDevices(lan: const [], cloud: [cloud], currentDeviceId: null);
+      expect(mergedOnline.single.isOnline, isTrue);
+      expect(mergedOnline.single.isOfflineCloud, isTrue, reason: 'tap still routes through wake flow');
+
+      final stale = _cloud(deviceId: 'c', fingerprint: 'fp', presence: CloudDevicePresence.offline);
+      final mergedOffline = mergeNetworkDevices(lan: const [], cloud: [stale], currentDeviceId: null);
+      expect(mergedOffline.single.isOnline, isFalse);
     });
 
     test('isOnline is true for cloud-known + LAN-reachable + presence online', () {
