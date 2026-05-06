@@ -27,6 +27,7 @@ import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_message_listener_provider.dart';
 import 'package:magicshare_app/provider/cloud/fcm_provider.dart';
 import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
+import 'package:magicshare_app/provider/cloud/local_notifications_provider.dart';
 import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/device_info_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
@@ -255,6 +256,16 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
   }
 
   ref.redux(signalingProvider).dispatch(SetupSignalingConnection());
+
+  // Initialise the local-notifications surface used by the encrypted
+  // link path in the FCM background isolate. Foreground links open
+  // directly via url_launcher; this hooks the tap callback for taps on
+  // notifications the background handler surfaced earlier.
+  try {
+    await ref.read(localNotificationsProvider).initialize();
+  } catch (e, st) {
+    _logger.warning('Initialising local notifications failed', e, st);
+  }
 
   if (appStart) {
     if (defaultTargetPlatform == TargetPlatform.macOS) {

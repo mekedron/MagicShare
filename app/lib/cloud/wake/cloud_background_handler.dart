@@ -9,6 +9,7 @@ import 'package:magicshare_app/cloud/wake/cloud_message.dart';
 import 'package:magicshare_app/cloud/wake/cloud_message_dispatcher.dart';
 import 'package:magicshare_app/cloud/wake/wake_nonce_persistence.dart';
 import 'package:magicshare_app/firebase_options.dart';
+import 'package:magicshare_app/provider/cloud/local_notifications_provider.dart';
 import 'package:magicshare_app/util/native/secure_storage_service.dart';
 
 final _logger = Logger('CloudBackgroundHandler');
@@ -32,9 +33,12 @@ const Duration _wakeNonceTtl = Duration(minutes: 2);
 @pragma('vm:entry-point')
 Future<void> cloudBackgroundMessageHandler(RemoteMessage message) async {
   await _ensureFirebase();
+  final notifications = LocalNotificationsService();
+  await notifications.initialize();
   await handleCloudBackgroundMessage(
     message,
     readGroupKey: _readGroupKeyFromSecureStorage,
+    notifications: notifications,
   );
 }
 
@@ -46,6 +50,7 @@ Future<void> handleCloudBackgroundMessage(
   required Future<Uint8List?> Function() readGroupKey,
   WakeNoncePersistence persistence = const WakeNoncePersistence(),
   CloudMessageDispatcher dispatcher = const CloudMessageDispatcher(),
+  LocalNotificationsService? notifications,
   DateTime Function() now = DateTime.now,
 }) async {
   Uint8List? groupKey;
@@ -78,13 +83,24 @@ Future<void> handleCloudBackgroundMessage(
         _logger.warning('Persisting background wake nonce failed', e, st);
       }
     case LinkMessage():
-      // The encrypted-link tap surface (a local notification whose tap
-      // opens the URL) lands in the next commit, alongside the
-      // flutter_local_notifications dep. Plaintext-mode links arrive
-      // with an FCM `notification` field, which the OS surfaces
-      // directly; the foreground listener picks up the tap via
-      // onMessageOpenedApp / getInitialMessage.
-      _logger.fine('Background link message received; deferring to UI');
+      // Plaintext-mode link payloads arrive with an FCM `notification`
+      // field, which the OS surfaces directly while the app is paused.
+      // Encrypted-mode payloads are data-only — without a local
+      // notification surface here, the URL would be silently dropped
+      // when the app is backgrounded. Show a tappable notification so
+      // the user has a visible affordance to open the URL.
+      if (notifications != null) {
+        try {
+          await notifications.showLinkNotification(
+            url: result.url,
+            title: result.title,
+          );
+        } catch (e, st) {
+          _logger.warning('Surfacing background link notification failed', e, st);
+        }
+      } else {
+        _logger.fine('No notification surface available for background link');
+      }
     case CloudMessageError():
       _logger.fine('Background dispatcher error: ${result.reason}');
   }
