@@ -401,6 +401,24 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as _i4.Future<void>);
 
   @override
+  bool getEncryptLinkNotifications() =>
+      (super.noSuchMethod(
+            Invocation.method(#getEncryptLinkNotifications, []),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  _i4.Future<void> setEncryptLinkNotifications(bool? isEnabled) =>
+      (super.noSuchMethod(
+            Invocation.method(#setEncryptLinkNotifications, [isEnabled]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
   bool getCloudWelcomeDismissed() =>
       (super.noSuchMethod(
             Invocation.method(#getCloudWelcomeDismissed, []),

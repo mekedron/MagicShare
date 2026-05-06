@@ -151,6 +151,12 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     bool invalidPin;
     bool pinFirstAttempt = true;
     String? pin;
+    _logger.info(
+      'startSession → prepareUpload to ${target.alias} '
+      '(${target.ip}:${target.port}, '
+      'fingerprint=${target.fingerprint}, '
+      'wakeSessionId=${requestDto.wakeSessionId == null ? 'null' : 'set'})',
+    );
     do {
       invalidPin = false;
       try {

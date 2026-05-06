@@ -90,11 +90,11 @@ class ReceiveController {
     });
 
     router.post(ApiRoute.prepareUpload.v1, (HttpRequest request) async {
-      return await _prepareUploadHandler(request: request, port: port, https: https, v2: false);
+      return await _prepareUploadHandler(request: request, port: port, https: https, v2: false, fingerprint: fingerprint);
     });
 
     router.post(ApiRoute.prepareUpload.v2, (HttpRequest request) async {
-      return await _prepareUploadHandler(request: request, port: port, https: https, v2: true);
+      return await _prepareUploadHandler(request: request, port: port, https: https, v2: true, fingerprint: fingerprint);
     });
 
     router.post(ApiRoute.upload.v1, (HttpRequest request) async {
@@ -192,6 +192,7 @@ class ReceiveController {
     required int port,
     required bool https,
     required bool v2,
+    required String fingerprint,
   }) async {
     if (server.getState().session != null) {
       // block incoming requests when we are already in a session
@@ -214,6 +215,16 @@ class ReceiveController {
       dto = PrepareUploadRequestDto.fromJson(jsonDecode(payload));
     } catch (e) {
       return await request.respondJson(400, message: 'Request body malformed');
+    }
+
+    // Self-fingerprint guard. Mirrors the existing checks in
+    // `_infoHandler` and `_registerHandler` so a request that loops
+    // back to our own server (e.g. the Android-emulator NAT case where
+    // the announced LAN IP routes back to the host machine) doesn't
+    // surface a self-receive prompt to the user.
+    if (dto.info.fingerprint == fingerprint) {
+      _logger.info('Rejecting self-fingerprint prepareUpload from ${request.ip}');
+      return await request.respondJson(412, message: 'Self-discovered');
     }
 
     if (dto.files.isEmpty) {
