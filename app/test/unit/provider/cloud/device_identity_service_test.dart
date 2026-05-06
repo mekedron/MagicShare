@@ -144,6 +144,50 @@ void main() {
       );
     });
 
+    test('peekDeviceId returns null when storage is empty and does not mint', () {
+      final storage = _InMemoryStorage();
+      final service = DeviceIdentityService(
+        storage: storage.gateway(),
+        aliasReader: () => 'fixture',
+        deviceIdGenerator: () => fail('peek must not call the generator'),
+      );
+      expect(service.peekDeviceId(), isNull);
+      expect(storage.get(cloudDeviceIdKey), isNull, reason: 'peek must not write');
+    });
+
+    test('peekDeviceId returns the stored value without minting', () {
+      final storage = _InMemoryStorage()..put(cloudDeviceIdKey, 'persisted-id');
+      final service = DeviceIdentityService(
+        storage: storage.gateway(),
+        aliasReader: () => 'fixture',
+        deviceIdGenerator: () => fail('peek must not call the generator'),
+      );
+      expect(service.peekDeviceId(), 'persisted-id');
+    });
+
+    test('adoptDeviceId persists the supplied id and serves it from cache', () async {
+      final storage = _InMemoryStorage();
+      var calls = 0;
+      final service = DeviceIdentityService(
+        storage: storage.gateway(),
+        aliasReader: () => 'fixture',
+        deviceIdGenerator: () => 'minted-${++calls}',
+      );
+
+      await service.adoptDeviceId('adopted-id');
+      expect(storage.get(cloudDeviceIdKey), 'adopted-id');
+      expect(await service.ensureDeviceId(), 'adopted-id', reason: 'no minting after adoption');
+      expect(calls, 0);
+    });
+
+    test('adoptDeviceId rejects an empty id', () async {
+      final service = DeviceIdentityService(
+        storage: _InMemoryStorage().gateway(),
+        aliasReader: () => 'fixture',
+      );
+      await expectLater(service.adoptDeviceId(''), throwsArgumentError);
+    });
+
     test('platform enum is mapped 1:1 for supported platforms', () {
       final cases = <TargetPlatform, CloudDevicePlatform>{
         TargetPlatform.android: CloudDevicePlatform.android,

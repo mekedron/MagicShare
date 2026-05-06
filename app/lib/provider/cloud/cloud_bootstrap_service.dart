@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logging/logging.dart';
 import 'package:magicshare_app/cloud/cloud_functions_client.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
@@ -89,6 +90,7 @@ class CloudBootstrapDeps {
     required this.peerDeviceCountReader,
     required this.cloudSyncEnabledReader,
     required this.fingerprintReader,
+    required this.findExistingDeviceIdForFingerprint,
   });
 
   final CloudAuthState Function() authStateReader;
@@ -108,6 +110,14 @@ class CloudBootstrapDeps {
   /// been generated yet (extremely early in boot); the bootstrap simply
   /// forwards null and the next launch will refresh.
   final String? Function() fingerprintReader;
+
+  /// One-shot lookup: given the current account [uid] and our
+  /// [fingerprint], returns the deviceId of an existing cloud device
+  /// row matching that fingerprint, or null when there isn't one.
+  /// Used by the bootstrap adoption pass — see _runBootstrap — to
+  /// reuse a stale-but-still-correct device row instead of creating
+  /// a duplicate when our local device-id slot is empty.
+  final Future<String?> Function(String uid, String fingerprint) findExistingDeviceIdForFingerprint;
 }
 
 /// Orchestrates first-launch (and post-restart) bootstrap of the cloud
@@ -189,6 +199,34 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
       state = const BootstrapInFlight();
       _currentUid = uid;
       final identity = _deps.deviceIdentity();
+
+      // Adoption pass: if our local device-id slot is empty AND the
+      // cloud account already has a device row whose `fingerprint`
+      // matches this install's cert hash, adopt that row's id instead
+      // of minting a fresh one. Prevents the duplicate-device row that
+      // surfaces after the SharedPreferences slot is wiped (delete-
+      // group then rejoin, app reinstall during dev iteration, etc.).
+      if (identity.peekDeviceId() == null) {
+        final fp = _deps.fingerprintReader();
+        if (fp != null && fp.isNotEmpty) {
+          try {
+            final existing = await _deps.findExistingDeviceIdForFingerprint(uid, fp);
+            if (existing != null && existing.isNotEmpty) {
+              _logger.info(
+                'Adopting existing cloud device row for our fingerprint: $existing',
+              );
+              await identity.adoptDeviceId(existing);
+            }
+          } catch (e, st) {
+            // Best-effort: if the lookup fails for any reason (network,
+            // permissions, etc.), fall through to ensureDeviceId. The
+            // worst case is we mint a fresh row — same behaviour as
+            // before this fix.
+            _logger.warning('Adoption lookup failed; minting a fresh id', e, st);
+          }
+        }
+      }
+
       final deviceId = await identity.ensureDeviceId();
       _currentDeviceId = deviceId;
 
@@ -306,6 +344,25 @@ final cloudBootstrapProvider = NotifierProvider<CloudBootstrapService, Bootstrap
       },
       cloudSyncEnabledReader: () => ref.read(settingsProvider).cloudSyncEnabled,
       fingerprintReader: () => ref.read(securityProvider).certificateHash,
+      findExistingDeviceIdForFingerprint: (uid, fingerprint) async {
+        final query = await FirebaseFirestore.instance
+            .collection('accounts/$uid/devices')
+            .where('fingerprint', isEqualTo: fingerprint)
+            .limit(2)
+            .get();
+        if (query.docs.isEmpty) return null;
+        // If multiple rows match (a previous bug already created a
+        // duplicate), prefer the one with the highest lastSeenAtMs so
+        // the user keeps the most recently active row. Old stale row
+        // can be removed manually from the device-group list.
+        var best = query.docs.first;
+        for (final doc in query.docs.skip(1)) {
+          final bestSeen = (best.data()['lastSeenAtMs'] as num?)?.toInt() ?? 0;
+          final docSeen = (doc.data()['lastSeenAtMs'] as num?)?.toInt() ?? 0;
+          if (docSeen > bestSeen) best = doc;
+        }
+        return best.id;
+      },
     ),
   );
 });

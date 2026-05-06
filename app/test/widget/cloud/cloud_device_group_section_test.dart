@@ -88,6 +88,7 @@ class _FakeBootstrapService extends CloudBootstrapService {
           peerDeviceCountReader: () => 0,
           cloudSyncEnabledReader: () => false,
           fingerprintReader: () => null,
+          findExistingDeviceIdForFingerprint: (_, __) async => null,
         ),
         supportedOverride: false,
       );

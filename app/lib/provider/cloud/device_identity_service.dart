@@ -81,6 +81,30 @@ class DeviceIdentityService {
     return fresh;
   }
 
+  /// Reads the persisted device id without minting one when the slot is
+  /// empty. Used by the bootstrap adoption pass to decide whether to look
+  /// up an existing cloud row before falling through to [ensureDeviceId].
+  String? peekDeviceId() {
+    final cached = _cached;
+    if (cached != null) return cached;
+    final stored = _storage.read();
+    if (stored != null && stored.isNotEmpty) return stored;
+    return null;
+  }
+
+  /// Persists [deviceId] as the local slot value. Called by the bootstrap
+  /// adoption pass when an existing cloud device row matches this
+  /// device's fingerprint — adopting it instead of registering a fresh
+  /// row prevents the duplicate-device bug that surfaces after the
+  /// SharedPreferences slot is wiped (delete-group, app reinstall, etc.).
+  Future<void> adoptDeviceId(String deviceId) async {
+    if (deviceId.isEmpty) {
+      throw ArgumentError('deviceId must be non-empty');
+    }
+    await _storage.write(deviceId);
+    _cached = deviceId;
+  }
+
   /// Forgets the in-memory cache. After the storage entry is wiped (e.g. by
   /// `GroupKeyService.clear()` on `deleteAccount`), the next `ensureDeviceId`
   /// call will see the empty slot and mint a fresh id.

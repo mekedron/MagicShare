@@ -87,6 +87,7 @@ CloudBootstrapDeps _deps({
   bool cloudSyncEnabled = true,
   DeviceIdentityService? identity,
   String? Function()? fingerprintReader,
+  Future<String?> Function(String uid, String fingerprint)? findExistingDeviceIdForFingerprint,
 }) {
   return CloudBootstrapDeps(
     authStateReader: () => authInitial,
@@ -100,6 +101,7 @@ CloudBootstrapDeps _deps({
     peerDeviceCountReader: () => peerDeviceCount,
     cloudSyncEnabledReader: () => cloudSyncEnabled,
     fingerprintReader: fingerprintReader ?? () => 'fixture-fingerprint',
+    findExistingDeviceIdForFingerprint: findExistingDeviceIdForFingerprint ?? (_, __) async => null,
   );
 }
 
@@ -179,6 +181,171 @@ void main() {
       expect(tester.state, isA<BootstrapDone>());
       expect((tester.state as BootstrapDone).accountId, 'uid-1');
       await streams.dispose();
+    });
+
+    test('adopts an existing cloud device row when local slot is empty and a fingerprint match exists', () async {
+      // Reproduces the duplicate-device bug: SharedPreferences slot
+      // is empty (e.g. after delete-group + rejoin or app reinstall),
+      // and the cloud account already has a row whose `fingerprint`
+      // matches this install. Bootstrap must adopt the existing row's
+      // deviceId instead of minting a fresh one — otherwise the user
+      // ends up with two device entries for the same physical device.
+      final spy = _CallableSpy();
+      final streams = _Streams();
+      final storedSlot = <String?>[null];
+      final identity = DeviceIdentityService(
+        storage: DeviceIdStorage(
+          read: () => storedSlot.first,
+          write: (value) async {
+            storedSlot[0] = value;
+          },
+        ),
+        aliasReader: () => 'fixture-alias',
+        platformOverride: TargetPlatform.android,
+        deviceIdGenerator: () => 'fresh-id-should-not-be-used',
+      );
+      Notifier.test<CloudBootstrapService, BootstrapState>(
+        notifier: CloudBootstrapService(
+          deps: _deps(
+            spy: spy,
+            streams: streams,
+            authInitial: const CloudAuthAuthenticated('uid-1'),
+            fcmInitial: const FcmTokenAcquiring(),
+            groupKeyReader: () => const GroupKeyMissing(),
+            ensureGroupKey: () async {},
+            identity: identity,
+            fingerprintReader: () => 'cert-hash-abc',
+            findExistingDeviceIdForFingerprint: (uid, fp) async {
+              expect(uid, 'uid-1');
+              expect(fp, 'cert-hash-abc');
+              return 'existing-cloud-id';
+            },
+          ),
+          supportedOverride: true,
+        ),
+      );
+
+      await pumpEventQueue();
+      expect(spy.registerCalls.single['deviceId'], 'existing-cloud-id');
+      expect(storedSlot.first, 'existing-cloud-id', reason: 'adopted id is persisted');
+    });
+
+    test('mints a fresh deviceId when no existing fingerprint match is found', () async {
+      final spy = _CallableSpy();
+      final streams = _Streams();
+      final storedSlot = <String?>[null];
+      final identity = DeviceIdentityService(
+        storage: DeviceIdStorage(
+          read: () => storedSlot.first,
+          write: (value) async {
+            storedSlot[0] = value;
+          },
+        ),
+        aliasReader: () => 'fixture-alias',
+        platformOverride: TargetPlatform.android,
+        deviceIdGenerator: () => 'fresh-uuid',
+      );
+      Notifier.test<CloudBootstrapService, BootstrapState>(
+        notifier: CloudBootstrapService(
+          deps: _deps(
+            spy: spy,
+            streams: streams,
+            authInitial: const CloudAuthAuthenticated('uid-1'),
+            fcmInitial: const FcmTokenAcquiring(),
+            groupKeyReader: () => const GroupKeyMissing(),
+            ensureGroupKey: () async {},
+            identity: identity,
+            fingerprintReader: () => 'cert-hash-abc',
+            findExistingDeviceIdForFingerprint: (_, __) async => null,
+          ),
+          supportedOverride: true,
+        ),
+      );
+
+      await pumpEventQueue();
+      expect(spy.registerCalls.single['deviceId'], 'fresh-uuid');
+      expect(storedSlot.first, 'fresh-uuid');
+    });
+
+    test('skips adoption when the local slot already has a deviceId', () async {
+      // Existing well-behaved install: the slot is populated. We must
+      // NOT issue a Firestore lookup or change the deviceId — the row
+      // is already correct.
+      final spy = _CallableSpy();
+      final streams = _Streams();
+      var lookupCalls = 0;
+      final identity = DeviceIdentityService(
+        storage: DeviceIdStorage(
+          read: () => 'persisted-id',
+          write: (_) async {},
+        ),
+        aliasReader: () => 'fixture-alias',
+        platformOverride: TargetPlatform.android,
+      );
+      Notifier.test<CloudBootstrapService, BootstrapState>(
+        notifier: CloudBootstrapService(
+          deps: _deps(
+            spy: spy,
+            streams: streams,
+            authInitial: const CloudAuthAuthenticated('uid-1'),
+            fcmInitial: const FcmTokenAcquiring(),
+            groupKeyReader: () => const GroupKeyMissing(),
+            ensureGroupKey: () async {},
+            identity: identity,
+            fingerprintReader: () => 'cert-hash-abc',
+            findExistingDeviceIdForFingerprint: (_, __) async {
+              lookupCalls++;
+              return 'should-not-be-used';
+            },
+          ),
+          supportedOverride: true,
+        ),
+      );
+
+      await pumpEventQueue();
+      expect(lookupCalls, 0, reason: 'no lookup when slot is populated');
+      expect(spy.registerCalls.single['deviceId'], 'persisted-id');
+    });
+
+    test('falls through to fresh-id when adoption lookup throws', () async {
+      // Network blip / Firestore permission denied — we must not block
+      // bootstrap. Falls through to ensureDeviceId which mints a fresh
+      // id. Same behaviour as before this fix.
+      final spy = _CallableSpy();
+      final streams = _Streams();
+      final storedSlot = <String?>[null];
+      final identity = DeviceIdentityService(
+        storage: DeviceIdStorage(
+          read: () => storedSlot.first,
+          write: (value) async {
+            storedSlot[0] = value;
+          },
+        ),
+        aliasReader: () => 'fixture-alias',
+        platformOverride: TargetPlatform.android,
+        deviceIdGenerator: () => 'fallback-uuid',
+      );
+      Notifier.test<CloudBootstrapService, BootstrapState>(
+        notifier: CloudBootstrapService(
+          deps: _deps(
+            spy: spy,
+            streams: streams,
+            authInitial: const CloudAuthAuthenticated('uid-1'),
+            fcmInitial: const FcmTokenAcquiring(),
+            groupKeyReader: () => const GroupKeyMissing(),
+            ensureGroupKey: () async {},
+            identity: identity,
+            fingerprintReader: () => 'cert-hash-abc',
+            findExistingDeviceIdForFingerprint: (_, __) async {
+              throw StateError('firestore unavailable');
+            },
+          ),
+          supportedOverride: true,
+        ),
+      );
+
+      await pumpEventQueue();
+      expect(spy.registerCalls.single['deviceId'], 'fallback-uuid');
     });
 
     test('forwards the LocalSend fingerprint on registerDevice', () async {
