@@ -1,706 +1,226 @@
-# Tasks
+# Task list — Device groups (v1)
 
 **Status:** Draft
 **Owner:** Product (Nikita)
 **Last updated:** 2026-05-07
 
-> Reference spec: [`cloud-sync-spec.md`](./cloud-sync-spec.md). Read
-> it first if you need context on what is being built and why.
+> Reference spec: [`spec.md`](./spec.md). Read it first.
 
 Work top-to-bottom, **one epic at a time**. Subtasks within an epic
-are suggested implementation order — finish the whole epic before
-moving on. Tick the epic-level checkbox when the last subtask
-lands.
+suggest implementation order — finish the whole epic before moving on.
+Tick the epic-level checkbox when its last subtask lands.
 
 **Testing policy.** Every epic adds tests for the MagicShare-specific
 code it introduces — unit tests in the same commit as the code they
-cover, plus integration / end-to-end tests for any cross-component
-flow. We do **not** retroactively cover upstream LocalSend code we
-have not touched. All tests pass locally and in CI before any commit
-lands.
+cover, plus integration / E2E tests for any cross-component flow. We
+do **not** retroactively cover upstream LocalSend code we have not
+touched. All tests pass locally and in CI before any commit lands.
 
-- [x] **Epic 1 — Project foundations.** Stand up the Firebase
-  project, the Cloud Functions package, the emulator suite, and the
-  CI workflow. Local development and testing of cloud-sync code runs
-  against the Firebase emulator suite — no browser build is shipped.
+**Foundations already in place** (do not redo): Firebase project,
+emulator suite, Cloud Functions package, MagicShare rebrand,
+`flutterfire configure` outputs, Notifications + Camera permission
+sections in *Settings*. Pick up from Epic 1 below.
 
-  - Create the Firebase project; enable Authentication
-    (anonymous), Firestore (production), Cloud Functions, and
-    Cloud Messaging. Add `.firebaserc` and `firebase.json` under a
-    top-level `firebase/` directory.
-  - Run `flutterfire configure` and commit `firebase_options.dart`
-    plus the per-platform config files (`google-services.json`,
-    `GoogleService-Info.plist`).
-  - Scaffold a TypeScript Node 20 Cloud Functions package under
-    `firebase/functions/` with ESLint, Prettier, strict
-    TypeScript, and a deploy script.
-  - Configure the Firebase emulator suite (Auth, Firestore,
-    Functions, FCM passthrough). Add an `npm run dev` script.
-    Document usage in `docs/development/firebase-local.md`.
-  - Add `.github/workflows/firebase-functions.yml` that lints and
-    tests Cloud Functions on PRs touching `firebase/functions/**`.
-    Skip on docs-only changes.
-  - **Tests:** the CI workflows added in this epic must run
-    `npm test` (Cloud Functions, even on the empty stub),
-    `flutter analyze` and `flutter test` (Flutter), and `dart test`
-    (`common/`) on every PR. A no-op PR is green on all of them.
-  - **Done when:** `firebase use [project]` works locally;
-    `npm run dev` brings up all emulators; CI passes on a PR
-    touching `firebase/functions/`.
+---
 
-- [x] **Epic 2 — Rebrand to MagicShare.** Rename every code-level
-  reference (Dart package, application IDs, display names, classes,
-  user-visible strings) from LocalSend to MagicShare. Keep upstream
-  attribution: do not touch the `LICENSE`, source-header copyrights,
-  README credits, docs-site landing copy, or protocol-level mentions
-  of LocalSend. Add a settings *About MagicShare* section that names
-  MagicShare as a fork of LocalSend.
+- [ ] **Epic 1 — Firestore schema + security rules.** Lock down the
+  data model from § 5.2 of the spec before any client code touches it.
 
-  - Adopt canonical identifiers — app display name `MagicShare`,
-    Dart package name `magicshare_app`, reverse-DNS application id
-    `com.magicshare.app`. Document the brand-mention policy (where
-    LocalSend stays vs gets rebranded) as a *Brand mentions*
-    section in `CONTRIBUTING.md`.
-  - Dart package rename in `app/pubspec.yaml` (`name:` field);
-    rewrite every `package:localsend_app/...` import across `app/`
-    and `common/`. Top-level `LocalSendApp` widget →
-    `MagicShareApp` (rename only the class added on top of the
-    upstream UI; do not rename internal LocalSend identifiers used
-    by upstream code).
-  - Platform identifiers and display names:
-    - Android: `applicationId` in `app/android/app/build.gradle`;
-      `android:label` in `AndroidManifest.xml`; rename Kotlin
-      package directories under `app/android/app/src/`.
-    - iOS: `PRODUCT_BUNDLE_IDENTIFIER` in
-      `app/ios/Runner.xcodeproj/project.pbxproj`;
-      `CFBundleDisplayName` and `CFBundleName` in `Info.plist`.
-    - macOS: bundle identifier and display names in the macOS
-      Xcode project.
-    - Windows: MSIX `Identity Name` and `Publisher`; product name
-      in the Visual Studio project under `app/windows/`; Inno
-      Setup script `scripts/compile_windows_exe-inno.iss`.
-    - Linux: package name in Debian / RPM / AppImage scripts;
-      `Name=` in the generated `.desktop` file.
-  - Default device name and any other branding string visible to
-    LAN peers, in `app/lib/...` and `common/lib/...`.
-  - Localization: replace user-visible `LocalSend` brand strings
-    with `MagicShare`. Preserve `LocalSend` where it refers to the
-    upstream project, the wire protocol, or interop ("compatible
-    with LocalSend").
-  - Firebase apps: rename the registered apps in the Firebase
-    console; update bundle IDs to the new values. Re-run
-    `flutterfire configure` to refresh `firebase_options.dart` and
-    per-platform config files.
-  - Settings *About MagicShare* section appended to
-    `app/lib/pages/tabs/settings_tab.dart`, placed after every
-    existing settings group. Contains: app name and version, the
-    line *"MagicShare is a fork of LocalSend"* with a link to
-    https://localsend.org, and a link to the bundled LICENSE.
-    Localized.
-  - Keep (do **not** touch): `LICENSE`, source-header copyright
-    comments, README credits and the *LocalSend fork* paragraph,
-    docs-site landing copy, and protocol-level mentions of
-    LocalSend in code comments.
-  - **Tests:**
-    - Static / unit: `flutter analyze` and `flutter test` (in
-      `app/`), `dart analyze` / `test` (in `common/`),
-      `npm test` (in `firebase/functions/`) all green after
-      rename.
-    - Widget (`flutter test`): the new *About MagicShare* card
-      renders the LocalSend attribution and the LICENSE link.
-    - Smoke build: `flutter build apk --debug`, plus one desktop
-      target available locally, succeed with the new identifiers.
-    - Manual interop: a stock LocalSend client still sends to and
-      receives from this build.
-  - **Done when:** searching for `localsend_app` and
-    `org.localsend` under `app/`, `common/`, and `firebase/`
-    returns zero hits outside attribution files (`LICENSE`, README
-    credits, source-header copyrights, protocol references); the
-    settings *About MagicShare* card renders with LocalSend
-    attribution; the app installs and runs end-to-end on at least
-    one mobile and one desktop target with the new identifiers.
+  - Add Firestore rules for `groups/{uid}/devices/**` allowing read +
+    write only when `request.auth.uid == uid`.
+  - Add rules for `invites/{code}` blocking all client access (writes
+    and reads happen via Cloud Functions only).
+  - Add a Firestore composite index for `invites` on `expiresAt` if
+    the cleanup query needs it.
+  - **Tests:** `firebase/functions/test/rules/*.spec.ts` covering
+    same-group read/write allowed, cross-group read/write denied,
+    `invites/` client access denied. Run via the Firestore rules
+    emulator in CI.
+  - **Done when:** rules deploy clean to the emulator and the test
+    suite is green in CI.
 
-- [x] **Epic 3 — Schema and security rules.** Lock down the
-  Firestore data model and the rules that protect it before any
-  callable functions go in.
+- [ ] **Epic 2 — Cloud Functions: invite + push.** Implement the four
+  callables / scheduler from § 5.3 of the spec.
 
-  - Document the Firestore schema (`accounts`, `devices`,
-    `joinTokens`, `inbox`) in `firebase/SCHEMA.md` and define
-    matching TypeScript types in
-    `firebase/functions/src/models.ts`.
-  - Write Firestore security rules covering all collections:
-    `accounts/{id}` and `accounts/{id}/devices/{*}` are accessible
-    only by an authenticated user whose UID equals the account
-    ID, or by Cloud Functions; `joinTokens/*` are written only by
-    Cloud Functions and not directly readable by clients.
-  - Add unit tests for the security rules using
-    `@firebase/rules-unit-testing`. Cover happy path,
-    unauthorized cross-group reads, and direct `joinTokens`
-    writes. Wire into CI.
-  - **Tests:** `@firebase/rules-unit-testing` cases for
-    happy-path reads, unauthorized cross-group reads, and direct
-    `joinTokens` writes. Run on every PR touching
-    `firestore.rules` or `firebase/functions/`.
-  - **Done when:** rules deploy without warnings; unit tests pass
-    locally and in CI; schema doc and TypeScript types stay in
-    sync.
+  - `createInvite` — caller must be authenticated; returns
+    `{ code, expiresAt }` and writes `invites/{code}` with the
+    caller's UID. 6-char alphanumeric code from a confusion-free
+    alphabet (no `0/O/1/I/L`). Retry on collision up to 3 times.
+  - `redeemInvite` — public callable; verifies the code exists and is
+    not expired, deletes the doc, mints a custom token for the stored
+    UID via the Admin SDK, returns `{ customToken }`.
+  - `sendPush` — caller must be authenticated; takes
+    `{ targetDeviceId, title, body }`; reads
+    `groups/{callerUid}/devices/{targetDeviceId}.fcmToken`; rejects
+    when target is missing or in another group; sends FCM message via
+    Admin SDK.
+  - `cleanupInvites` — scheduled every hour; deletes invites past
+    `expiresAt`. Uses `pubsub.schedule('every 1 hours')`.
+  - **Tests:** `firebase/functions/test/functions/*.spec.ts` covering
+    happy path + auth failure + expired-invite + cross-group rejection
+    for each callable. Run via the Functions emulator.
+  - **Done when:** `npm test` in `firebase/functions/` is green and
+    each function deploys clean to the emulator.
 
-- [x] **Epic 4 — Account and device callables.** Implement the
-  cloud functions that create and manage accounts and devices.
+- [ ] **Epic 3 — Firebase init in the Flutter app.** Wire Firebase
+  into the app entry point and add the emulator-routing flag.
 
-  - `createAccount` (idempotent; creates `accounts/{uid}` if
-    missing).
-  - `registerDevice` (writes the device document; bumps
-    `lastActiveAt`).
-  - Device-management callables: `updateDevicePresence`
-    (rate-limited to one call per minute per device),
-    `renameDevice`, `setDeviceIcon` (input validation).
-  - Deletion callables: `removeDevice` (deletes the parent
-    account if it was the last device); `deleteAccount` (deletes
-    the account and all child devices in one transaction).
-  - **Tests:**
-    - Unit (emulator): idempotency of `createAccount`; input
-      validation paths for `renameDevice` and `setDeviceIcon`;
-      rate-limit boundary for `updateDevicePresence`; cascade
-      behaviour of `removeDevice` and `deleteAccount`.
-    - Integration: the create → register two devices → rename
-      → remove → delete scenario described in *Done when*.
-  - **Done when:** an end-to-end emulator test creates an
-    account, registers two devices, renames one, removes one, and
-    deletes the account — with Firestore state consistent at
-    every step.
+  - Initialize `Firebase.initializeApp(options:
+    DefaultFirebaseOptions.currentPlatform)` in `main()` before
+    `runApp`.
+  - Read `USE_FIREBASE_EMULATOR=true` via `String.fromEnvironment` and
+    route Auth, Firestore, and Functions through `localhost` when
+    set.
+  - Add a thin `lib/services/firebase_bootstrap.dart` that exposes a
+    single `bootstrap()` entry point — testable, no globals.
+  - **Tests:** widget test that boots the app under the emulator flag
+    and verifies all three SDKs use `localhost`.
+  - **Done when:** the app builds on every platform and the emulator
+    receives traffic when the flag is set.
 
-- [x] **Epic 5 — Pairing callables.** Implement the cloud-side of
-  the pairing flow. The LAN-side key handshake is a separate epic.
+- [ ] **Epic 4 — Create group: anonymous sign-in + register self.**
+  The minimum end-to-end flow: hit *Create group*, end up in the
+  joined state with one device in the list.
 
-  - `createJoinToken` (5 min one-time token in
-    `joinTokens/{tokenId}`).
-  - `previewJoinToken` (returns target account plus a public-safe
-    device list; rejects expired or consumed tokens).
-  - `joinNetwork` (verifies the token, marks it consumed, moves
-    the device to the target account, deletes the empty old
-    account, all in one transaction).
-  - **Tests:**
-    - Unit (emulator): expired-token rejection; consumed-token
-      rejection; public-safe filtering of the preview device
-      list (no FCM tokens leak); transactional integrity of
-      `joinNetwork`.
-    - Integration: emulator pairing flow including old-account
-      destruction when the last device leaves.
-  - **Done when:** an emulator integration test pairs two
-    simulated installations end-to-end (cloud side only) and the
-    old account is destroyed when its last device leaves.
+  - `lib/services/device_identity.dart` — generates and persists a
+    UUIDv4 `deviceId` in `flutter_secure_storage`. Survives app
+    restarts.
+  - `lib/services/device_group_service.dart` —
+    `createGroup()` calls `signInAnonymously()`, registers the device
+    record at `groups/{uid}/devices/{deviceId}` with default name
+    (`"This {platform}"`), default icon (`platform-default`), current
+    `fcmToken`, and `lastSeenAt`. Refreshes `fcmToken` and
+    `lastSeenAt` on every app start.
+  - `lib/pages/settings/device_group/` — *Device group* settings
+    section with the empty state from § 4.1: a *Create group* button
+    and a *Join group* button (the latter opens a placeholder until
+    Epic 6).
+  - On success, transition into the joined state showing the device
+    list with one entry.
+  - **Tests:** unit tests for `device_identity` (deterministic
+    persistence) and `device_group_service.createGroup` (against the
+    Auth + Firestore emulator). Widget test for the empty-state UI.
+  - **Done when:** tapping *Create group* on a fresh install creates
+    an Auth user, writes a device record, and shows the joined state
+    with one device.
 
-- [x] **Epic 6 — Notifications and maintenance.** Round out the
-  backend with notification dispatch, scheduled cleanup, rate
-  limiting, structured logging, and the Linux polling fallback.
+- [ ] **Epic 5 — First-run notification permission.** After a
+  successful create/join, request notifications.
 
-  - `sendWake`: data-only FCM message with the encrypted payload;
-    for Linux targets, also write an `inbox` item.
-  - Shared `assertSameAccount(callerUid, targetDeviceId)` helper
-    used by every function that touches another device.
-  - `sendLinkNotification` with two modes: `plaintext` (visible
-    FCM notification; verify `http`/`https` scheme) and
-    `encrypted` (data-only FCM data message).
-  - Soft rate limit (e.g., 30 sends per device per hour) on
-    `sendWake` and `sendLinkNotification`.
-  - Scheduled jobs: `cleanupExpiredJoinTokens` (daily),
-    `cleanupInactiveAccounts` (weekly, 90-day window),
-    stale-presence marking (every ~5 min, or via Firestore TTL).
-  - Structured logging across all callables: caller UID, op,
-    success/error, latency. No PII.
-  - `pollPendingWakes` callable for Linux clients: returns and
-    atomically consumes the calling device's `inbox` items.
-  - **Tests:**
-    - Unit (emulator): cross-account auth rejection in
-      `sendWake` and `sendLinkNotification`; URL scheme
-      validation in plaintext mode; rate-limit boundary
-      behaviour; scheduled-job logic against a fake clock;
-      atomic consumption in `pollPendingWakes`; Linux inbox
-      writeback path.
-    - Integration: dispatch path end-to-end via the emulator's
-      FCM stub; scheduled jobs trigger correctly under the
-      emulator clock.
-  - **Done when:** dispatch works in the emulator with auth
-    enforced; scheduled jobs execute on schedule; logs are
-    structured and PII-free; Linux polling returns inbox items.
+  - Reuse the existing `notification_permission_provider` from the
+    Permissions section of Settings.
+  - Request the OS prompt the first time a device transitions into
+    the joined state, with the rationale string from § 4.3.
+  - If denied, surface a banner above the device list with a deep
+    link to the system Settings page (use `permission_handler`'s
+    `openAppSettings()`).
+  - **Tests:** widget test asserting the prompt is requested exactly
+    once on first join and the banner appears when permission is
+    denied.
+  - **Done when:** a fresh install creates a group, gets prompted,
+    and either receives or surfaces the denied-state banner
+    correctly.
 
-- [x] **Epic 7 — Flutter Firebase integration.** Wire Firebase
-  into the Flutter app on every supported platform (Android, iOS,
-  macOS, Windows, Linux).
+- [ ] **Epic 6 — Invite generation: QR + 6-char code.** *Invite
+  another device* button in the joined state.
 
-  - **Prerequisite (carry-over from Epic 2):** rename the Android,
-    iOS, and macOS apps in the Firebase Console to the new bundle
-    IDs (`com.magicshare.app`) and re-run `flutterfire configure`
-    so `firebase_options.dart`, `google-services.json`, and the iOS /
-    macOS `GoogleService-Info.plist` files regenerate against the
-    renamed Console apps. Until this happens, Firebase init will
-    succeed locally (the per-platform config files were patched
-    in place during Epic 2) but real cloud calls will fail because
-    the project still has the old bundle ids registered.
-  - Add Firebase Flutter dependencies (`firebase_core`,
-    `firebase_auth`, `cloud_firestore`, `cloud_functions`,
-    `firebase_messaging`) to `app/pubspec.yaml`. Initialize
-    Firebase in `app/lib/main.dart` before `runApp`, behind a
-    feature flag (`cloudSyncEnabled`, default `true`).
-  - Anonymous sign-in service in
-    `app/lib/provider/cloud/auth_provider.dart` (refena). Same
-    UID across app restarts.
-  - Define `dart_mappable` models for cloud entities
-    (`CloudAccount`, `CloudDevice`, `CloudDeviceIcon`,
-    `JoinTokenPreview`, `WakeRequest`, `LinkRequest`) and a typed
-    Cloud Functions client with a wrapper for every callable.
-  - FCM token retrieval and refresh in
-    `app/lib/provider/cloud/fcm_provider.dart`. Handle iOS
-    APNS-token availability quirks.
-  - Mobile push config: iOS Push Notifications capability +
-    `remote-notification` background mode + APNs key upload doc;
-    Android high-priority data channel + stub
-    `FirebaseMessagingService`.
-  - Desktop notification source: FCM via the Firebase Messaging
-    SDK on Windows and macOS; a 30 s polling loop against
-    `pollPendingWakes` on Linux. Document platform decisions in
-    `docs/development/desktop-push.md`.
-  - **Tests:**
-    - Unit (`flutter test`): typed Cloud Functions client
-      wrappers (mock the underlying `cloud_functions` API);
-      FCM provider state on token + refresh events; anonymous
-      sign-in service.
-    - Integration (`flutter test` against emulator): app boot
-      reaches a non-null current user within ~1 s.
-  - **Done when:** the app builds on Android, iOS, macOS,
-    Windows, and Linux; an anonymous user is signed in within
-    ~1 s of launch; a test FCM data message reaches the app on
-    at least one mobile platform.
+  - `device_group_service.createInvite()` calls the
+    `createInvite` Cloud Function and returns
+    `{ code, expiresAt }`.
+  - `lib/pages/settings/device_group/invite_sheet.dart` shows the
+    code in a large monospace block (copyable) and a QR rendered with
+    `pretty_qr_code` encoding `https://magic.share/g?c={code}`.
+  - Auto-refresh the invite when its `expiresAt` is reached.
+  - **Tests:** widget test rendering the sheet with a stub service
+    returning a fixed code.
+  - **Done when:** an invited code is visible as both QR and text and
+    the corresponding Firestore document exists in the emulator.
 
-- [x] **Epic 8 — Account and device state in the app.** Implement
-  the local state and bootstrap path that registers this device
-  and keeps it talking to the cloud.
+- [ ] **Epic 7 — Join group: QR scan + code input.** The other half
+  of pairing — Device B becomes the second device in the group.
 
-  - AccountRepository
-    (`app/lib/provider/cloud/account_repository.dart`): knows
-    current account ID, current device ID, list of group devices;
-    watches Firestore live.
-  - DeviceIdentityService: stable device ID persisted in
-    `flutter_secure_storage`; platform; default icon based on
-    `Platform.isXxx`.
-  - First-launch bootstrap (idempotent): anonymous sign-in →
-    `createAccount` → `registerDevice`.
-  - Presence heartbeat: `updateDevicePresence` on app foreground
-    and every 4 minutes while foregrounded. Best-effort offline
-    mark on backgrounding.
-  - Group key generation, secure storage, and AES-GCM (or chosen
-    equivalent) encrypt/decrypt helpers. Generated on first launch
-    (account-creation path); cleared on `deleteAccount`.
-    Round-trip tested.
-  - **Tests:**
-    - Unit (`flutter test`): AccountRepository state transitions
-      on Firestore events; DeviceIdentityService persistence
-      across restarts; AES-GCM round-trip with fixed vectors;
-      tampered-ciphertext rejection (auth-tag failure).
-    - Integration (`flutter test` against emulator): first-launch
-      bootstrap end-to-end (anonymous sign-in → `createAccount`
-      → `registerDevice`) is idempotent across restarts.
-  - **Done when:** a fresh install produces an account + device
-    row in Firestore within ~3 s; the device shows online while
-    foregrounded and offline within 5 min of backgrounding;
-    round-trip encryption tests pass.
+  - *Join group* button opens a screen with two tabs: **Scan** (using
+    `mobile_scanner`) and **Type code** (a 6-char input).
+  - Scanner detects QR strings of the form
+    `https://magic.share/g?c={code}` and extracts the code.
+  - `device_group_service.joinGroup(code)` calls `redeemInvite`,
+    receives a custom token, calls `signInWithCustomToken`, then
+    runs the same registration logic as `createGroup`.
+  - Error states: invalid code, expired code, network error — each
+    with a clear localized message.
+  - **Tests:** integration test against the emulator: device A
+    creates a group + invite; device B redeems the code and ends up
+    with both devices visible in `groups/{uid}/devices`.
+  - **Done when:** two devices end up in the same group via QR or
+    text code, and both see each other in the device list.
 
-- [x] **Epic 9 — LocalSend protocol extension.** Add the optional
-  `wakeSessionId` field that lets receivers auto-accept transfers
-  triggered by a wake notification.
+- [ ] **Epic 8 — Device list: rename + change icon.** Edit per-device
+  metadata.
 
-  - Extend the LocalSend upload-request payload with an optional
-    `wakeSessionId` string field. Update both Flutter and Rust
-    sides if both touch the upload-request shape.
-  - Stock LocalSend clients must still interoperate. Verify with
-    a fixture or a manual round-trip test.
-  - **Tests:**
-    - Unit: parse / serialize the upload-request with and
-      without `wakeSessionId` on both Flutter (`flutter test`)
-      and Rust (`cargo test`) sides.
-    - Integration: stock-LocalSend ↔ MagicShare interop check
-      using a captured fixture, both directions.
-  - **Done when:** a stock LocalSend client can still send to and
-    receive from a MagicShare client both ways; a request
-    carrying a `wakeSessionId` parses correctly on both sides.
+  - Tap a device row → bottom sheet with rename + change-icon
+    actions (and disabled-for-self placeholders for the destructive
+    actions added in Epic 9 / 10).
+  - Rename: text field with 1..32 char validation; writes
+    `name` field.
+  - Change icon: grid of the 8 enum values from § 5.2; writes `icon`
+    field.
+  - The list is a real-time `StreamBuilder` over
+    `groups/{uid}/devices`. Use `ListView.builder`.
+  - **Tests:** widget tests covering rename validation and icon
+    selection; integration test covering Firestore write through.
+  - **Done when:** edits made on one device propagate to the other
+    in real time.
 
-- [x] **Epic 10 — Settings: device group section.** Build the new
-  settings section: list of devices, bottom sheets, icon picker,
-  delete-group button, plus localization.
+- [ ] **Epic 9 — Send test push.** Receive a notification on another
+  device.
 
-  - Add a "Device group" section at the top of
-    `app/lib/pages/tabs/settings_tab.dart`.
-  - Device list widget: icon, display name, *This device* badge
-    for the current device, online/offline dot. Sort: current
-    device first, then online by name, then offline by name.
-  - Device-detail bottom sheets: current device (rename, change
-    icon, *Leave or destroy this group*) and other device
-    (rename, change icon, *Remove from group* with confirmation).
-  - Icon picker dialog with the supported icons (laptop, desktop,
-    phone, tablet, server, headless, generic). Selection persists
-    via `setDeviceIcon`.
-  - *Delete this device group* button below the list. Red, with
-    confirmation. Calls `deleteAccount` and re-bootstraps a fresh
-    account on success.
-  - Localization keys for every visible string introduced in this
-    section.
-  - **Tests:**
-    - Widget (`flutter test`): device list rendering for
-      current / online / offline variants; bottom sheet actions;
-      icon picker selection; delete-group confirmation dialog.
-    - Integration (`flutter_test` against emulator): rename,
-      remove, and delete-group flows driven from the UI.
-  - **Done when:** every action above works against the emulator;
-    localization is complete; deleting the group from one device
-    wipes Firestore docs and the local app re-creates a fresh
-    account.
+  - Bottom-sheet *Send test notification* action calls
+    `device_group_service.sendTestPush(targetDeviceId)` which invokes
+    the `sendPush` Cloud Function with title `"MagicShare test"` and
+    body `"Hello from {sourceDeviceName}"`.
+  - On the receiving device, foreground messages render through
+    `flutter_local_notifications`; background / killed-state
+    messages use the platform's default FCM display path.
+  - Disabled when target is self.
+  - **Tests:** integration test that, against the real test Firebase
+    project (since FCM has no emulator), confirms `sendPush` returns
+    success when called from a paired device. Receiver-side delivery
+    is checked manually on each platform and recorded in the PR.
+  - **Done when:** a push fired from device A appears on device B in
+    foreground, background, and killed states on at least Android +
+    iOS + macOS.
 
-- [x] **Epic 11 — Pairing UI and LAN key exchange.** Wire up the
-  user-visible pairing flow plus the direct LAN handshake that
-  delivers the group's shared key.
+- [ ] **Epic 10 — Leave, remove, delete.** The three destructive
+  actions, each gated by an explicit confirmation.
 
-  Both **QR code** and **manual code entry** are first-class
-  pairing surfaces. Cameraless desktops, headless servers, and
-  accessibility users need a non-camera path. Mobile users
-  benefit from QR's speed. Whichever issuing-side surface a
-  user picks, the joining-side surface can choose its own —
-  i.e. a QR shown on a phone can be typed in by a desktop, and
-  vice versa.
+  - **Remove from group** (action on another device's row): deletes
+    `groups/{uid}/devices/{targetDeviceId}` from the actor's client.
+    Security rules already ensure only same-group callers can do
+    this.
+  - **Leave group** (action on the bottom of the list): deletes own
+    device record, signs out locally, returns to the empty state.
+  - **Delete group entirely**: deletes every device record under
+    `groups/{uid}`, then signs out and clears local credentials.
+    Implemented as a client-side batched delete; if the batch
+    exceeds 500 docs (it won't for v1), fall back to a Cloud
+    Function.
+  - All three show a confirmation dialog with the device / group
+    name. *Delete group* requires typing the device count or the
+    word "delete" to confirm.
+  - **Tests:** integration tests against the emulator covering each
+    action's effect on Firestore and on the local sign-in state.
+  - **Done when:** all three actions work end-to-end with no
+    orphaned records and the UI returns to the correct state.
 
-  - *Invite a device* dialog (issuing side): calls
-    `createJoinToken`, then displays the join payload in **two
-    forms side by side**:
-    - a `pretty_qr_code` QR for camera scanning, and
-    - a short **human-readable code** (Base32 or similar
-      compact alphabet, grouped in 4-char chunks for typing,
-      with a *Copy* button).
-    The dialog shows an expiry countdown and refreshes the
-    code if the user keeps it open past expiry.
-  - *Join an existing group* flow (joining side) with **two
-    routes** that converge on the same `previewJoinToken` →
-    `joinNetwork` pipeline:
-    - QR scanner page (e.g. `mobile_scanner`) with camera
-      permission handling. Surfaces a *Camera unavailable —
-      enter code instead* fallback when the platform lacks a
-      camera or permission is denied.
-    - Manual code entry page: a single grouped-input field
-      that accepts the human-readable code, with paste support
-      from the system clipboard.
-    Both routes hand the decoded payload to a shared pair
-    preview dialog (renders the device list for confirmation).
-  - LAN reachability check: if the issuing device's LAN address
-    is not reachable after a successful scan / paste, show
-    *"Both devices need to be on the same Wi-Fi to pair"* and
-    abort.
-  - LAN-side key exchange: the issuing device opens a one-shot
-    LAN endpoint protected by the temporary keypair from the
-    payload. The joining device, after `joinNetwork` succeeds,
-    connects, authenticates, and receives the group's shared
-    key. Both sides tear the endpoint down on success or after
-    a 5 min timeout.
-  - Post-pair flow: refresh AccountRepository, replace the
-    locally stored shared key, clear the old key, show a success
-    snackbar.
-  - Joining-from-welcome integration: when the user picks *Join
-    an existing group* on the first-launch welcome card, the
-    joining route attaches the device directly to the target
-    account without first creating a temporary one — no orphan
-    Firebase Auth user. (Requires a small backend tweak: the
-    `joinNetwork` cloud function should be callable without an
-    account doc on the caller's UID.)
-  - **Tests:**
-    - Unit: payload codec round-trips for both QR and manual
-      forms; manual-code typo / wrong-length / expired-token
-      surfaces.
-    - Widget (`flutter test`): QR + manual-code issuer dialog
-      (countdown, copy buttons); scanner with camera-fallback;
-      manual-entry page; pair preview.
-    - Integration / E2E (emulator + virtual LAN): two simulated
-      installations pair end-to-end via QR; same again via
-      manual code; both end up with the same shared key, the
-      joining device's old account is destroyed; cross-LAN
-      pairing fails fast with the LAN-required error.
-  - **Done when:** two simulated installations on the same LAN
-    pair end-to-end, both end up with the same shared key, and
-    the joining device's old (now empty) account is destroyed;
-    pairing across different LANs fails fast with the expected
-    error.
+- [ ] **Epic 11 — i18n + accessibility pass.** Polish before merge.
 
-- [x] **Epic 12 — Send tab integration.** Make network devices
-  first-class targets in the Send tab.
-
-  - Merge LAN-discovered devices with `AccountRepository` devices
-    in `app/lib/pages/tabs/send_tab.dart`. Devices matching by ID
-    are shown once.
-  - Online/offline status dot per tile. Online =
-    LAN-discoverable AND foregrounded recently.
-  - Wake flow for offline targets: call `sendWake` with an
-    encrypted payload describing the sender's IP, port, and a
-    session nonce; show a *Waking up \[device\]…* indicator;
-    wait up to 60 s; on timeout, show an error with a retry
-    button. Error copy: *"Device did not respond. It might be
-    offline."*.
-  - URL fast-path: when the payload is a single URL and the
-    target is a network device, skip P2P entirely and call
-    `sendLinkNotification` in the mode chosen by the *Encrypt
-    link notifications* setting. Add the setting under General;
-    default off; persisted in the existing settings store;
-    localized.
-  - **Tests:**
-    - Widget (`flutter test`): merged device list with both LAN
-      and network sources; status dots; the three send-tab UX
-      states (waking / retrying / error).
-    - Integration: send-to-offline wake flow against a paused
-      receiver; URL fast-path with both encryption modes
-      observed end-to-end.
-  - **Done when:** a manual smoke test with two real devices
-    delivers a small file via wake-on-offline, and a URL via the
-    fast-path with both setting modes; UX states for waking /
-    retrying / error all reachable.
-
-- [x] **Epic 13 — Notification reception.** Make sure
-  notifications actually do the right thing on every platform
-  when they arrive.
-
-  - Background data-message handler
-    (`FirebaseMessaging.onBackgroundMessage` with a top-level
-    function): decrypt and dispatch via a platform-channel
-    signal.
-  - Foreground data-message handler
-    (`FirebaseMessaging.onMessage`): same decrypt + dispatch
-    path.
-  - URL notification tap handler: tap opens the URL in the
-    system browser via `url_launcher`. Where the OS allows
-    (Android intent filter, iOS deep link), open without
-    launching the app.
-  - Wake → P2P bridge: ensure the LocalSend HTTP server is
-    running, read the wake nonce from the payload, populate the
-    short-lived in-memory expected-nonce map (TTL ~2 min). Match
-    incoming upload-requests against the map; auto-accept on
-    hit, fall back to the standard prompt on miss.
-  - Notification permission request flow: iOS on first
-    cloud-feature use; Android 13+ for `POST_NOTIFICATIONS`.
-    Non-blocking explanation if denied.
-  - Desktop notification handling via
-    `flutter_local_notifications` or platform channels: source
-    from FCM on Windows/macOS, from polling on Linux. URL tap
-    opens browser; wake tap focuses app and triggers the wake
-    handler.
-  - **Tests:**
-    - Unit (`flutter test`): payload decryption error paths;
-      expected-nonce map TTL expiry; URL scheme handling; auth
-      failure for tampered payloads.
-    - Integration / E2E: wake notification with the app fully
-      closed brings up a P2P receive that auto-accepts on a
-      matching nonce and falls back to the prompt on a missing
-      one; URL notification taps open a browser without
-      launching the app where supported.
-  - **Done when:** receiving a wake notification with the app
-    fully closed brings the device into a state where it
-    accepts a P2P connection from the sender without the user
-    pressing *Accept*; receiving a link notification opens the
-    URL in the browser without launching the app where
-    supported.
-
-- [ ] **Epic 14 — Send-tab UX for the device group.** With the
-  cloud-presence layer dropped (already in flight on `main`), the
-  Send tab merges LAN-discovered peers with the user's device-group
-  members. Two cases the UI must handle, no over-engineering beyond
-  them:
-
-  - **Case 1 — a LAN-discovered peer is also in the user's
-    device group.** The tile uses the cloud-side `displayName`
-    and `icon` (not the LAN-announced alias / auto-detected
-    icon), so the device shows up with the name and look the
-    user picked in *Settings → Device group*. Add a small
-    *In your group* label or badge so the user can tell at a
-    glance which LAN peers are paired.
-  - **Case 2 — a device-group member is NOT on the LAN.** Show
-    it in the list anyway, with an *Offline* status. Tapping it
-    fires a wake notification via `sendWake`; the tile flips to
-    a *Waking up \[device\]…* indicator. As soon as the woken
-    device appears on the LAN through the standard LocalSend
-    multicast / `/info` path, the transfer starts automatically
-    against the freshly-announced LAN address. 60 s timeout →
-    existing *"Device did not respond"* surface.
-
-  No new presence layer, no polling. "Online" means observed via
-  LAN multicast or the WebRTC signaling channel right now;
-  "Offline" means a known group member with no current observation.
-
-  - **Tests:**
-    - Widget: a LAN tile matched against a cloud device renders
-      with the cloud `displayName` + `icon` and the *In your
-      group* label.
-    - Widget: cloud devices with no current LAN entry render in
-      the offline state and remain tappable.
-    - Unit: tapping an offline cloud device fires `sendWake`,
-      flips the tile to a waking indicator, and starts the
-      transfer on the first matching LAN announce within the
-      timeout window.
-    - Hardware: send a file from macOS to a backgrounded iPhone;
-      the iPhone wakes via FCM, announces on the LAN, and the
-      transfer completes without further user action.
-  - **Done when:** a paired device on the same Wi-Fi is visible
-    once with the user's chosen name + icon and the *In your
-    group* label; a paired device that's asleep is visible with
-    the offline state, and tapping it produces the wake →
-    auto-transfer flow described above.
-
-- [ ] **Epic 15 — Polish and operability.** Cross-cutting work
-  that ties the feature together.
-
-  - *Cloud features* master toggle in the General settings
-    section. When off: device-group section hidden, FCM
-    uninitialized, no cloud calls.
-  - Privacy copy below the device-group section: lists what data
-    leaves the device (account ID, device ID, name, icon, FCM
-    token, encrypted wake payloads); covers both link-mode paths.
-    Localized.
-  - Telemetry hook around every cloud function call: function
-    name, success/error, latency. No PII. Debug builds print;
-    release builds suppress.
-  - Offline / no-internet handling: cloud calls fail without
-    blocking the UI. The device-group section shows a *Cloud
-    unavailable* banner instead of a spinner.
-  - Account-state debug page under the existing debug menu.
-    Dumps account ID, device ID, FCM token (truncated),
-    shared-key fingerprint.
-  - **Tests:**
-    - Widget (`flutter test`): master-toggle hides the
-      device-group section and short-circuits cloud calls; the
-      *Cloud unavailable* banner appears when cloud calls fail;
-      debug page renders every field.
-    - Unit: telemetry hook captures function name, status, and
-      latency; debug-only logging is suppressed in release
-      builds.
-  - **Done when:** turning the master toggle off and relaunching
-    produces a stock-LocalSend-like experience; airplane-mode
-    shows the unavailable banner; the debug page renders real
-    values.
-
-- [ ] **Epic 16 — QA and release.** Final verification and
-  shipping.
-
-  - Manual QA checklist at
-    `docs/development/cloud-sync-qa-checklist.md`. Cover: fresh
-    install, pairing, wake-on-offline, URL fast-path (both
-    modes), group destruction, account expiry. Reference from
-    the README.
-  - Confirm every per-epic unit, integration, and E2E suite is
-    green in CI on the release branch. The pairing E2E (Epic
-    11) and the wake-and-receive E2E (Epic 13) are the
-    load-bearing ones for release readiness.
-  - Release prep: update the top-level `README.md` and
-    `docs-site/` with cloud-feature instructions and a new
-    *Cloud Sync* docs page; bump `app/pubspec.yaml` version;
-    add a `CHANGELOG.md` entry.
-  - **Tests:** all suites added in earlier epics must be green
-    in CI; the manual QA checklist must be fully ticked off.
-    Block the release on any red test.
-  - **Done when:** the manual QA checklist passes; CI is green
-    on the release commit; release notes published.
-
-- [ ] **Epic 17 — Linux/Windows REST cloud client.** FlutterFire
-  ships no native bindings on Linux and only partial coverage on
-  Windows (no `cloud_functions`, no `firebase_messaging`). Epic 7
-  scaffolds the platform predicates and the Linux polling
-  interface; this epic implements the actual transport so both
-  platforms can join the cloud-sync feature set.
-
-  - REST adapter for `FirebaseAuth`: anonymous sign-up via
-    `signupNewUser`, ID-token refresh loop, refresh token persisted
-    in `flutter_secure_storage`. Mirror the Dart-side API surface
-    of `CloudAuthGateway` so `auth_provider.dart` can swap
-    implementations behind a platform check.
-  - REST adapter for the typed `CloudFunctionsClient`: signed
-    callable invocation against
-    `https://europe-west1-magic-share-backend.cloudfunctions.net/<name>`.
-    Wire format mirrors the existing `HttpsCallableInvoker`
-    contract so model encoding and error mapping stay shared.
-  - Linux desktop notification surfacing via
-    `flutter_local_notifications` once `pollPendingWakes` returns
-    inbox items. Wake taps focus the app; URL taps open the
-    system browser.
-  - Windows wake support: same REST poller with a Windows-friendly
-    notification surface (toast via the platform channel).
-  - **Tests:**
-    - Unit (`flutter test`): REST auth adapter (sign-in, refresh,
-      retry); REST callable adapter (signed-request shape, error
-      mapping); inbox-item handler.
-    - Integration (`flutter test` against emulator): REST sign-in
-      reaches a non-null user within ~1 s; a poll cycle decodes
-      mixed encrypted / plaintext inbox items.
-  - **Done when:** the app builds and signs in on Linux + Windows
-    without FlutterFire; a wake sent to a Linux client surfaces
-    a desktop notification within ~30 s; a wake sent to a Windows
-    client surfaces a toast within ~30 s.
-
-- [ ] **Epic 18 — Self-hosted Firebase backend.** Ship the bits
-  needed for community members to deploy their own MagicShare
-  backend (their own Firebase project + Cloud Functions) and
-  point the app at it. Today every install is hard-pinned to
-  `magic-share-backend` because `firebase_options.dart` is a
-  generated file with the project ID, API key, app ID, and
-  region baked in.
-
-  Foundational — touches the Firebase init path, Cloud Functions
-  region pinning, and a new piece of secure-storage state
-  (per-user backend config). Do **Plan Mode** before
-  implementing.
-
-  - **Configurable Firebase options.** Move the runtime
-    `FirebaseOptions` out of the generated `firebase_options.dart`
-    and into a `cloud_backend_config_provider`. Default to the
-    upstream `magic-share-backend` values; override via a new
-    `BackendConfig` blob persisted in `flutter_secure_storage`
-    (treat the API key as quasi-sensitive; Firebase API keys are
-    not strictly secrets but worth keeping out of plain prefs).
-    Re-init Firebase when the override changes — likely needs a
-    full `Firebase.deleteApp()` + `Firebase.initializeApp()`
-    cycle and a hard re-bootstrap of every cloud provider.
-  - **Cloud Functions region.** `cloudFunctionsRegion` is a
-    top-level const today; make it part of `BackendConfig`.
-  - **Settings UI.** New section under Settings → Device group
-    titled *Backend* with three rows:
-    - *Backend* — read-only label showing the current project ID.
-    - *Use a custom backend* — opens a dialog: project ID,
-      API key, app ID, region. Save validates the config by
-      calling the new `health` Cloud Function (already deployed
-      under every backend; returns service metadata) and refuses
-      to save on failure.
-    - *Restore default backend* — wipes the override and
-      re-pins to `magic-share-backend`.
-  - **First-launch welcome integration.** When the user picks
-    *Create a new group* on the welcome card, optionally allow
-    them to pick *Use a custom backend* first via a small
-    secondary action. (Stretch — can ship without and rely on
-    settings.)
-  - **Privacy / safety guardrails.** Don't auto-trust an unknown
-    backend: the validate step should at minimum confirm the
-    backend's `health` returns the expected schema and a
-    project ID matching what the user typed. Add a one-time
-    confirmation banner on first connect explaining that
-    callable code now runs on a backend the user picked.
-  - **Docs.** A `docs/development/self-hosting.md` describing
-    `firebase init`, `firebase deploy --only functions,firestore`,
-    and how to copy the resulting config into the app's settings.
-  - **Tests:**
-    - Unit: `BackendConfig` round-trip through secure storage;
-      `cloudBackendConfigProvider` defaults vs override; the
-      validate step (mocked `health` returns the right shape vs
-      a wrong project id vs a 5xx).
-    - Widget: backend section render (default vs custom),
-      override dialog (validation failure path, success path,
-      restore-default path).
-    - Integration: spin up two emulator suites on different
-      ports, switch the app between them, assert account
-      bootstrap re-runs against the new backend with a fresh
-      UID.
-  - **Done when:** a user can paste a custom Firebase project's
-    config into the settings, the app validates it, re-bootstraps
-    against that project, and a follow-up rename / icon / delete
-    flow works end-to-end against the user's backend; the
-    self-hosting doc walks a reader from a fresh Firebase
-    project to a working install in under 30 minutes.
+  - Localize every user-visible string introduced by Epics 4 –10
+    through the existing `assets/i18n/en.json` flow, using nested
+    keys under `settings.deviceGroup.*`.
+  - Verify all interactive elements have `Semantics` labels suitable
+    for screen readers.
+  - Verify color contrast ≥ 4.5:1 against both light and dark themes.
+  - **Tests:** snapshot tests for each new screen in light + dark.
+  - **Done when:** `flutter analyze` is clean, no untranslated keys
+    remain, and a screen-reader pass on iOS + Android reports no
+    blocking gaps.

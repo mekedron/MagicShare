@@ -6,59 +6,49 @@ title: Introduction
 
 # MagicShare
 
-MagicShare is a fork of [LocalSend](https://github.com/localsend/localsend)
-that adds **cloud-assisted device wake-up** and a **friction-free UX** on
-top of LocalSend's proven peer-to-peer transfer protocol.
+MagicShare is a fork of [LocalSend](https://github.com/localsend/localsend).
 
-LocalSend already solves the hard part: secure, encrypted, cross-platform
-transfers without third-party servers. MagicShare keeps all of that and
-fixes the workflow problems that show up when you actually use it daily
-across many devices — opening the receiving app every single time being
-the biggest one.
+LocalSend already does the hard part — secure, encrypted, peer-to-peer
+file and link transfers across platforms. MagicShare adds **device
+groups**: a way to associate the devices you own and notify them, so
+you don't have to discover them on the LAN every time.
 
-## What it is for
+## The first feature: Device groups
 
-If you regularly hop between several devices — phones, tablets, laptops on
-different operating systems and different accounts — there is no good way
-to just *get a thing onto another device*. Email is slow, custom QR
-generators are painful, messengers pollute your chat history, and AirDrop
-or Quick Share only work inside one ecosystem.
+A device group is a set of devices owned by the same user. Joining a
+group is anonymous — there is no email, password, or profile. Under the
+hood it is a single anonymous [Firebase Authentication](https://firebase.google.com/docs/auth)
+account, shared between the devices in the group.
 
-MagicShare is built around two everyday flows:
+Once a device is in a group it can:
 
-- **Open a link on another device.** Copy the URL, paste it into
-  MagicShare, pick a target device, tap the notification on the other
-  side — the link opens in the browser.
-- **Drop a file onto another device.** Drag a file onto the MagicShare
-  window (or a screen-corner hot zone), pick one or more of your devices,
-  and the file is downloaded automatically on the other side.
+- See the other devices in the same group, with names and icons.
+- Send a push notification to any other device in the same group via
+  Firebase Cloud Messaging.
 
-## How it works
+That is the entire scope of v1. File and link transfers continue to
+work over the LocalSend protocol unchanged.
 
-Each device installs MagicShare once and signs in with an **anonymous
-Firebase account**. The device registers its identifier and push token
-under that account.
+## How a device joins a group
 
-When you send something:
+1. **First device:** opens *Settings → Device group → Create group*.
+   The app signs in anonymously, registers the device under that
+   account, and persists the credentials.
+2. **Second device:** opens *Settings → Device group → Join group* and
+   either scans a QR code shown on the first device or types a short
+   text code. The app then signs in to the same anonymous account and
+   registers itself.
 
-1. MagicShare sends a **push notification** containing only encrypted
-   metadata — the source device ID, the payload reference, and the target
-   device name. No file content goes through the cloud.
-2. The receiving device wakes up, decrypts the metadata, and uses the
-   LocalSend protocol to pull the payload **directly** from the source
-   device.
-3. For files: the download starts and the user is prompted when it
-   finishes. For links: the URL opens in the default browser.
-
-The cloud is used only as a **wake-up channel and address book**. Payload
-content stays peer-to-peer and end-to-end encrypted, exactly like
-LocalSend today.
+A group can hold any number of devices. Each device can leave the
+group, rename itself, change its icon, or send a test push to any
+other device. The group "owner" can also delete the group entirely or
+remove other devices from it.
 
 ## Status
 
-Early work in progress. The fork currently mirrors LocalSend; cloud-
-assisted features are being designed and implemented. Expect breaking
-changes.
+Early work in progress. The fork currently mirrors LocalSend; the
+device-groups feature is being implemented from scratch on a clean
+slate. Expect breaking changes.
 
 For build instructions and the full project description, see the
 [README](https://github.com/mekedron/MagicShare/blob/main/README.md) on
