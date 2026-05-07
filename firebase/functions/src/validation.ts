@@ -1,11 +1,6 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 
-import {
-  DEVICE_ICONS,
-  DEVICE_PLATFORMS,
-  type DeviceIcon,
-  type DevicePlatform,
-} from './models';
+import { DEVICE_ICONS, DEVICE_PLATFORMS, type DeviceIcon, type DevicePlatform } from './models';
 
 const DEVICE_ID_MAX = 128;
 const DISPLAY_NAME_MAX = 80;

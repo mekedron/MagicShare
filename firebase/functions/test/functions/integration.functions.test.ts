@@ -16,10 +16,7 @@ import {
   sendWakeLogic,
 } from '../../src/notifications';
 import { createJoinTokenLogic, joinNetworkLogic, previewJoinTokenLogic } from '../../src/pairing';
-import {
-  cleanupExpiredJoinTokensLogic,
-  cleanupInactiveAccountsLogic,
-} from '../../src/scheduled';
+import { cleanupExpiredJoinTokensLogic, cleanupInactiveAccountsLogic } from '../../src/scheduled';
 
 import {
   clearEmulator,

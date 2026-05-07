@@ -1,120 +1,194 @@
 #!/usr/bin/env bash
 # MagicShare pre-commit hook.
 #
-# Two stages, both scoped to staged Dart files in app/ and common/:
-#   1. dart format — auto-formats and re-stages so commits never fail
-#      CI's `dart format --set-exit-if-changed lib test` step.
-#   2. flutter / dart analyze — runs on the staged file set so issues
-#      like unused imports or type errors are caught locally before
-#      hitting CI's `flutter analyze` (which fails the build on any
-#      finding).
+# Mirrors the checks CI runs so anything CI rejects is also caught
+# locally. Auto-fixable issues are written and re-staged. Issues
+# that need a human are surfaced with a clear failure message and
+# the commit is aborted.
+#
+# Stages (each skipped when no staged files would be affected):
+#   1. dart format — auto-formats staged Dart files in app/ and
+#      common/, re-stages them.
+#   2. flutter analyze (app/) and dart analyze (common/) — runs the
+#      WHOLE project tree (not just staged files) with --fatal-infos
+#      so info-level findings like `directives_ordering` fail the
+#      hook. CI's `flutter analyze` defaults to fatal-infos too.
+#   3. prettier --write on staged TypeScript files in
+#      firebase/functions/{src,test}, re-stages them.
+#   4. eslint on staged TypeScript files in firebase/functions/
+#      {src,test} — matches CI's `npm run lint`.
 #
 # Bypass envs:
 #   SKIP_DART_FORMAT_HOOK=1   skip stage 1 only.
 #   SKIP_DART_ANALYZE_HOOK=1  skip stage 2 only.
-#   SKIP_DART_HOOKS=1         skip both.
+#   SKIP_TS_HOOK=1            skip stages 3 + 4.
+#   SKIP_PRECOMMIT_HOOKS=1    skip everything.
+#
+# Avoid bypassing routinely. CI re-runs every check; bypassing the
+# hook just defers the failure to the PR.
 
-set -euo pipefail
+set -eo pipefail
 
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-skip_all=${SKIP_DART_HOOKS:-0}
+skip_all=${SKIP_PRECOMMIT_HOOKS:-${SKIP_DART_HOOKS:-0}}
 skip_format=${SKIP_DART_FORMAT_HOOK:-0}
 skip_analyze=${SKIP_DART_ANALYZE_HOOK:-0}
+skip_ts=${SKIP_TS_HOOK:-0}
 
 if [ "$skip_all" = "1" ]; then
   exit 0
 fi
 
-# --- Collect staged Dart files in app/ and common/. ---
-staged=()
-while IFS= read -r line; do
-  [ -n "$line" ] && staged+=("$line")
-done < <(
-  git diff --cached --name-only --diff-filter=ACMR \
-    | { grep -E '^(app|common)/.*\.dart$' || true; }
-)
+# --- Collect staged files by category. ---
+staged_dart_app=()
+staged_dart_common=()
+staged_ts=()
 
-if [ ${#staged[@]} -eq 0 ]; then
-  exit 0
-fi
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  case "$f" in
+    app/*.dart) staged_dart_app+=("$f") ;;
+    common/*.dart) staged_dart_common+=("$f") ;;
+    firebase/functions/src/*.ts | firebase/functions/test/*.ts) staged_ts+=("$f") ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACMR)
 
-existing=()
-for f in "${staged[@]}"; do
-  [ -f "$f" ] && existing+=("$f")
-done
+require_bin() {
+  local bin=$1
+  local hint=$2
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    cat >&2 <<EOF
+pre-commit: '$bin' is not on PATH.
 
-if [ ${#existing[@]} -eq 0 ]; then
-  exit 0
-fi
-
-require_dart() {
-  if ! command -v dart >/dev/null 2>&1; then
-    cat >&2 <<'EOF'
-pre-commit: 'dart' is not on PATH.
-
-Install the Dart/Flutter toolchain (e.g. `mise install` from the repo root)
-or set SKIP_DART_HOOKS=1 to bypass this hook for one commit.
+$hint
 EOF
     exit 1
   fi
 }
 
-# --- Stage 1: format. ---
-if [ "$skip_format" != "1" ]; then
-  require_dart
-  if ! dart format --set-exit-if-changed --output=write "${existing[@]}"; then
-    git add -- "${existing[@]}"
-    echo
-    echo "pre-commit: dart format reformatted the files above and re-staged them."
+# Filter a list of paths to those that exist on disk (skip deletions).
+# Echoes one path per line; callers read it back into an array.
+filter_existing() {
+  for f in "$@"; do
+    [ -f "$f" ] && printf '%s\n' "$f"
+  done
+}
+
+# === Stage 1: dart format ============================================
+if [ "$skip_format" != "1" ] && { [ ${#staged_dart_app[@]} -gt 0 ] || [ ${#staged_dart_common[@]} -gt 0 ]; }; then
+  staged_dart_all=()
+  if [ ${#staged_dart_app[@]} -gt 0 ]; then
+    staged_dart_all+=("${staged_dart_app[@]}")
+  fi
+  if [ ${#staged_dart_common[@]} -gt 0 ]; then
+    staged_dart_all+=("${staged_dart_common[@]}")
+  fi
+
+  existing=()
+  while IFS= read -r line; do
+    [ -n "$line" ] && existing+=("$line")
+  done < <(filter_existing "${staged_dart_all[@]}")
+
+  if [ ${#existing[@]} -gt 0 ]; then
+    require_bin dart "Install the Dart/Flutter toolchain (e.g. \`mise install\`) or set SKIP_DART_FORMAT_HOOK=1 to bypass."
+    if ! dart format --set-exit-if-changed --output=write "${existing[@]}"; then
+      git add -- "${existing[@]}"
+      echo
+      echo "pre-commit: dart format reformatted the files above and re-staged them."
+    fi
   fi
 fi
 
-# --- Stage 2: analyze. Group staged files by package and run the right
-# analyzer from each package's directory; flutter/dart analyze resolves
-# pubspec relative to the working dir.
-if [ "$skip_analyze" = "1" ]; then
-  exit 0
-fi
-
-require_dart
-
-app_files=()
-common_files=()
-for f in "${existing[@]}"; do
-  case "$f" in
-    app/*) app_files+=("${f#app/}") ;;
-    common/*) common_files+=("${f#common/}") ;;
-  esac
-done
-
-run_analyze() {
+# === Stage 2: project-level analyze ==================================
+# Run on the whole package tree, not just staged files — CI's
+# `flutter analyze` / `dart analyze` does the same and the
+# `directives_ordering` info-level lint is what bit us last time.
+run_pkg_analyze() {
   local pkg_dir=$1
-  shift
-  local cmd=$1
-  shift
-  if [ "$#" -eq 0 ]; then
-    return 0
-  fi
-  echo "pre-commit: $cmd analyze ${pkg_dir}/{${*}}"
-  if ! (cd "$pkg_dir" && "$cmd" analyze "$@"); then
-    echo
-    echo "pre-commit: $cmd analyze found issues. Fix them, or set"
-    echo "  SKIP_DART_ANALYZE_HOOK=1 git commit ..."
-    echo "to bypass for one commit."
+  local cmd=$2
+  echo "pre-commit: $cmd analyze (project-level) in $pkg_dir/"
+  if ! (cd "$pkg_dir" && "$cmd" analyze); then
+    cat >&2 <<EOF
+
+pre-commit: '$cmd analyze' in $pkg_dir/ found issues.
+
+These will fail CI. Either fix them, or set
+  SKIP_DART_ANALYZE_HOOK=1 git commit ...
+to bypass for one commit (the next push to main / PR will still
+fail in CI).
+EOF
     exit 1
   fi
 }
 
-if [ ${#app_files[@]} -gt 0 ]; then
-  if ! command -v flutter >/dev/null 2>&1; then
-    echo "pre-commit: 'flutter' is not on PATH; skipping app/ analyze." >&2
-  else
-    run_analyze app flutter "${app_files[@]}"
+if [ "$skip_analyze" != "1" ]; then
+  if [ ${#staged_dart_app[@]} -gt 0 ]; then
+    if ! command -v flutter >/dev/null 2>&1; then
+      echo "pre-commit: 'flutter' is not on PATH; skipping app/ analyze." >&2
+    else
+      run_pkg_analyze app flutter
+    fi
+  fi
+  if [ ${#staged_dart_common[@]} -gt 0 ]; then
+    require_bin dart "Install Dart or set SKIP_DART_ANALYZE_HOOK=1 to bypass."
+    run_pkg_analyze common dart
   fi
 fi
 
-if [ ${#common_files[@]} -gt 0 ]; then
-  run_analyze common dart "${common_files[@]}"
+# === Stages 3 + 4: TypeScript prettier + eslint ======================
+if [ "$skip_ts" != "1" ] && [ ${#staged_ts[@]} -gt 0 ]; then
+  existing_ts=()
+  while IFS= read -r line; do
+    [ -n "$line" ] && existing_ts+=("$line")
+  done < <(filter_existing "${staged_ts[@]}")
+
+  if [ ${#existing_ts[@]} -gt 0 ]; then
+    require_bin npx "Install Node.js + npm, or set SKIP_TS_HOOK=1 to bypass."
+    pkg_dir=firebase/functions
+    if [ ! -d "$pkg_dir/node_modules" ]; then
+      cat >&2 <<EOF
+pre-commit: $pkg_dir/node_modules is missing.
+
+Run \`(cd $pkg_dir && npm ci)\` once, or set SKIP_TS_HOOK=1 to bypass.
+EOF
+      exit 1
+    fi
+
+    relative_ts=()
+    for f in "${existing_ts[@]}"; do
+      relative_ts+=("${f#${pkg_dir}/}")
+    done
+
+    # Stage 3: prettier --write on staged files only, re-stage if
+    # anything changed. Mirrors how stage 1 handles dart format.
+    echo "pre-commit: prettier --write ${pkg_dir}/{${relative_ts[*]}}"
+    if ! (cd "$pkg_dir" && npx --no-install prettier --write -- "${relative_ts[@]}"); then
+      cat >&2 <<EOF
+
+pre-commit: prettier failed on the files above.
+EOF
+      exit 1
+    fi
+    git add -- "${existing_ts[@]}"
+
+    # Stage 4: eslint on the same staged set — fast-path for
+    # incremental commits. Mirrors `npm run lint` from CI but
+    # narrower in scope; project-level eslint can be re-run with
+    # `(cd firebase/functions && npm run lint)` if you want full
+    # parity before pushing.
+    echo "pre-commit: eslint ${pkg_dir}/{${relative_ts[*]}}"
+    if ! (cd "$pkg_dir" && npx --no-install eslint -- "${relative_ts[@]}"); then
+      cat >&2 <<EOF
+
+pre-commit: eslint reported issues. Try
+  (cd $pkg_dir && npm run lint:fix)
+to auto-fix what it can, then re-run \`git add\` on the affected
+files. Set SKIP_TS_HOOK=1 to bypass for one commit (the push will
+still fail in CI).
+EOF
+      exit 1
+    fi
+  fi
 fi

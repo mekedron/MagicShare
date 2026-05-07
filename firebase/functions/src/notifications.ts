@@ -100,9 +100,10 @@ function buildWakeFcmMessage(token: string, payload: string, senderDisplayName: 
   // handshake. iOS path stays silent (content-available + push-type
   // background) — iOS notification-extension wake is a separate path.
   const title = 'MagicShare';
-  const body = senderDisplayName.length > 0
-    ? `Tap to receive incoming files from ${senderDisplayName}`
-    : 'Tap to receive incoming files';
+  const body =
+    senderDisplayName.length > 0
+      ? `Tap to receive incoming files from ${senderDisplayName}`
+      : 'Tap to receive incoming files';
   return {
     token,
     data: { type: 'wake', payload },

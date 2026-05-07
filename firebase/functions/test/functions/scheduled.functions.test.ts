@@ -2,10 +2,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { getDb } from '../../src/admin';
-import {
-  cleanupExpiredJoinTokensLogic,
-  cleanupInactiveAccountsLogic,
-} from '../../src/scheduled';
+import { cleanupExpiredJoinTokensLogic, cleanupInactiveAccountsLogic } from '../../src/scheduled';
 
 import {
   clearEmulator,
@@ -92,4 +89,3 @@ describe('cleanupInactiveAccountsLogic', () => {
     expect(await readAccount('boundary')).toBeNull();
   });
 });
-
