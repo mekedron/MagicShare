@@ -73,7 +73,8 @@ row shows the device's icon and name. Tapping a row opens a sheet with:
 Below the list, three actions:
 
 - **Invite another device** — generate a fresh invite, show as QR + as
-  a 6-character text code for typing.
+  an 8-character text code for typing (rendered as two groups of
+  four).
 - **Leave group** — delete *this* device's record and sign out
   locally. Confirmation required.
 - **Delete group entirely** — delete every device record in the
@@ -100,7 +101,7 @@ another device sends you something"). If denied, surface a banner in
 │                │ ─────────────────────────────────▶│   ↳ mint token   │
 └────────────────┘                                   └──────────────────┘
         │                                                      ▲
-        │  show QR / 6-char code                               │
+        │  show QR / 8-char code                               │
         ▼                                                      │
 ┌────────────────┐  redeemInvite(code)                         │
 │ Device B       │ ────────────────────────────────────────────┘
@@ -137,6 +138,11 @@ invites/{code}                    ← short-lived join codes
   ├─ uid: string                  ← group's UID, what the joiner signs in to
   ├─ createdAt: Timestamp
   └─ expiresAt: Timestamp         ← TTL = 5 minutes; cleaned up by scheduler
+
+redeemAttempts/{ipHash}           ← rate-limit ledger for redeemInvite
+  ├─ count: number                ← attempts in the current window
+  ├─ windowStart: Timestamp       ← start of the rolling window
+  └─ blockedUntil: Timestamp?     ← set when count exceeds the limit
 ```
 
 `{deviceId}` is a UUID v4 generated locally by each device on first
@@ -148,8 +154,11 @@ Security rules (sketch):
 
 - `groups/{uid}/devices/**`: read + write **only** if the caller's UID
   matches `{uid}`. No anonymous reads of other groups, ever.
-- `invites/{code}`: write blocked from the client; readable only via
-  the `redeemInvite` Cloud Function.
+- `invites/{code}`: write and read both blocked from the client.
+  Reads happen only via the `redeemInvite` Cloud Function (Admin SDK
+  bypasses rules); writes happen only via `createInvite`.
+- `redeemAttempts/{ipHash}`: write and read both blocked from the
+  client. The Cloud Functions service account is the only writer.
 
 ### 5.3 Cloud Functions
 
@@ -157,13 +166,41 @@ Three callable functions and one scheduler. All TypeScript on Node 20.
 
 | Function          | Caller          | Purpose                                                                 |
 |-------------------|-----------------|-------------------------------------------------------------------------|
-| `createInvite`    | Signed-in user  | Mint a 6-char code → `{ code, uid: callerUid }` in `invites/`. Return `{ code, expiresAt }`. |
+| `createInvite`    | Signed-in user  | Mint an 8-char code → `{ code, uid: callerUid }` in `invites/`. Return `{ code, expiresAt }`. |
 | `redeemInvite`    | Anyone (no auth)| Look up `invites/{code}`, verify not expired, delete it, mint a custom token for the stored UID, return `{ customToken }`. |
 | `sendPush`        | Signed-in user  | Look up `groups/{callerUid}/devices/{targetDeviceId}.fcmToken`. Send FCM message with title/body. Reject if target not in same group. |
-| `cleanupInvites`  | Scheduler (1h)  | Delete `invites/` documents past `expiresAt`.                           |
+| `cleanupInvites`  | Scheduler (1h)  | Delete `invites/` documents past `expiresAt` and `redeemAttempts/` ledgers older than 1 hour. |
 
-`createInvite` codes are 6 alphanumeric characters from a confusion-free
-alphabet (no `0/O`, `1/I/L`). On collision, retry up to 3 times.
+#### Codes and TTL
+
+`createInvite` codes are **8 characters** from a confusion-free
+alphabet (`A–Z` + `2–9` minus `0/O`, `1/I/L` — 32 symbols, ~1.1 × 10¹²
+combinations). On collision in `invites/`, retry up to 3 times.
+
+Every invite has a hard **5-minute TTL** stored in `expiresAt`. The
+client SHOULD also auto-rotate the displayed code well before
+expiry (e.g., regenerate after 4 minutes) so users don't paste a code
+that the server has already evicted.
+
+#### Rate limiting
+
+Both write-paths are rate-limited to keep the code space defensible
+at 8 chars and to make brute force pointless:
+
+- **`redeemInvite`** is throttled per source IP (hashed before storage
+  so we don't keep PII). The function increments
+  `redeemAttempts/{ipHash}.count` inside a rolling 60-second window;
+  if `count` exceeds **10**, the function returns `RESOURCE_EXHAUSTED`
+  and sets `blockedUntil = now + 5min`. Successful redemptions still
+  count toward the cap so a successful guess after many failures
+  doesn't free the attacker.
+- **`createInvite`** caps each group at **5 outstanding invites** at
+  any time. When the cap is hit the oldest unconsumed invite is
+  deleted before the new one is written. This keeps the active code
+  set per group small and bounded.
+
+These limits live as constants in `firebase/functions/src/config.ts`
+so they can be tuned without a schema change.
 
 ### 5.4 Push delivery
 
@@ -178,9 +215,10 @@ alphabet (no `0/O`, `1/I/L`). On collision, retry up to 3 times.
 ### 5.5 QR + text code
 
 - The QR encodes a short URL of the form
-  `https://magic.share/g?c=ABC123` — same code as the text code.
-- The text code is the 6-char alphanumeric code displayed in a large
-  monospace font and copyable.
+  `https://magic.share/g?c=ABCD2345` — same code as the text code.
+- The text code is the 8-char alphanumeric code displayed in a large
+  monospace font and copyable. UI renders it as two groups of four
+  (`ABCD-2345`) to make typing on mobile less error-prone.
 - Scanner uses `mobile_scanner`. Generator uses `pretty_qr_code`.
 
 ## 6. Local development

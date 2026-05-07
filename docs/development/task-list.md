@@ -42,23 +42,41 @@ sections in *Settings*. Pick up from Epic 1 below.
 - [ ] **Epic 2 — Cloud Functions: invite + push.** Implement the four
   callables / scheduler from § 5.3 of the spec.
 
+  - `firebase/functions/src/config.ts` — single module exporting the
+    tunable constants: `INVITE_CODE_LENGTH = 8`,
+    `INVITE_CODE_ALPHABET` (32 confusion-free symbols),
+    `INVITE_TTL_SECONDS = 300`, `INVITE_MAX_OUTSTANDING_PER_GROUP = 5`,
+    `REDEEM_RATE_LIMIT_PER_MINUTE = 10`,
+    `REDEEM_BLOCK_DURATION_SECONDS = 300`.
   - `createInvite` — caller must be authenticated; returns
     `{ code, expiresAt }` and writes `invites/{code}` with the
-    caller's UID. 6-char alphanumeric code from a confusion-free
-    alphabet (no `0/O/1/I/L`). Retry on collision up to 3 times.
-  - `redeemInvite` — public callable; verifies the code exists and is
-    not expired, deletes the doc, mints a custom token for the stored
-    UID via the Admin SDK, returns `{ customToken }`.
+    caller's UID. **8-char** code from the confusion-free alphabet.
+    Retry on collision up to 3 times. Before writing, query the
+    caller's outstanding invites; if at the cap, delete the oldest
+    one in the same transaction.
+  - `redeemInvite` — public callable; before any lookup, hash the
+    source IP (`sha256(ip + serverSalt)`) and consult
+    `redeemAttempts/{ipHash}`: if `blockedUntil` is in the future,
+    return `RESOURCE_EXHAUSTED`; otherwise increment the rolling
+    60-second counter and persist. Then look up `invites/{code}`,
+    verify not expired, delete it, mint a custom token for the
+    stored UID via the Admin SDK, return `{ customToken }`. A
+    successful redemption still counts toward the per-IP cap.
   - `sendPush` — caller must be authenticated; takes
     `{ targetDeviceId, title, body }`; reads
     `groups/{callerUid}/devices/{targetDeviceId}.fcmToken`; rejects
     when target is missing or in another group; sends FCM message via
     Admin SDK.
   - `cleanupInvites` — scheduled every hour; deletes invites past
-    `expiresAt`. Uses `pubsub.schedule('every 1 hours')`.
+    `expiresAt` and `redeemAttempts/` ledgers older than 1 hour. Uses
+    `pubsub.schedule('every 1 hours')`.
   - **Tests:** `firebase/functions/test/functions/*.spec.ts` covering
-    happy path + auth failure + expired-invite + cross-group rejection
-    for each callable. Run via the Functions emulator.
+    happy path + auth failure + expired-invite + cross-group
+    rejection for each callable, plus dedicated rate-limit tests:
+    11th `redeemInvite` from the same IP within 60 s is rejected,
+    rejected attempts after `blockedUntil` set still fail until the
+    block expires, `createInvite` past the per-group cap evicts the
+    oldest. Run via the Functions emulator.
   - **Done when:** `npm test` in `firebase/functions/` is green and
     each function deploys clean to the emulator.
 
@@ -121,18 +139,22 @@ sections in *Settings*. Pick up from Epic 1 below.
     and either receives or surfaces the denied-state banner
     correctly.
 
-- [ ] **Epic 6 — Invite generation: QR + 6-char code.** *Invite
+- [ ] **Epic 6 — Invite generation: QR + 8-char code.** *Invite
   another device* button in the joined state.
 
   - `device_group_service.createInvite()` calls the
     `createInvite` Cloud Function and returns
     `{ code, expiresAt }`.
   - `lib/pages/settings/device_group/invite_sheet.dart` shows the
-    code in a large monospace block (copyable) and a QR rendered with
-    `pretty_qr_code` encoding `https://magic.share/g?c={code}`.
-  - Auto-refresh the invite when its `expiresAt` is reached.
+    code in a large monospace block (copyable, formatted as
+    `XXXX-XXXX`) and a QR rendered with `pretty_qr_code` encoding
+    `https://magic.share/g?c={code}`.
+  - Show a countdown next to the code based on `expiresAt`; when the
+    clock hits ~60 seconds remaining, request a fresh invite so the
+    user never reads off an already-expired code.
   - **Tests:** widget test rendering the sheet with a stub service
-    returning a fixed code.
+    returning a fixed code; a unit test for the
+    countdown / auto-refresh timer.
   - **Done when:** an invited code is visible as both QR and text and
     the corresponding Firestore document exists in the emulator.
 
@@ -140,14 +162,18 @@ sections in *Settings*. Pick up from Epic 1 below.
   of pairing — Device B becomes the second device in the group.
 
   - *Join group* button opens a screen with two tabs: **Scan** (using
-    `mobile_scanner`) and **Type code** (a 6-char input).
+    `mobile_scanner`) and **Type code** (an 8-char input split as
+    `XXXX-XXXX`, accepting upper-case letters and digits from the
+    confusion-free alphabet only).
   - Scanner detects QR strings of the form
     `https://magic.share/g?c={code}` and extracts the code.
   - `device_group_service.joinGroup(code)` calls `redeemInvite`,
     receives a custom token, calls `signInWithCustomToken`, then
     runs the same registration logic as `createGroup`.
-  - Error states: invalid code, expired code, network error — each
-    with a clear localized message.
+  - Error states: invalid code, expired code, network error,
+    rate-limit exceeded (`RESOURCE_EXHAUSTED`) — each with a clear
+    localized message. The rate-limit message tells the user how
+    long to wait based on the function's response.
   - **Tests:** integration test against the emulator: device A
     creates a group + invite; device B redeems the code and ends up
     with both devices visible in `groups/{uid}/devices`.
