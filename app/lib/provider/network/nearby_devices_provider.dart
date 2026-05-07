@@ -8,6 +8,7 @@ import 'package:magicshare_app/model/persistence/favorite_device.dart';
 import 'package:magicshare_app/model/state/nearby_devices_state.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/logging/discovery_logs_provider.dart';
+import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 final _logger = Logger('NearbyDevices');
@@ -22,6 +23,7 @@ final nearbyDevicesProvider = ReduxProvider<NearbyDevicesService, NearbyDevicesS
     isolateController: ref.notifier(parentIsolateProvider),
     favoriteService: ref.notifier(favoritesProvider),
     discoveryLogs: ref.notifier(discoveryLoggerProvider),
+    httpsReader: () => ref.read(settingsProvider).https,
   );
 });
 
@@ -29,14 +31,17 @@ class NearbyDevicesService extends ReduxNotifier<NearbyDevicesState> {
   final IsolateController _isolateController;
   final FavoritesService _favoriteService;
   final DiscoveryLogger _discoveryLogger;
+  final bool Function() _httpsReader;
 
   NearbyDevicesService({
     required IsolateController isolateController,
     required FavoritesService favoriteService,
     required DiscoveryLogger discoveryLogs,
+    required bool Function() httpsReader,
   }) : _discoveryLogger = discoveryLogs,
        _isolateController = isolateController,
-       _favoriteService = favoriteService;
+       _favoriteService = favoriteService,
+       _httpsReader = httpsReader;
 
   @override
   NearbyDevicesState init() => const NearbyDevicesState(
@@ -57,6 +62,34 @@ class StartMulticastListener extends AsyncReduxAction<NearbyDevicesService, Near
       notifier._discoveryLogger.addLog('[DISCOVER/UDP] ${device.alias} (${device.firstHttpEndpoint?.ip}, model: ${device.deviceModel})');
     }
     return state;
+  }
+}
+
+/// Long-lived background poller. On every [kNearbyDevicesPollInterval]
+/// tick: re-announces over multicast (so peers respond and refresh
+/// their entries) and probe-prunes existing LAN HTTP entries (so
+/// peers that have left the network or backgrounded their app fall
+/// off automatically without the user having to tap refresh).
+///
+/// Runs serially: each cycle awaits the probe round before sleeping,
+/// so cycles never overlap regardless of how long an HTTP timeout
+/// takes on a dead IP. Errors inside a cycle are logged and the loop
+/// continues — we never want a transient failure to silently kill
+/// the freshness guarantee.
+class StartNearbyDevicesPoller extends AsyncReduxAction<NearbyDevicesService, NearbyDevicesState> {
+  @override
+  Future<NearbyDevicesState> reduce() async {
+    while (true) {
+      try {
+        dispatch(StartMulticastScan());
+        await dispatchAsync(
+          ProbeAndPruneKnownDevicesAction(https: notifier._httpsReader()),
+        );
+      } catch (e, st) {
+        _logger.warning('Nearby-devices poll cycle failed', e, st);
+      }
+      await Future<void>.delayed(kNearbyDevicesPollInterval);
+    }
   }
 }
 
@@ -252,6 +285,17 @@ class StartFavoriteScan extends AsyncReduxAction<NearbyDevicesService, NearbyDev
     );
   }
 }
+
+/// How often the background poller (see [StartNearbyDevicesPoller])
+/// re-announces over multicast and probes every known LAN HTTP entry.
+///
+/// The poll loop is *serial* — each cycle awaits its probe round
+/// before sleeping, so cycles can never overlap regardless of probe
+/// duration. A peer that drops off the network (app backgrounded,
+/// Wi-Fi toggled) is evicted within ~probe_duration + this delay.
+/// Two seconds gives ~2-5 s real-world freshness without flooding
+/// the LAN.
+const Duration kNearbyDevicesPollInterval = Duration(seconds: 2);
 
 /// Probes /info on every currently-known LAN HTTP device and removes
 /// entries that don't respond. Use after a user-triggered refresh:

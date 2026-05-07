@@ -255,6 +255,15 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     _logger.warning('Starting multicast listener failed', e);
   }
 
+  // Background poller — re-announces over multicast and probe-prunes
+  // existing LAN HTTP entries on a fixed cadence so the device list
+  // stays fresh without the user having to tap refresh.
+  try {
+    ref.redux(nearbyDevicesProvider).dispatchAsync(StartNearbyDevicesPoller()); // ignore: unawaited_futures
+  } catch (e) {
+    _logger.warning('Starting nearby-devices poller failed', e);
+  }
+
   ref.redux(signalingProvider).dispatch(SetupSignalingConnection());
 
   // Initialise the local-notifications surface used by the encrypted
