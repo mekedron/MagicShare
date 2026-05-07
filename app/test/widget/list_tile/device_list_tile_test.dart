@@ -131,6 +131,44 @@ void main() {
       expect(find.text('WebRTC'), findsOneWidget);
     });
 
+    testWidgets('cloud-group device renders the "Group" badge', (tester) async {
+      // Devices that are part of the user's cloud device group get a
+      // small "Group" pill so the user can spot their own devices in
+      // the nearby-devices list at a glance.
+      await _pumpTile(
+        tester,
+        DeviceListTile(
+          device: _device(),
+          networkPresence: const NetworkPresenceInfo(
+            isOnline: true,
+            statusLabel: 'Online',
+            groupLabel: 'Group',
+          ),
+        ),
+      );
+      expect(
+        find.descendant(of: find.byType(DeviceBadge), matching: find.text('Group')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('non-group device renders no "Group" badge', (tester) async {
+      // Stock-LocalSend peers (cloud == null in the merge) must NOT
+      // get the Group pill — that pill specifically marks the user's
+      // own cloud-registered devices.
+      await _pumpTile(
+        tester,
+        DeviceListTile(
+          device: _device(),
+          networkPresence: const NetworkPresenceInfo(
+            isOnline: true,
+            statusLabel: 'Online',
+          ),
+        ),
+      );
+      expect(find.text('Group'), findsNothing);
+    });
+
     testWidgets('signaling-only device renders just "WebRTC"', (tester) async {
       final signalingOnly = Device(
         version: '2.0',

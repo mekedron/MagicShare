@@ -253,6 +253,69 @@ class StartFavoriteScan extends AsyncReduxAction<NearbyDevicesService, NearbyDev
   }
 }
 
+/// Probes /info on every currently-known LAN HTTP device and removes
+/// entries that don't respond. Use after a user-triggered refresh:
+/// the receiver no longer answers when the peer's app is backgrounded
+/// or has left the network, but the multicast/HTTP entry stays in
+/// `state.devices` indefinitely otherwise — leading to "online" tiles
+/// for unreachable peers and crashing transfer attempts with a raw
+/// reqwest connection error.
+///
+/// Does NOT touch `signalingDevices` — the signaling server emits its
+/// own Left messages when a peer disconnects, so that side
+/// self-cleans. This action is targeted only at the LAN HTTP map.
+class ProbeAndPruneKnownDevicesAction extends AsyncReduxAction<NearbyDevicesService, NearbyDevicesState> {
+  final bool https;
+
+  ProbeAndPruneKnownDevicesAction({required this.https});
+
+  @override
+  bool get trackOrigin => false;
+
+  @override
+  Future<NearbyDevicesState> reduce() async {
+    final probeTargets = <(String, int)>[];
+    for (final device in state.devices.values) {
+      final endpoint = device.firstHttpEndpoint;
+      if (endpoint == null || endpoint.ip.isEmpty) continue;
+      probeTargets.add((endpoint.ip, endpoint.port));
+    }
+    if (probeTargets.isEmpty) {
+      return state;
+    }
+    final probedIps = probeTargets.map((t) => t.$1).toSet();
+    _logger.fine('Probe-prune: probing ${probeTargets.length} known IPs');
+
+    final stream = external(notifier._isolateController).dispatchTakeResult(
+      IsolateFavoriteHttpDiscoveryAction(
+        favorites: probeTargets,
+        https: https,
+      ),
+    );
+
+    final seenIps = <String>{};
+    await for (final device in stream) {
+      final endpoint = device.firstHttpEndpoint;
+      if (endpoint != null && endpoint.ip.isNotEmpty) {
+        seenIps.add(endpoint.ip);
+      }
+      // Re-register to refresh the cached entry (alias / model may
+      // have changed since the original announce).
+      await dispatchAsync(RegisterDeviceAction(device));
+    }
+
+    final toRemove = probedIps.difference(seenIps);
+    if (toRemove.isEmpty) {
+      _logger.fine('Probe-prune: every probed IP responded; nothing to remove');
+      return state;
+    }
+    _logger.info('Probe-prune: removing stale entries for $toRemove');
+    return state.copyWith(
+      devices: {...state.devices}..removeWhere((ip, _) => toRemove.contains(ip)),
+    );
+  }
+}
+
 class _SetRunningIpsAction extends ReduxAction<NearbyDevicesService, NearbyDevicesState> {
   final Set<String> runningIps;
 

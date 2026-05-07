@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:collection/collection.dart';
 import 'package:common/model/session_status.dart';
@@ -360,14 +362,29 @@ class _ScanButton extends StatelessWidget {
           reverse: true,
           child: CustomIconButton(
             onPressed: () async {
-              // Don't clear `state.devices` before scanning: clearing
-              // wipes LAN-side entries but leaves signaling entries
-              // intact, which produces a WebRTC-only render until the
-              // multicast roundtrip completes. If the peer is in
-              // background or the multicast doesn't make it back, the
-              // user is stuck on WebRTC-only and transfers don't
-              // work. Just trigger the scan; new announces overwrite
-              // existing state.devices entries by IP.
+              // Don't clear `state.devices` outright: clearing wipes
+              // LAN-side entries but leaves signaling entries intact,
+              // producing a WebRTC-only render until the multicast
+              // roundtrip completes. If the peer is in background or
+              // the multicast doesn't make it back, the user is stuck
+              // on WebRTC-only and transfers don't work.
+              //
+              // Instead, run two things in parallel:
+              //   * StartSmartScan — finds new peers + refreshes
+              //     anything that responds.
+              //   * ProbeAndPruneKnownDevicesAction — actively probes
+              //     every existing LAN entry and removes the ones
+              //     that no longer answer, so backgrounded peers
+              //     stop showing as "Online" and the wake flow can
+              //     kick in for cloud-known offline devices.
+              final https = context.read(settingsProvider).https;
+              unawaited(
+                context
+                    .redux(nearbyDevicesProvider)
+                    .dispatchAsync(
+                      ProbeAndPruneKnownDevicesAction(https: https),
+                    ),
+              );
               await context.global.dispatchAsync(StartSmartScan(forceLegacy: true));
             },
             child: Icon(Icons.sync, color: iconColor),
@@ -379,8 +396,17 @@ class _ScanButton extends StatelessWidget {
     return _CircularPopupButton(
       tooltip: t.sendTab.scan,
       onSelected: (ip) async {
-        // See the comment in the smart-scan branch — same reasoning,
-        // don't clear before rescanning.
+        // See the comment in the smart-scan branch — same reasoning:
+        // probe existing entries in parallel with the scan rather than
+        // wiping them, so a backgrounded peer falls off cleanly.
+        final https = context.read(settingsProvider).https;
+        unawaited(
+          context
+              .redux(nearbyDevicesProvider)
+              .dispatchAsync(
+                ProbeAndPruneKnownDevicesAction(https: https),
+              ),
+        );
         await context.global.dispatchAsync(StartLegacySubnetScan(subnets: [ip]));
       },
       itemBuilder: (_) {
@@ -622,6 +648,13 @@ NetworkPresenceInfo _presenceInfoFor({
     isOnline: merged.isOnline,
     statusLabel: statusLabel,
     wakeLabel: wakeLabel,
+    // A non-null `cloud` means this physical device is registered in
+    // the user's cloud device group. Surface a small "Group" badge so
+    // the user can tell at a glance which nearby tiles are their own
+    // devices vs. stock-LocalSend peers. Hardcoded for now (matches
+    // the other transport badges); plug into t.sendTab.groupIndicator
+    // when the next slang codegen sweep runs.
+    groupLabel: merged.cloud != null ? 'Group' : null,
   );
 }
 

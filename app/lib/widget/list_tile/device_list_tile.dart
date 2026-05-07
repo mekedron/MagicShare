@@ -16,10 +16,17 @@ class NetworkPresenceInfo {
   final String statusLabel;
   final String? wakeLabel;
 
+  /// Optional "Group" pill. Non-null when this device is registered
+  /// in the user's cloud device group — a subtle visual hint so the
+  /// user can tell their own devices apart from stock-LocalSend
+  /// peers on the same Wi-Fi.
+  final String? groupLabel;
+
   const NetworkPresenceInfo({
     required this.isOnline,
     required this.statusLabel,
     this.wakeLabel,
+    this.groupLabel,
   });
 }
 
@@ -57,6 +64,9 @@ class DeviceListTile extends StatelessWidget {
     final theme = Theme.of(context);
     final badgeColor = Color.lerp(theme.colorScheme.secondaryContainer, Colors.white, 0.3)!;
     final wakeBadgeColor = Color.lerp(theme.colorScheme.tertiaryContainer, Colors.white, 0.2)!;
+    // Distinct primary-tinted background so the group pill reads as
+    // "user identity" rather than "transport detail".
+    final groupBadgeColor = Color.lerp(theme.colorScheme.primaryContainer, Colors.white, 0.3)!;
     return CustomListTile(
       icon: Icon(device.deviceType.icon, size: 46),
       title: Text(nameOverride ?? device.alias, style: const TextStyle(fontSize: 20)),
@@ -83,6 +93,12 @@ class DeviceListTile extends StatelessWidget {
               _PresenceLabel(
                 isOnline: networkPresence!.isOnline,
                 label: networkPresence!.statusLabel,
+              ),
+            if (networkPresence?.groupLabel != null)
+              DeviceBadge(
+                backgroundColor: groupBadgeColor,
+                foregroundColor: theme.colorScheme.onPrimaryContainer,
+                label: networkPresence!.groupLabel!,
               ),
             if (device.hasHttpEndpoint)
               DeviceBadge(
