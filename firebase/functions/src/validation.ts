@@ -5,7 +5,6 @@ import {
   DEVICE_PLATFORMS,
   type DeviceIcon,
   type DevicePlatform,
-  type DevicePresence,
 } from './models';
 
 const DEVICE_ID_MAX = 128;
@@ -72,13 +71,6 @@ function assertDevicePlatform(value: unknown): DevicePlatform {
   return value as DevicePlatform;
 }
 
-function assertPresence(value: unknown): DevicePresence {
-  if (value !== 'online' && value !== 'offline') {
-    fail('presence', `expected "online" or "offline"`);
-  }
-  return value;
-}
-
 function assertFcmToken(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value !== 'string') fail('fcmToken', `expected a string or null`);
@@ -114,11 +106,6 @@ export interface RegisterDeviceInput {
   fingerprint?: string | null;
 }
 
-export interface UpdatePresenceInput {
-  deviceId: string;
-  presence: DevicePresence;
-}
-
 export interface RenameDeviceInput {
   deviceId: string;
   displayName: string;
@@ -148,8 +135,8 @@ export interface JoinNetworkInput {
    * Optional new-device fields used by the welcome-card pairing route
    * (no source account doc exists yet for the caller's UID, so there
    * is nothing to copy from). When the source account does exist
-   * these are ignored — the existing source device doc is copied
-   * over verbatim with `presence` reset to `offline`.
+   * these are ignored — the existing source device doc is copied over
+   * verbatim.
    */
   newDevice?: {
     displayName: string;
@@ -179,14 +166,6 @@ export function parseRegisterDeviceInput(raw: unknown): RegisterDeviceInput {
     result.fingerprint = assertFingerprint(obj.fingerprint);
   }
   return result;
-}
-
-export function parseUpdatePresenceInput(raw: unknown): UpdatePresenceInput {
-  const obj = asObject(raw);
-  return {
-    deviceId: assertDeviceId(obj.deviceId),
-    presence: assertPresence(obj.presence),
-  };
 }
 
 export function parseRenameDeviceInput(raw: unknown): RenameDeviceInput {

@@ -46,16 +46,19 @@ Device _target({
   required bool https,
 }) {
   return Device(
-    signalingId: null,
-    ip: '0.0.0.0',
     version: version,
-    port: 8080,
-    https: https,
-    fingerprint: 'fingerprint',
     alias: 'alias',
     deviceModel: 'deviceModel',
     deviceType: DeviceType.desktop,
     download: false,
-    discoveryMethods: {},
+    endpoints: {
+      HttpEndpoint(
+        ip: '0.0.0.0',
+        port: 8080,
+        https: https,
+        certHash: 'fingerprint',
+      ),
+    },
+    discoveryMethods: const {},
   );
 }

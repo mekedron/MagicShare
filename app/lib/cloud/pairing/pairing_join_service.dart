@@ -28,12 +28,15 @@ final _logger = Logger('PairingJoinService');
 /// can cancel and re-preview), while [completePairing] consumes the
 /// join token and is non-idempotent — call it at most once per
 /// PairingPayload.
-/// Function shape used to probe the issuer's LAN endpoint before
-/// consuming the join token. Defaults to [isLanReachable] in
-/// production; tests inject a deterministic stub.
+/// Function shape used to probe the issuer's candidate LAN endpoints
+/// before consuming the join token. v2 payloads carry up to four
+/// candidate addresses; the probe races them and returns the first
+/// reachable one (or `null` when none answer). Defaults to
+/// [firstReachableLanAddress] in production; tests inject a
+/// deterministic stub.
 typedef LanReachabilityProbe =
-    Future<bool> Function({
-      required String host,
+    Future<String?> Function({
+      required Iterable<String> hosts,
       required int port,
       Duration timeout,
     });
@@ -46,7 +49,7 @@ class PairingJoinService {
     required this.deviceIdentityService,
     required this.lanClient,
     LanReachabilityProbe? lanReachabilityProbe,
-  }) : _lanReachabilityProbe = lanReachabilityProbe ?? isLanReachable;
+  }) : _lanReachabilityProbe = lanReachabilityProbe ?? _defaultProbe;
 
   final CloudFunctionsClient cloudFunctionsClient;
   final CloudAuthGateway authGateway;
@@ -55,19 +58,30 @@ class PairingJoinService {
   final PairingLanClient lanClient;
   final LanReachabilityProbe _lanReachabilityProbe;
 
-  /// Validates that the issuer's LAN endpoint is reachable from this
-  /// device, then fetches the target group's public-safe device list.
-  /// Read-only — does not consume the join token.
+  static Future<String?> _defaultProbe({
+    required Iterable<String> hosts,
+    required int port,
+    Duration timeout = const Duration(seconds: 2),
+  }) {
+    return firstReachableLanAddress(hosts: hosts, port: port, timeout: timeout);
+  }
+
+  /// Validates that one of the issuer's candidate LAN endpoints is
+  /// reachable from this device, then fetches the target group's
+  /// public-safe device list. Read-only — does not consume the join
+  /// token. The reachable address is returned with the success
+  /// outcome and threaded into [completePairing] so the LAN
+  /// handshake hits the *same* host that just answered the probe.
   Future<PairingPreviewOutcome> previewPairing({
     required PairingPayload payload,
     Duration lanProbeTimeout = const Duration(seconds: 2),
   }) async {
-    final reachable = await _lanReachabilityProbe(
-      host: payload.issuerLanAddress,
+    final reachableHost = await _lanReachabilityProbe(
+      hosts: payload.issuerLanAddresses,
       port: payload.issuerLanPort,
       timeout: lanProbeTimeout,
     );
-    if (!reachable) return const PairingPreviewLanUnreachable();
+    if (reachableHost == null) return const PairingPreviewLanUnreachable();
 
     // Anonymous sign-in if not already signed in. previewJoinToken
     // requires an authenticated caller (the unguessable tokenId is
@@ -90,8 +104,13 @@ class PairingJoinService {
 
     try {
       final preview = await cloudFunctionsClient.previewJoinToken(tokenId: payload.tokenId);
-      return PairingPreviewSuccess(preview);
-    } on CloudException catch (e) {
+      return PairingPreviewSuccess(preview: preview, reachableHost: reachableHost);
+    } on CloudException catch (e, st) {
+      _logger.warning(
+        'previewJoinToken failed: code=${e.code.name} message="${e.message}" details=${e.details}',
+        e,
+        st,
+      );
       return PairingPreviewCloudFailure(_classifyCloudError(e));
     }
   }
@@ -101,6 +120,13 @@ class PairingJoinService {
   /// this. Each stage's failure surfaces a discriminated outcome so
   /// the UI can map to specific localized messages.
   ///
+  /// [reachableHost] is the address the preview-time probe confirmed
+  /// reachable. Required so the LAN handshake doesn't blindly hit
+  /// the first listed address — that may be a loopback override
+  /// only the Android-emulator path can reach. When omitted (legacy
+  /// tests / direct callers), we re-race the payload's address list
+  /// here to find the winner.
+  ///
   /// [newDeviceIdentity] is required when the joining device has no
   /// source account doc on its current UID (welcome-card route — no
   /// `createAccount` happened yet). Existing-source-group joiners
@@ -109,6 +135,8 @@ class PairingJoinService {
   Future<PairingCompleteOutcome> completePairing({
     required PairingPayload payload,
     JoinNetworkNewDevice? newDeviceIdentity,
+    String? reachableHost,
+    Duration lanProbeTimeout = const Duration(seconds: 2),
   }) async {
     // Sign in anonymously first if not already signed in. We need a
     // valid auth.uid to call joinNetwork. The welcome-card path takes
@@ -120,6 +148,26 @@ class PairingJoinService {
         _logger.warning('Pre-pair anonymous sign-in failed', e, st);
         return const PairingCompleteAuthFailure();
       }
+    }
+
+    // Resolve the LAN host we'll hand to the handshake. Prefer the
+    // preview-time winner; fall back to a fresh race if the caller
+    // skipped preview. Either way, completePairing must never blindly
+    // pick `payload.issuerLanAddresses.first` — a loopback override
+    // there is unreachable from a physical-device joiner.
+    final String handshakeHost;
+    if (reachableHost != null && payload.issuerLanAddresses.contains(reachableHost)) {
+      handshakeHost = reachableHost;
+    } else {
+      final fresh = await _lanReachabilityProbe(
+        hosts: payload.issuerLanAddresses,
+        port: payload.issuerLanPort,
+        timeout: lanProbeTimeout,
+      );
+      if (fresh == null) {
+        return const PairingCompleteLanHandshakeFailure(PairingLanClientError.transport);
+      }
+      handshakeHost = fresh;
     }
 
     // 1. joinNetwork — atomic move + custom token mint.
@@ -142,7 +190,12 @@ class PairingJoinService {
       );
       customToken = joinResult.customToken;
       newAccountId = joinResult.accountId;
-    } on CloudException catch (e) {
+    } on CloudException catch (e, st) {
+      _logger.warning(
+        'joinNetwork failed: code=${e.code.name} message="${e.message}" details=${e.details}',
+        e,
+        st,
+      );
       return PairingCompleteCloudFailure(_classifyCloudError(e));
     }
 
@@ -151,7 +204,7 @@ class PairingJoinService {
     try {
       final issuerPubKey = decompressPublicKey(payload.issuerPubKeyCompressed);
       groupKey = await lanClient.exchangeKey(
-        issuerHost: payload.issuerLanAddress,
+        issuerHost: handshakeHost,
         issuerPort: payload.issuerLanPort,
         tokenId: payload.tokenId,
         joinerPrivateKey: joinerKeys.privateKey,
@@ -221,8 +274,17 @@ sealed class PairingPreviewOutcome {
 }
 
 class PairingPreviewSuccess extends PairingPreviewOutcome {
-  const PairingPreviewSuccess(this.preview);
+  const PairingPreviewSuccess({
+    required this.preview,
+    required this.reachableHost,
+  });
   final PreviewJoinTokenResult preview;
+
+  /// The address from the payload's [PairingPayload.issuerLanAddresses]
+  /// that answered the probe. The dialog passes this back into
+  /// [PairingJoinService.completePairing] so the handshake hits the
+  /// same host instead of re-racing.
+  final String reachableHost;
 }
 
 class PairingPreviewLanUnreachable extends PairingPreviewOutcome {

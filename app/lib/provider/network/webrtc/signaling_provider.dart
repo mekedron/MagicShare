@@ -205,16 +205,18 @@ class _RemoveConnectionAction extends ReduxAction<SignalingService, SignalingSta
 extension ClientInfoExt on ClientInfo {
   Device toDevice(String signalingServer) {
     return Device(
-      signalingId: id.uuid,
-      ip: null,
       version: version,
-      port: -1,
-      https: false,
-      fingerprint: token,
       alias: alias,
       deviceModel: deviceModel,
       deviceType: deviceType?.toDeviceType() ?? DeviceType.desktop,
       download: false,
+      endpoints: {
+        SignalingEndpoint(
+          signalingId: id.uuid,
+          signalingServer: signalingServer,
+          serverToken: token,
+        ),
+      },
       discoveryMethods: {
         SignalingDiscovery(
           signalingServer: signalingServer,

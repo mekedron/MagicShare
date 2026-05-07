@@ -8,7 +8,6 @@ import 'package:magicshare_app/cloud/cloud_functions_client.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cross_file.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
@@ -20,31 +19,32 @@ const _kSourceFingerprint = 'source-fp';
 const _kTargetDeviceId = 'target-device';
 const _kCurrentDeviceId = 'me';
 
-CloudDevice _target({CloudDevicePresence presence = CloudDevicePresence.offline}) {
+CloudDevice _target() {
   return CloudDevice(
     deviceId: _kTargetDeviceId,
     displayName: 'Pixel',
     icon: CloudDeviceIcon.phone,
     fcmToken: null,
     platform: CloudDevicePlatform.android,
-    lastSeenAtMs: 0,
-    presence: presence,
     fingerprint: _kFingerprint,
   );
 }
 
 Device _lanMatch() {
   return Device(
-    signalingId: null,
-    ip: '192.168.1.10',
     version: '2.0',
-    port: 53317,
-    https: true,
-    fingerprint: _kFingerprint,
     alias: 'Pixel (LAN)',
     deviceModel: null,
     deviceType: DeviceType.mobile,
     download: false,
+    endpoints: {
+      HttpEndpoint(
+        ip: '192.168.1.10',
+        port: 53317,
+        https: true,
+        certHash: _kFingerprint,
+      ),
+    },
     discoveryMethods: {const MulticastDiscovery()},
   );
 }
@@ -169,7 +169,7 @@ void main() {
 
       expect(tester.state.containsKey(_kTargetDeviceId), isFalse, reason: 'cleared after handoff');
       expect(spy.calls, hasLength(1));
-      expect(spy.calls.single.target.fingerprint, _kFingerprint);
+      expect(spy.calls.single.target.firstHttpEndpoint?.certHash, _kFingerprint);
       expect(spy.calls.single.wakeSessionId, isNotEmpty);
       expect(spy.calls.single.background, isFalse);
       await controller.close();
@@ -261,8 +261,6 @@ void main() {
         icon: CloudDeviceIcon.laptop,
         fcmToken: null,
         platform: CloudDevicePlatform.macos,
-        lastSeenAtMs: 0,
-        presence: CloudDevicePresence.offline,
         fingerprint: null,
       );
 

@@ -29,8 +29,7 @@ export {
   removeDevice,
   renameDevice,
   setDeviceIcon,
-  updateDevicePresence,
 } from './devices';
 export { pollPendingWakes, sendLinkNotification, sendWake } from './notifications';
 export { createJoinToken, joinNetwork, previewJoinToken } from './pairing';
-export { cleanupExpiredJoinTokens, cleanupInactiveAccounts, markStalePresence } from './scheduled';
+export { cleanupExpiredJoinTokens, cleanupInactiveAccounts } from './scheduled';

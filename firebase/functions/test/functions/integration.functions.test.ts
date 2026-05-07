@@ -19,7 +19,6 @@ import { createJoinTokenLogic, joinNetworkLogic, previewJoinTokenLogic } from '.
 import {
   cleanupExpiredJoinTokensLogic,
   cleanupInactiveAccountsLogic,
-  markStalePresenceLogic,
 } from '../../src/scheduled';
 
 import {
@@ -168,14 +167,11 @@ describe('Epic 5 integration: pairing', () => {
     expect(join.devices.map((d) => d.deviceId).sort()).toEqual([A1, B1].sort());
     expect(join.customToken).toBe(`stub-token:${UID_A}`);
 
-    // 5. End state: A has both devices, B is gone, token is consumed,
-    //    moved device is offline (waiting for the LAN-side key handshake
-    //    before it can act on wake notifications).
+    // 5. End state: A has both devices, B is gone, token is consumed.
     expect((await readAccount(UID_A))?.deviceCount).toBe(2);
     expect(await readAccount(UID_B)).toBeNull();
     expect((await listDeviceIds(UID_A)).sort()).toEqual([A1, B1].sort());
     expect(await listDeviceIds(UID_B)).toEqual([]);
-    expect((await readDevice(UID_A, B1))?.presence).toBe('offline');
     expect((await readDevice(UID_A, B1))?.displayName).toBe('Pixel 8');
     expect((await readJoinToken(minted.tokenId))?.consumedAt).not.toBeNull();
   });
@@ -274,7 +270,6 @@ describe('Epic 5 integration: pairing', () => {
     expect(created?.icon).toBe('phone');
     expect(created?.platform).toBe('android');
     expect(created?.fcmToken).toBe('fcm-fresh');
-    expect(created?.presence).toBe('offline');
   });
 });
 
@@ -360,16 +355,7 @@ describe('Epic 6 integration: notifications + maintenance', () => {
     //    stragglers — confirms the sweeps target the right rows
     //    without nuking anything still in use.
 
-    // Stale presence: pre-age the Linux device's lastSeenAt past the
-    // 10-min cutoff and flip it online so the sweep should mark it.
     const now = new Date();
-    const stale = Timestamp.fromMillis(now.getTime() - 11 * 60_000);
-    await db
-      .doc(`accounts/${UID}/devices/${TGT_LINUX}`)
-      .update({ presence: 'online', lastSeenAt: stale });
-    const presence = await markStalePresenceLogic(db, now);
-    expect(presence.marked).toBeGreaterThanOrEqual(1);
-    expect((await readDevice(UID, TGT_LINUX))?.presence).toBe('offline');
 
     // Expired join token sweep: seed one expired and one valid; only
     // the expired one should disappear.

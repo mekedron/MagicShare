@@ -14,7 +14,6 @@ import {
   type DeviceIcon,
   DEVICES_SUBCOLLECTION,
   type DevicePlatform,
-  type DevicePresence,
   devicePath,
   type JoinTokenDoc,
   joinTokenPath,
@@ -145,17 +144,14 @@ export const createJoinToken = onCall<unknown, Promise<CreateJoinTokenResult>>(
 /**
  * Public-safe view of a device, returned by `previewJoinToken` so a
  * joining device can render the target group's device list before
- * confirming. `fcmToken` and `lastSeenAt` are intentionally absent —
- * `fcmToken` would let a leaker push directly, and `lastSeenAt` exposes
- * activity-pattern information the joining user has no need to see
- * before joining.
+ * confirming. `fcmToken` is intentionally absent — it would let a
+ * leaker push directly.
  */
 export interface JoinTokenPreviewDevice {
   deviceId: string;
   displayName: string;
   icon: DeviceIcon;
   platform: DevicePlatform;
-  presence: DevicePresence;
 }
 
 export interface PreviewJoinTokenResult {
@@ -171,7 +167,6 @@ function projectDeviceForPreview(deviceId: string, doc: DeviceDoc): JoinTokenPre
     displayName: doc.displayName,
     icon: doc.icon,
     platform: doc.platform,
-    presence: doc.presence,
   };
 }
 
@@ -263,10 +258,6 @@ export interface JoinNetworkResult {
  *   second attempt's transaction either retries and sees the
  *   non-null `consumedAt`, or sees the source device already missing.
  *   Either way it rejects with `failed-precondition`.
- * - Resets the moved device's `presence` to `offline`. The device
- *   cannot decrypt wakes encrypted with the new group key until the
- *   LAN handshake lands the new key, so showing it `online` to the
- *   new group invites premature wake attempts.
  * - Out-of-transaction `recursiveDelete` sweeps subcollections that
  *   transactions can't (the moved device's old inbox on the
  *   surviving-source branch, or the entire source account subtree on
@@ -340,7 +331,7 @@ export async function joinNetworkLogic(
     if (hasSourceAccount) {
       const sourceDevice = sourceDeviceSnap.data() as DeviceDoc;
       tx.delete(sourceDeviceRef);
-      movedDevice = { ...sourceDevice, presence: 'offline' };
+      movedDevice = { ...sourceDevice };
     } else {
       // Welcome-card route: no source-side state to migrate. The
       // client must supply the new device's identity in
@@ -359,8 +350,6 @@ export async function joinNetworkLogic(
         icon: input.newDevice.icon,
         fcmToken: input.newDevice.fcmToken,
         platform: input.newDevice.platform,
-        lastSeenAt: now,
-        presence: 'offline',
       };
     }
 

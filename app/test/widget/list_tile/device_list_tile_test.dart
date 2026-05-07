@@ -6,22 +6,54 @@ import 'package:magicshare_app/widget/device_bage.dart';
 import 'package:magicshare_app/widget/list_tile/device_list_tile.dart';
 
 Device _device({
-  String fingerprint = 'fp',
+  String certHash = 'fp',
   String alias = 'My Device',
   String? ip = '192.168.1.10',
 }) {
   return Device(
-    signalingId: null,
-    ip: ip,
     version: '2.0',
-    port: 53317,
-    https: true,
-    fingerprint: fingerprint,
     alias: alias,
     deviceModel: null,
     deviceType: DeviceType.desktop,
     download: false,
+    endpoints: ip == null
+        ? const {}
+        : {
+            HttpEndpoint(
+              ip: ip,
+              port: 53317,
+              https: true,
+              certHash: certHash,
+            ),
+          },
     discoveryMethods: {const MulticastDiscovery()},
+  );
+}
+
+Device _bothEndpoints({
+  String certHash = 'fp-cert',
+  String serverToken = 'fp-token',
+  String alias = 'Both',
+  String ip = '192.168.1.10',
+}) {
+  return Device(
+    version: '2.0',
+    alias: alias,
+    deviceModel: null,
+    deviceType: DeviceType.desktop,
+    download: false,
+    endpoints: {
+      HttpEndpoint(ip: ip, port: 53317, https: true, certHash: certHash),
+      SignalingEndpoint(
+        signalingId: 'sig-uuid',
+        signalingServer: 'wss://public.localsend.org/v1/ws',
+        serverToken: serverToken,
+      ),
+    },
+    discoveryMethods: {
+      const MulticastDiscovery(),
+      const SignalingDiscovery(signalingServer: 'wss://public.localsend.org/v1/ws'),
+    },
   );
 }
 
@@ -87,6 +119,39 @@ void main() {
       // ...and the legacy WebRTC fallback is not (presence info supersedes it).
       expect(find.text('LAN • HTTP'), findsNothing);
       expect(find.text('WebRTC'), findsNothing);
+    });
+
+    testWidgets('device with both endpoint types renders BOTH "LAN • HTTP" and "WebRTC" badges', (tester) async {
+      // After a merge collapses an HTTP-discovered device with a
+      // signaling-discovered device, the resulting Device carries
+      // BOTH endpoint types. The tile must surface both — losing
+      // either badge after merge is the bug this refactor fixes.
+      await _pumpTile(tester, DeviceListTile(device: _bothEndpoints()));
+      expect(find.text('LAN • HTTP'), findsOneWidget);
+      expect(find.text('WebRTC'), findsOneWidget);
+    });
+
+    testWidgets('signaling-only device renders just "WebRTC"', (tester) async {
+      final signalingOnly = Device(
+        version: '2.0',
+        alias: 'Signaling-only',
+        deviceModel: null,
+        deviceType: DeviceType.desktop,
+        download: false,
+        endpoints: {
+          const SignalingEndpoint(
+            signalingId: 'sig',
+            signalingServer: 'wss://public.localsend.org/v1/ws',
+            serverToken: 'tok',
+          ),
+        },
+        discoveryMethods: {
+          const SignalingDiscovery(signalingServer: 'wss://public.localsend.org/v1/ws'),
+        },
+      );
+      await _pumpTile(tester, DeviceListTile(device: signalingOnly));
+      expect(find.text('LAN • HTTP'), findsNothing);
+      expect(find.text('WebRTC'), findsOneWidget);
     });
 
     testWidgets('disables tap when onTap is null (offline-cloud during Subtask 1)', (tester) async {

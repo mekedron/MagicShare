@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_icon_data.dart';
 import 'package:magicshare_app/widget/cloud/presence_dot.dart';
 import 'package:magicshare_app/widget/list_tile/custom_list_tile.dart';
 
-/// Renders a single device row in the device-group settings section. Pure
-/// presentation: all label strings are passed in so the widget itself
-/// stays free of localization lookups (and easy to widget-test in any
-/// locale).
+/// Renders a single device row in the device-group settings section.
+/// Online/offline truth comes from the same source the Send tab uses
+/// (LAN multicast + WebRTC signaling); this tile just surfaces it.
 class CloudDeviceListTile extends StatelessWidget {
   final CloudDevice device;
   final bool isCurrent;
+  final bool isOnline;
   final String thisDeviceLabel;
   final String onlineLabel;
   final String offlineLabel;
@@ -20,6 +19,7 @@ class CloudDeviceListTile extends StatelessWidget {
   const CloudDeviceListTile({
     required this.device,
     required this.isCurrent,
+    required this.isOnline,
     required this.thisDeviceLabel,
     required this.onlineLabel,
     required this.offlineLabel,
@@ -29,7 +29,6 @@ class CloudDeviceListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOnline = device.presence == CloudDevicePresence.online;
     final theme = Theme.of(context);
     return CustomListTile(
       icon: Icon(iconDataFor(device.icon), size: 46),

@@ -52,16 +52,19 @@ void main() {
 
 Device _createDevice(String ip) {
   return Device(
-    signalingId: null,
-    ip: ip,
     version: '1',
-    port: 123,
-    https: true,
-    fingerprint: '123',
     alias: 'A',
     deviceModel: 'A',
     deviceType: DeviceType.mobile,
     download: false,
-    discoveryMethods: {},
+    endpoints: {
+      HttpEndpoint(
+        ip: ip,
+        port: 123,
+        https: true,
+        certHash: '123',
+      ),
+    },
+    discoveryMethods: const {},
   );
 }

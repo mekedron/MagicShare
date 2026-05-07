@@ -66,8 +66,8 @@ class _PairingPreviewDialogState extends State<PairingPreviewDialog> {
       final outcome = await _service.previewPairing(payload: widget.payload);
       if (_disposed) return;
       switch (outcome) {
-        case PairingPreviewSuccess(:final preview):
-          setState(() => _state = _Ready(preview: preview));
+        case PairingPreviewSuccess(:final preview, :final reachableHost):
+          setState(() => _state = _Ready(preview: preview, reachableHost: reachableHost));
         case PairingPreviewLanUnreachable():
           setState(() => _state = _Error(t.settingsTab.deviceGroup.pairing.previewDialog.lanUnreachable));
         case PairingPreviewCloudFailure(:final reason):
@@ -86,6 +86,7 @@ class _PairingPreviewDialogState extends State<PairingPreviewDialog> {
       final outcome = await _service.completePairing(
         payload: widget.payload,
         newDeviceIdentity: widget.newDeviceIdentity,
+        reachableHost: ready.reachableHost,
       );
       if (_disposed || !mounted) return;
       switch (outcome) {
@@ -240,8 +241,9 @@ class _Loading extends _DialogState {
 }
 
 class _Ready extends _DialogState {
-  const _Ready({required this.preview});
+  const _Ready({required this.preview, required this.reachableHost});
   final PreviewJoinTokenResult preview;
+  final String reachableHost;
 }
 
 class _Joining extends _DialogState {

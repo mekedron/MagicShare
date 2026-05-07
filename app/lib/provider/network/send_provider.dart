@@ -67,15 +67,14 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     String? wakeSessionId,
   }) async {
     // Guard against a target with no LAN reachability info (e.g. a
-    // synthesized cloud-only Device whose `ip` is null). Without this
-    // we'd crash on `target.ip!` deeper in the prepareUpload call.
-    // Reaches the user as a snackbar via the standard send-session
-    // error surface.
-    if (target.ip == null || target.ip!.isEmpty || target.port < 0) {
+    // synthesized cloud-only Device with no HttpEndpoint). Without
+    // this we'd crash deeper in the prepareUpload call when the route
+    // builder tries to extract ip/port from the device. Reaches the
+    // user as a snackbar via the standard send-session error surface.
+    if (!target.hasHttpEndpoint) {
       _logger.warning(
-        'startSession aborted: target has no LAN reachability '
-        '(alias=${target.alias}, ip=${target.ip}, port=${target.port}, '
-        'fingerprint=${target.fingerprint})',
+        'startSession aborted: target has no HTTP endpoint '
+        '(alias=${target.alias}, endpoints=${target.endpoints})',
       );
       return;
     }
@@ -130,15 +129,20 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     );
 
     final originDevice = ref.read(deviceFullInfoProvider);
+    final originEndpoint = originDevice.firstHttpEndpoint;
+    if (originEndpoint == null) {
+      _logger.warning('startSession aborted: local device has no HttpEndpoint');
+      return;
+    }
     final requestDto = rust_model.PrepareUploadRequestDto(
       info: rust_model.RegisterDto(
         alias: originDevice.alias,
         version: originDevice.version,
         deviceModel: originDevice.deviceModel,
         deviceType: originDevice.deviceType.toRust(),
-        token: originDevice.fingerprint,
-        port: originDevice.port,
-        protocol: originDevice.https ? rust_model.ProtocolType.https : rust_model.ProtocolType.http,
+        token: originEndpoint.certHash,
+        port: originEndpoint.port,
+        protocol: originEndpoint.https ? rust_model.ProtocolType.https : rust_model.ProtocolType.http,
         hasWebInterface: originDevice.download,
       ),
       files: {
@@ -164,10 +168,11 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
     bool invalidPin;
     bool pinFirstAttempt = true;
     String? pin;
+    final targetEndpoint = target.firstHttpEndpoint!;
     _logger.info(
       'startSession → prepareUpload to ${target.alias} '
-      '(${target.ip}:${target.port}, '
-      'fingerprint=${target.fingerprint}, '
+      '(${targetEndpoint.ip}:${targetEndpoint.port}, '
+      'certHash=${targetEndpoint.certHash}, '
       'wakeSessionId=${requestDto.wakeSessionId == null ? 'null' : 'set'})',
     );
     do {
@@ -175,8 +180,8 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
       try {
         response = await client.prepareUpload(
           protocol: target.getProtocolType(),
-          ip: target.ip!,
-          port: target.port,
+          ip: targetEndpoint.ip,
+          port: targetEndpoint.port,
           payload: requestDto,
           // TODO
           publicKey: null,
@@ -246,7 +251,7 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
             // but the raw error text is unhelpful — surface a clearer
             // diagnostic instead.
             _logger.warning(
-              'prepareUpload returned 412 Self-discovered to ${target.ip}:${target.port} — '
+              'prepareUpload returned 412 Self-discovered to ${targetEndpoint.ip}:${targetEndpoint.port} — '
               "the target tile's IP matches one of our own (likely an "
               'Android-emulator multicast loopback)',
             );
@@ -583,19 +588,24 @@ class SendNotifier extends Notifier<Map<String, SendSessionState>> {
 
     // notify the receiver
     final target = sessionState.target;
-    try {
-      ref
-          .read(httpProvider)
-          .v2
-          // ignore: discarded_futures
-          .cancel(
-            protocol: target.getProtocolType(),
-            ip: target.ip!,
-            port: target.port,
-            sessionId: remoteSessionId,
-          );
-    } catch (e) {
-      _logger.warning('Error while canceling session', e);
+    final endpoint = target.firstHttpEndpoint;
+    if (endpoint == null) {
+      _logger.warning('Cannot notify receiver: no HttpEndpoint on ${target.alias}');
+    } else {
+      try {
+        ref
+            .read(httpProvider)
+            .v2
+            // ignore: discarded_futures
+            .cancel(
+              protocol: target.getProtocolType(),
+              ip: endpoint.ip,
+              port: endpoint.port,
+              sessionId: remoteSessionId,
+            );
+      } catch (e) {
+        _logger.warning('Error while canceling session', e);
+      }
     }
 
     // finally, close session locally

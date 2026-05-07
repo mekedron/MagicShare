@@ -4,11 +4,11 @@ import 'package:magicshare_app/gen/strings.g.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
+import 'package:magicshare_app/provider/cloud/merged_network_devices_provider.dart';
 import 'package:magicshare_app/provider/persistence_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_group_section.dart';
 import 'package:magicshare_app/widget/cloud/pairing/scan_pairing_page.dart';
@@ -119,7 +119,6 @@ CloudDevice _device({
   required String id,
   required String name,
   CloudDeviceIcon icon = CloudDeviceIcon.laptop,
-  CloudDevicePresence presence = CloudDevicePresence.online,
 }) {
   return CloudDevice(
     deviceId: id,
@@ -127,8 +126,6 @@ CloudDevice _device({
     icon: icon,
     fcmToken: null,
     platform: CloudDevicePlatform.macos,
-    lastSeenAtMs: 0,
-    presence: presence,
   );
 }
 
@@ -154,6 +151,7 @@ Future<_FakeAuthService> _pump(
         cloudAuthProvider.overrideWithNotifier((ref) => auth),
         cloudBootstrapProvider.overrideWithNotifier((ref) => _FakeBootstrapService(bootstrapState)),
         accountRepositoryProvider.overrideWithNotifier((ref) => _FakeAccountRepository(state)),
+        mergedNetworkDevicesProvider.overrideWithBuilder((ref) => const []),
         deviceIdentityProvider.overrideWithValue(
           DeviceIdentityService(
             storage: DeviceIdStorage(
@@ -223,11 +221,11 @@ void main() {
         currentDeviceId: 'current',
         account: null,
         devices: [
-          _device(id: 'offline-z', name: 'Zeta', presence: CloudDevicePresence.offline),
-          _device(id: 'online-b', name: 'Bravo', presence: CloudDevicePresence.online),
+          _device(id: 'offline-z', name: 'Zeta'),
+          _device(id: 'online-b', name: 'Bravo'),
           _device(id: 'current', name: 'Macbook'),
-          _device(id: 'online-a', name: 'Alpha', presence: CloudDevicePresence.online),
-          _device(id: 'offline-m', name: 'Mike', presence: CloudDevicePresence.offline),
+          _device(id: 'online-a', name: 'Alpha'),
+          _device(id: 'offline-m', name: 'Mike'),
         ],
       );
 
@@ -243,27 +241,27 @@ void main() {
   });
 
   group('sortDevicesForSection', () {
-    test('places current device first, then online by name, then offline by name', () {
+    test('places current device first, then alphabetical on display name', () {
       final devices = [
-        _device(id: 'offline-z', name: 'Zeta', presence: CloudDevicePresence.offline),
-        _device(id: 'online-b', name: 'Bravo', presence: CloudDevicePresence.online),
+        _device(id: 'd-zeta', name: 'Zeta'),
+        _device(id: 'd-bravo', name: 'Bravo'),
         _device(id: 'current', name: 'Macbook'),
-        _device(id: 'online-a', name: 'Alpha', presence: CloudDevicePresence.online),
-        _device(id: 'offline-m', name: 'Mike', presence: CloudDevicePresence.offline),
+        _device(id: 'd-alpha', name: 'Alpha'),
+        _device(id: 'd-mike', name: 'Mike'),
       ];
 
       final sorted = sortDevicesForSection(devices, 'current');
 
       expect(
         sorted.map((d) => d.deviceId).toList(),
-        ['current', 'online-a', 'online-b', 'offline-m', 'offline-z'],
+        ['current', 'd-alpha', 'd-bravo', 'd-mike', 'd-zeta'],
       );
     });
 
-    test('case-insensitive name compare within each presence bucket', () {
+    test('case-insensitive name compare', () {
       final devices = [
-        _device(id: 'b', name: 'banana', presence: CloudDevicePresence.online),
-        _device(id: 'a', name: 'Apple', presence: CloudDevicePresence.online),
+        _device(id: 'b', name: 'banana'),
+        _device(id: 'a', name: 'Apple'),
       ];
 
       final sorted = sortDevicesForSection(devices, 'absent');
@@ -399,7 +397,7 @@ void main() {
     });
 
     testWidgets('tapping Join an existing group routes to the scanner page', (tester) async {
-      await _pump(
+      final auth = await _pump(
         tester,
         const AccountIdle(),
         authState: const CloudAuthAwaitingChoice(),
@@ -417,6 +415,9 @@ void main() {
       // controller.
       expect(find.byType(ScanPairingPage), findsOneWidget);
       expect(find.text('Coming soon'), findsNothing);
+      // No deleteAndReset on the AwaitingChoice path — only stale
+      // sessions need the cached UID discarded first.
+      expect(auth.deleteAndResetCalls, 0);
     });
 
     testWidgets('tapping Use without cloud dismisses welcome but keeps section visible', (tester) async {
@@ -507,6 +508,28 @@ void main() {
 
       expect(auth.deleteAndResetCalls, 1);
       expect(auth.signInForNewGroupCalls, 1);
+    });
+
+    testWidgets('Join from stale-session discards the old session before pairing', (tester) async {
+      // Without the reset, PairingJoinService would skip signInAnonymously
+      // (it sees a non-null currentUserId), and previewJoinToken would ride
+      // out attached to the dead UID — surfacing as a generic "internal
+      // error" `unknown` from Firebase Functions because the auth backend
+      // no longer recognises the user.
+      final auth = await _pump(
+        tester,
+        const AccountIdle(),
+        authState: const CloudAuthAuthenticated('stale-uid'),
+        bootstrapState: const BootstrapFailed(message: 'unknown', error: 'unknown'),
+      );
+
+      await tester.tap(find.text('Join an existing group'));
+      await tester.pump();
+      // Pump the route transition.
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(auth.deleteAndResetCalls, 1);
+      expect(find.byType(ScanPairingPage), findsOneWidget);
     });
   });
 

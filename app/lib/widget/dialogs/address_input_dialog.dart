@@ -196,13 +196,15 @@ class _AddressInputDialogState extends State<AddressInputDialog> with Refena {
                   children: [
                     TextSpan(text: t.dialogs.addressInput.recentlyUsed),
                     ...lastDevices
+                        .where((device) => device.firstHttpEndpoint != null)
                         .mapIndexed((index, device) {
+                          final ip = device.firstHttpEndpoint!.ip;
                           return [
                             if (index != 0) const TextSpan(text: ', '),
                             TextSpan(
-                              text: device.ip,
+                              text: ip,
                               style: TextStyle(color: Theme.of(context).colorScheme.primary),
-                              recognizer: TapGestureRecognizer()..onTap = () async => _submit(localIps, settings.port, device.ip),
+                              recognizer: TapGestureRecognizer()..onTap = () async => _submit(localIps, settings.port, ip),
                             ),
                           ];
                         })

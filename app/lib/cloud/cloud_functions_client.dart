@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:magicshare_app/config/cloud/firebase_init.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
 import 'package:magicshare_app/model/cloud/requests/send_link_notification_request.dart';
@@ -18,7 +17,6 @@ import 'package:magicshare_app/model/cloud/results/register_device_result.dart';
 import 'package:magicshare_app/model/cloud/results/remove_device_result.dart';
 import 'package:magicshare_app/model/cloud/results/send_link_notification_result.dart';
 import 'package:magicshare_app/model/cloud/results/send_wake_result.dart';
-import 'package:magicshare_app/model/cloud/results/update_presence_result.dart';
 
 /// Type for the underlying callable invocation. Allows the client to be
 /// constructed with a fake invoker in tests, avoiding the need to mock the
@@ -106,23 +104,6 @@ class CloudFunctionsClient {
         'fingerprint': fingerprint,
       },
       (raw) => RegisterDeviceResult.fromJson(_asMap(raw)),
-    );
-  }
-
-  /// Backend rate-limits this to one update per minute per device. The
-  /// returned `updated: false` means the call was suppressed, not that
-  /// it failed.
-  Future<UpdatePresenceResult> updateDevicePresence({
-    required String deviceId,
-    required CloudDevicePresence presence,
-  }) {
-    return _call(
-      'updateDevicePresence',
-      <String, dynamic>{
-        'deviceId': deviceId,
-        'presence': presence.name,
-      },
-      (raw) => UpdatePresenceResult.fromJson(_asMap(raw)),
     );
   }
 

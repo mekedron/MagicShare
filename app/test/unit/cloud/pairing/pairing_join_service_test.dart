@@ -69,18 +69,20 @@ void main() {
     );
   }
 
-  PairingPayload samplePayload() {
+  PairingPayload samplePayload({
+    List<String> addresses = const ['192.168.1.10'],
+  }) {
     return PairingPayload(
       tokenId: 'fixture-token',
-      issuerLanAddress: '192.168.1.10',
+      issuerLanAddresses: addresses,
       issuerLanPort: 50001,
       issuerPubKeyCompressed: compressPublicKey(generatePairingKeyPair().publicKey),
     );
   }
 
   group('previewPairing', () {
-    test('returns LanUnreachable when probe says false', () async {
-      probe.result = false;
+    test('returns LanUnreachable when probe finds no reachable host', () async {
+      probe.reachableHosts = const {};
 
       final outcome = await buildService().previewPairing(payload: samplePayload());
 
@@ -88,8 +90,8 @@ void main() {
       expect(client.previewCalls, isEmpty);
     });
 
-    test('returns Success when probe + previewJoinToken succeed', () async {
-      probe.result = true;
+    test('returns Success with the winning host when reachable', () async {
+      probe.reachableHosts = {'192.168.1.10'};
       client.previewResponse = PreviewJoinTokenResult(
         accountId: 'target-acct',
         issuingDeviceId: 'issuer-device',
@@ -100,12 +102,35 @@ void main() {
       final outcome = await buildService().previewPairing(payload: samplePayload());
 
       expect(outcome, isA<PairingPreviewSuccess>());
-      expect((outcome as PairingPreviewSuccess).preview.accountId, 'target-acct');
+      final success = outcome as PairingPreviewSuccess;
+      expect(success.preview.accountId, 'target-acct');
+      expect(success.reachableHost, '192.168.1.10');
       expect(client.previewCalls.single, 'fixture-token');
     });
 
+    test('races multi-address payload and returns the reachable one', () async {
+      // Simulate the run-dev.sh setup: macOS issuer advertises both
+      // 127.0.0.1 (for an Android-emulator joiner via adb reverse)
+      // and the real LAN IP (for a physical-device joiner). The
+      // physical iPhone joiner can only reach the LAN IP.
+      probe.reachableHosts = {'192.168.101.129'};
+      client.previewResponse = PreviewJoinTokenResult(
+        accountId: 'target-acct',
+        issuingDeviceId: 'issuer-device',
+        expiresAtMs: DateTime.now().millisecondsSinceEpoch + 60_000,
+        devices: const [],
+      );
+
+      final outcome = await buildService().previewPairing(
+        payload: samplePayload(addresses: const ['127.0.0.1', '192.168.101.129']),
+      );
+
+      expect(outcome, isA<PairingPreviewSuccess>());
+      expect((outcome as PairingPreviewSuccess).reachableHost, '192.168.101.129');
+    });
+
     test('classifies notFound from previewJoinToken', () async {
-      probe.result = true;
+      probe.reachableHosts = {'192.168.1.10'};
       client.previewThrows = CloudException(
         code: CloudErrorCode.notFound,
         message: 'gone',
@@ -127,6 +152,7 @@ void main() {
   group('completePairing', () {
     test('happy path: signs in if needed, joins, exchanges key, replaces, re-auths', () async {
       authGateway.startsSignedIn = false;
+      probe.reachableHosts = {'192.168.1.10'};
       client.joinResponse = JoinNetworkResult(
         accountId: 'target-acct',
         oldAccountDeleted: false,
@@ -137,6 +163,7 @@ void main() {
 
       final outcome = await buildService().completePairing(
         payload: samplePayload(),
+        reachableHost: '192.168.1.10',
         newDeviceIdentity: const JoinNetworkNewDevice(
           displayName: 'Test',
           icon: CloudDeviceIcon.laptop,
@@ -153,6 +180,7 @@ void main() {
       expect(client.joinCalls.single.deviceId, 'fake-device-id');
       expect(client.joinCalls.single.newDevice?.displayName, 'Test');
       expect(lanClient.exchangeCalls, hasLength(1));
+      expect(lanClient.exchangeCalls.single.issuerHost, '192.168.1.10');
       expect(authGateway.signInWithCustomTokenCalls.single, 'fake-custom-token');
       // Group key landed in storage.
       final keyState = groupKeyService.state;
@@ -160,14 +188,78 @@ void main() {
       expect((keyState as GroupKeyReady).key, lanClient.exchangeResponse);
     });
 
+    test('uses the preview-time winner for the handshake (not the first listed address)', () async {
+      // The QR carries [127.0.0.1, 192.168.101.129]. Preview already
+      // determined 192.168.101.129 was the reachable one. complete
+      // must hit that exact host — never blindly pick the first.
+      authGateway.startsSignedIn = true;
+      probe.reachableHosts = {'192.168.101.129'};
+      client.joinResponse = JoinNetworkResult(
+        accountId: 'target-acct',
+        oldAccountDeleted: false,
+        devices: const [],
+        customToken: 'fake-custom-token',
+      );
+      lanClient.exchangeResponse = generateGroupKey();
+
+      await buildService().completePairing(
+        payload: samplePayload(addresses: const ['127.0.0.1', '192.168.101.129']),
+        reachableHost: '192.168.101.129',
+      );
+
+      expect(lanClient.exchangeCalls.single.issuerHost, '192.168.101.129');
+    });
+
+    test('re-races the addresses when reachableHost is omitted', () async {
+      authGateway.startsSignedIn = true;
+      probe.reachableHosts = {'192.168.101.129'};
+      client.joinResponse = JoinNetworkResult(
+        accountId: 'target-acct',
+        oldAccountDeleted: false,
+        devices: const [],
+        customToken: 'fake-custom-token',
+      );
+      lanClient.exchangeResponse = generateGroupKey();
+
+      final outcome = await buildService().completePairing(
+        payload: samplePayload(addresses: const ['127.0.0.1', '192.168.101.129']),
+      );
+
+      expect(outcome, isA<PairingCompleteSuccess>());
+      expect(lanClient.exchangeCalls.single.issuerHost, '192.168.101.129');
+    });
+
+    test('returns LanHandshakeFailure(transport) when no address is reachable on complete', () async {
+      authGateway.startsSignedIn = true;
+      probe.reachableHosts = const {};
+
+      final outcome = await buildService().completePairing(
+        payload: samplePayload(addresses: const ['127.0.0.1']),
+      );
+
+      expect(
+        outcome,
+        isA<PairingCompleteLanHandshakeFailure>().having(
+          (o) => o.error,
+          'error',
+          PairingLanClientError.transport,
+        ),
+      );
+      expect(client.joinCalls, isEmpty);
+    });
+
     test('returns CloudFailure on joinNetwork error', () async {
       authGateway.startsSignedIn = true;
+      probe.reachableHosts = {'192.168.1.10'};
       client.joinThrows = CloudException(
         code: CloudErrorCode.failedPrecondition,
         message: 'expired',
       );
 
-      final outcome = await buildService().completePairing(payload: samplePayload());
+      final outcome = await buildService().completePairing(
+        payload: samplePayload(),
+        reachableHost: '192.168.1.10',
+      );
 
       expect(
         outcome,
@@ -183,6 +275,7 @@ void main() {
 
     test('returns LanHandshakeFailure when LAN client throws', () async {
       authGateway.startsSignedIn = true;
+      probe.reachableHosts = {'192.168.1.10'};
       client.joinResponse = JoinNetworkResult(
         accountId: 'target-acct',
         oldAccountDeleted: false,
@@ -194,7 +287,10 @@ void main() {
         'tag mismatch',
       );
 
-      final outcome = await buildService().completePairing(payload: samplePayload());
+      final outcome = await buildService().completePairing(
+        payload: samplePayload(),
+        reachableHost: '192.168.1.10',
+      );
 
       expect(
         outcome,
@@ -294,7 +390,7 @@ class _StubLanClient extends PairingLanClient {
 
   Uint8List? exchangeResponse;
   PairingLanClientException? exchangeThrows;
-  final List<String> exchangeCalls = [];
+  final List<({String issuerHost, int issuerPort, String tokenId})> exchangeCalls = [];
 
   @override
   Future<Uint8List> exchangeKey({
@@ -306,20 +402,27 @@ class _StubLanClient extends PairingLanClient {
     required ECPublicKey issuerPublicKey,
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    exchangeCalls.add(tokenId);
+    exchangeCalls.add((issuerHost: issuerHost, issuerPort: issuerPort, tokenId: tokenId));
     if (exchangeThrows != null) throw exchangeThrows!;
     return exchangeResponse ?? generateGroupKey();
   }
 }
 
 class _ProbeRecorder {
-  bool result = true;
-  Future<bool> probe({
-    required String host,
+  /// Hosts the probe should report as reachable. The first entry of
+  /// the requested `hosts` iterable that's in this set wins. An
+  /// empty set means "no host is reachable".
+  Set<String> reachableHosts = const {};
+
+  Future<String?> probe({
+    required Iterable<String> hosts,
     required int port,
     Duration timeout = const Duration(seconds: 2),
   }) async {
-    return result;
+    for (final host in hosts) {
+      if (reachableHosts.contains(host)) return host;
+    }
+    return null;
   }
 }
 

@@ -22,8 +22,6 @@ export type DeviceIcon = (typeof DEVICE_ICONS)[number];
 export const DEVICE_PLATFORMS = ['android', 'ios', 'macos', 'windows', 'linux'] as const;
 export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
 
-export type DevicePresence = 'online' | 'offline';
-
 export type InboxItemType = 'wake' | 'link';
 
 /** A plaintext link payload as stored in `inbox` for opt-in plaintext mode. */
@@ -45,8 +43,6 @@ export interface DeviceDoc {
   icon: DeviceIcon;
   fcmToken: string | null;
   platform: DevicePlatform;
-  lastSeenAt: Timestamp;
-  presence: DevicePresence;
   /**
    * The LocalSend cert hash that this device announces over multicast.
    * Lets the Send tab dedup LAN-discovered devices against the cloud

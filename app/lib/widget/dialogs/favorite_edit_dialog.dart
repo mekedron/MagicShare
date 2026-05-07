@@ -39,12 +39,12 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
   void initState() {
     super.initState();
 
-    _ipController.text = widget.prefilledDevice?.ip ?? widget.favorite?.ip ?? '';
+    final prefilledEndpoint = widget.prefilledDevice?.firstHttpEndpoint;
+    _ipController.text = prefilledEndpoint?.ip ?? widget.favorite?.ip ?? '';
     _aliasController.text = widget.prefilledDevice?.alias ?? widget.favorite?.alias ?? '';
 
     ensureRef((ref) {
-      _portController.text =
-          widget.prefilledDevice?.port.toString() ?? widget.favorite?.port.toString() ?? ref.read(settingsProvider).port.toString();
+      _portController.text = prefilledEndpoint?.port.toString() ?? widget.favorite?.port.toString() ?? ref.read(settingsProvider).port.toString();
     });
   }
 

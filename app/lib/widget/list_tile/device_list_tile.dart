@@ -84,13 +84,13 @@ class DeviceListTile extends StatelessWidget {
                 isOnline: networkPresence!.isOnline,
                 label: networkPresence!.statusLabel,
               ),
-            if (device.ip != null)
+            if (device.hasHttpEndpoint)
               DeviceBadge(
                 backgroundColor: badgeColor,
                 foregroundColor: theme.colorScheme.onSecondaryContainer,
                 label: 'LAN • HTTP',
-              )
-            else if (networkPresence == null)
+              ),
+            if (device.hasSignalingEndpoint)
               DeviceBadge(
                 backgroundColor: badgeColor,
                 foregroundColor: theme.colorScheme.onSecondaryContainer,

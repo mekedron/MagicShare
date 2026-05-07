@@ -18,7 +18,6 @@ class JoinTokenPreviewDeviceMapper
       MapperContainer.globals.use(_instance = JoinTokenPreviewDeviceMapper._());
       CloudDeviceIconMapper.ensureInitialized();
       CloudDevicePlatformMapper.ensureInitialized();
-      CloudDevicePresenceMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -44,9 +43,6 @@ class JoinTokenPreviewDeviceMapper
   static CloudDevicePlatform _$platform(JoinTokenPreviewDevice v) => v.platform;
   static const Field<JoinTokenPreviewDevice, CloudDevicePlatform> _f$platform =
       Field('platform', _$platform);
-  static CloudDevicePresence _$presence(JoinTokenPreviewDevice v) => v.presence;
-  static const Field<JoinTokenPreviewDevice, CloudDevicePresence> _f$presence =
-      Field('presence', _$presence);
 
   @override
   final MappableFields<JoinTokenPreviewDevice> fields = const {
@@ -54,7 +50,6 @@ class JoinTokenPreviewDeviceMapper
     #displayName: _f$displayName,
     #icon: _f$icon,
     #platform: _f$platform,
-    #presence: _f$presence,
   };
 
   static JoinTokenPreviewDevice _instantiate(DecodingData data) {
@@ -63,7 +58,6 @@ class JoinTokenPreviewDeviceMapper
       displayName: data.dec(_f$displayName),
       icon: data.dec(_f$icon),
       platform: data.dec(_f$platform),
-      presence: data.dec(_f$presence),
     );
   }
 
@@ -142,7 +136,6 @@ abstract class JoinTokenPreviewDeviceCopyWith<
     String? displayName,
     CloudDeviceIcon? icon,
     CloudDevicePlatform? platform,
-    CloudDevicePresence? presence,
   });
   JoinTokenPreviewDeviceCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -164,14 +157,12 @@ class _JoinTokenPreviewDeviceCopyWithImpl<$R, $Out>
     String? displayName,
     CloudDeviceIcon? icon,
     CloudDevicePlatform? platform,
-    CloudDevicePresence? presence,
   }) => $apply(
     FieldCopyWithData({
       if (deviceId != null) #deviceId: deviceId,
       if (displayName != null) #displayName: displayName,
       if (icon != null) #icon: icon,
       if (platform != null) #platform: platform,
-      if (presence != null) #presence: presence,
     }),
   );
   @override
@@ -180,7 +171,6 @@ class _JoinTokenPreviewDeviceCopyWithImpl<$R, $Out>
     displayName: data.get(#displayName, or: $value.displayName),
     icon: data.get(#icon, or: $value.icon),
     platform: data.get(#platform, or: $value.platform),
-    presence: data.get(#presence, or: $value.presence),
   );
 
   @override

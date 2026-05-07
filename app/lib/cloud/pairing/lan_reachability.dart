@@ -37,6 +37,68 @@ Future<bool> isLanReachable({
   return false;
 }
 
+/// Race [isLanReachable] across every host in [hosts] in parallel and
+/// return the first one whose TCP handshake completes successfully,
+/// or `null` if none do.
+///
+/// This is the joining-side primitive for v2 PairingPayloads, which
+/// can carry up to four candidate LAN addresses (e.g. `127.0.0.1`
+/// for an Android-emulator joiner reaching the host via `adb
+/// reverse`, plus the host's real LAN IP for a physical-device
+/// joiner). The joiner shouldn't probe them serially — that would
+/// stack the per-host timeout — so we kick off every probe at the
+/// same moment and resolve as soon as one wins.
+///
+/// Order in the [hosts] iterable is preserved when ties happen
+/// (parallel probes that all complete in the same microtask): the
+/// first iteration index wins. In practice the network race
+/// dominates, so the address that the network resolves first is the
+/// one returned.
+Future<String?> firstReachableLanAddress({
+  required Iterable<String> hosts,
+  required int port,
+  Duration timeout = const Duration(seconds: 3),
+  int retries = 3,
+  Duration retryDelay = const Duration(milliseconds: 100),
+}) async {
+  final hostList = hosts.toList(growable: false);
+  if (hostList.isEmpty) return null;
+  final completer = Completer<String?>();
+  var pending = hostList.length;
+  for (final host in hostList) {
+    // Don't await here — we want all probes in flight at once.
+    unawaited(
+      isLanReachable(
+        host: host,
+        port: port,
+        timeout: timeout,
+        retries: retries,
+        retryDelay: retryDelay,
+      ).then(
+        (reachable) {
+          if (completer.isCompleted) return;
+          if (reachable) {
+            completer.complete(host);
+            return;
+          }
+          pending--;
+          if (pending == 0 && !completer.isCompleted) {
+            completer.complete(null);
+          }
+        },
+        onError: (Object _) {
+          if (completer.isCompleted) return;
+          pending--;
+          if (pending == 0 && !completer.isCompleted) {
+            completer.complete(null);
+          }
+        },
+      ),
+    );
+  }
+  return completer.future;
+}
+
 Future<bool> _tryConnectOnce({
   required String host,
   required int port,

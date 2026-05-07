@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:common/isolate.dart';
 import 'package:common/model/device.dart';
+import 'package:logging/logging.dart';
 import 'package:magicshare_app/model/persistence/favorite_device.dart';
 import 'package:magicshare_app/model/state/nearby_devices_state.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/logging/discovery_logs_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
+
+final _logger = Logger('NearbyDevices');
 
 /// This provider is responsible for:
 /// - Scanning the network for other LocalSend instances
@@ -51,7 +54,7 @@ class StartMulticastListener extends AsyncReduxAction<NearbyDevicesService, Near
   Future<NearbyDevicesState> reduce() async {
     await for (final device in notifier._isolateController.state.multicastDiscovery!.receiveFromIsolate) {
       await dispatchAsync(RegisterDeviceAction(device));
-      notifier._discoveryLogger.addLog('[DISCOVER/UDP] ${device.alias} (${device.ip}, model: ${device.deviceModel})');
+      notifier._discoveryLogger.addLog('[DISCOVER/UDP] ${device.alias} (${device.firstHttpEndpoint?.ip}, model: ${device.deviceModel})');
     }
     return state;
   }
@@ -79,9 +82,26 @@ class RegisterDeviceAction extends AsyncReduxAction<NearbyDevicesService, Nearby
 
   @override
   Future<NearbyDevicesState> reduce() async {
-    assert(device.ip?.isNotEmpty ?? false, 'IP must not be empty');
-
-    final favoriteDevice = notifier._favoriteService.state.firstWhereOrNull((e) => e.fingerprint == device.fingerprint);
+    final endpoint = device.firstHttpEndpoint;
+    assert(endpoint != null && endpoint.ip.isNotEmpty, 'HTTP endpoint with non-empty IP required');
+    if (endpoint == null || endpoint.ip.isEmpty) {
+      _logger.warning('RegisterDeviceAction: skipping device without HTTP endpoint: ${device.alias}');
+      return state;
+    }
+    final certHashShort = endpoint.certHash.substring(0, endpoint.certHash.length.clamp(0, 8));
+    final existing = state.devices[endpoint.ip];
+    if (existing == null) {
+      _logger.fine('Register: NEW LAN ${device.alias} ip=${endpoint.ip} cert=$certHashShort…');
+    } else {
+      final prevCert = existing.firstHttpEndpoint?.certHash ?? '';
+      _logger.fine(
+        'Register: UPDATE LAN ${device.alias} ip=${endpoint.ip} '
+        'cert=$certHashShort… (was alias=${existing.alias}, '
+        'cert=${prevCert.substring(0, prevCert.length.clamp(0, 8))}…)',
+      );
+    }
+    final certHashes = device.certHashes;
+    final favoriteDevice = notifier._favoriteService.state.firstWhereOrNull((e) => certHashes.contains(e.fingerprint));
     if (favoriteDevice != null && !favoriteDevice.customAlias) {
       // Update existing favorite with new alias
       await external(notifier._favoriteService).dispatchAsync(UpdateFavoriteAction(favoriteDevice.copyWith(alias: device.alias)));
@@ -89,7 +109,7 @@ class RegisterDeviceAction extends AsyncReduxAction<NearbyDevicesService, Nearby
       await Future.microtask(() {});
     }
     return state.copyWith(
-      devices: {...state.devices}..update(device.ip!, (_) => device, ifAbsent: () => device),
+      devices: {...state.devices}..update(endpoint.ip, (_) => device, ifAbsent: () => device),
     );
   }
 }
@@ -102,8 +122,21 @@ class RegisterSignalingDeviceAction extends ReduxAction<NearbyDevicesService, Ne
 
   @override
   NearbyDevicesState reduce() {
-    final Set<Device> existingDevices = state.signalingDevices[device.fingerprint]?.toSet() ?? {};
-    final existingDevice = existingDevices.firstWhereOrNull((e) => e.signalingId == device.signalingId);
+    final endpoint = device.firstSignalingEndpoint;
+    if (endpoint == null) {
+      _logger.warning('RegisterSignalingDeviceAction: skipping device without SignalingEndpoint: ${device.alias}');
+      return state;
+    }
+    final token = endpoint.serverToken;
+    final signalingId = endpoint.signalingId;
+    final tokenShort = token.substring(0, token.length.clamp(0, 8));
+    _logger.fine(
+      'Register: SIGNALING ${device.alias} sigId=$signalingId tok=$tokenShort…',
+    );
+    final Set<Device> existingDevices = state.signalingDevices[token]?.toSet() ?? {};
+    final existingDevice = existingDevices.firstWhereOrNull(
+      (e) => e.signalingEndpoints.any((sig) => sig.signalingId == signalingId),
+    );
     if (existingDevice != null) {
       existingDevices.remove(existingDevice);
     }
@@ -112,7 +145,7 @@ class RegisterSignalingDeviceAction extends ReduxAction<NearbyDevicesService, Ne
     return state.copyWith(
       signalingDevices: {
         ...state.signalingDevices,
-        device.fingerprint: existingDevices,
+        token: existingDevices,
       },
     );
   }
@@ -127,7 +160,8 @@ class UnregisterSignalingDeviceAction extends ReduxAction<NearbyDevicesService, 
   NearbyDevicesState reduce() {
     return state.copyWith(
       signalingDevices: {
-        for (final entry in state.signalingDevices.entries) entry.key: entry.value.where((e) => e.signalingId != signalingId).toSet(),
+        for (final entry in state.signalingDevices.entries)
+          entry.key: entry.value.where((e) => e.signalingEndpoints.every((sig) => sig.signalingId != signalingId)).toSet(),
       },
     );
   }
@@ -175,7 +209,7 @@ class StartLegacyScan extends AsyncReduxAction<NearbyDevicesService, NearbyDevic
     );
 
     await for (final device in stream) {
-      notifier._discoveryLogger.addLog('[DISCOVER/TCP] ${device.alias} (${device.ip}, model: ${device.deviceModel})');
+      notifier._discoveryLogger.addLog('[DISCOVER/TCP] ${device.alias} (${device.firstHttpEndpoint?.ip}, model: ${device.deviceModel})');
       await dispatchAsync(RegisterDeviceAction(device));
     }
 
@@ -209,7 +243,7 @@ class StartFavoriteScan extends AsyncReduxAction<NearbyDevicesService, NearbyDev
     );
 
     await for (final device in stream) {
-      notifier._discoveryLogger.addLog('[DISCOVER/TCP] ${device.alias} (${device.ip}, model: ${device.deviceModel})');
+      notifier._discoveryLogger.addLog('[DISCOVER/TCP] ${device.alias} (${device.firstHttpEndpoint?.ip}, model: ${device.deviceModel})');
       await dispatchAsync(RegisterDeviceAction(device));
     }
 

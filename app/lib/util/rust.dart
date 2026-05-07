@@ -14,21 +14,32 @@ extension ProtocolTypeExt on ProtocolType {
 }
 
 extension DeviceExt on Device {
+  /// Reads the protocol from the first [HttpEndpoint]; defaults to
+  /// HTTPS for devices with no HTTP endpoint (callers that hit this
+  /// path are about to fail elsewhere).
   rust_model.ProtocolType getProtocolType() {
-    return switch (https) {
+    final endpoint = firstHttpEndpoint;
+    return switch (endpoint?.https ?? true) {
       false => rust_model.ProtocolType.http,
       true => rust_model.ProtocolType.https,
     };
   }
 
+  /// Builds a [rust_model.RegisterDto] from this device's first
+  /// [HttpEndpoint]. Throws if the device has no HTTP endpoint —
+  /// the register handshake is HTTP-specific.
   rust_model.RegisterDto toRegisterDto() {
+    final endpoint = firstHttpEndpoint;
+    if (endpoint == null) {
+      throw StateError('toRegisterDto requires an HttpEndpoint on $alias');
+    }
     return rust_model.RegisterDto(
       alias: alias,
       version: version,
       deviceModel: deviceModel,
       deviceType: deviceType.toRust(),
-      token: fingerprint,
-      port: port,
+      token: endpoint.certHash,
+      port: endpoint.port,
       protocol: getProtocolType(),
       hasWebInterface: download,
     );
@@ -81,16 +92,19 @@ extension RustDeviceTypeExt on rust_model.DeviceType {
 extension RegisterResponseDtoExt on rust_model.RegisterResponseDto {
   Device toDevice(String ip, int port, bool https, DiscoveryMethod method) {
     return Device(
-      signalingId: null,
-      ip: ip,
       version: version,
-      port: port,
-      https: https,
-      fingerprint: token,
       alias: alias,
       deviceModel: deviceModel,
       deviceType: deviceType?.toDart() ?? DeviceType.desktop,
       download: hasWebInterface,
+      endpoints: {
+        HttpEndpoint(
+          ip: ip,
+          port: port,
+          https: https,
+          certHash: token,
+        ),
+      },
       discoveryMethods: {method},
     );
   }

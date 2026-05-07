@@ -6,17 +6,18 @@ import 'package:magicshare_app/config/theme.dart';
 import 'package:magicshare_app/gen/strings.g.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
+import 'package:magicshare_app/model/persistence/favorite_device.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/account_reset_service.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_functions_client_provider.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
+import 'package:magicshare_app/provider/cloud/merged_network_devices_provider.dart';
 import 'package:magicshare_app/provider/cloud/notification_permission_provider.dart';
-import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
+import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_detail_sheet.dart';
 import 'package:magicshare_app/widget/cloud/cloud_device_list_tile.dart';
@@ -221,6 +222,22 @@ class _SetupCard extends StatelessWidget {
   Future<void> _onJoin(BuildContext context) async {
     // Same contextual permission ask as the Create path. Non-blocking.
     unawaited(context.ref.read(notificationPermissionProvider).request());
+    final ref = context.ref;
+    final auth = ref.notifier(cloudAuthProvider);
+    // Stale Authenticated state (BootstrapFailed && CloudAuthAuthenticated):
+    // discard the dead session before pairing. PairingJoinService only
+    // signInAnonymously()s when currentUser is null, so a cached but
+    // backend-unrecognised UID would ride along on previewJoinToken /
+    // joinNetwork and surface as a generic `unknown` "internal error".
+    // Mirrors `_onCreate`; the virgin-welcome case is a no-op.
+    if (ref.read(cloudAuthProvider) is CloudAuthAuthenticated) {
+      try {
+        await auth.deleteAndReset();
+      } catch (_) {
+        // Best-effort: PairingJoinService still attempts signInAnonymously.
+      }
+    }
+    if (!context.mounted) return;
     // Welcome-card route: no anon sign-in has happened yet, so the
     // backend has no source-account doc to copy a device identity
     // from. Build one from local platform defaults and hand it to
@@ -228,7 +245,7 @@ class _SetupCard extends StatelessWidget {
     // null on this first pass — bootstrap will register it via
     // registerDevice once the device is signed into the new account
     // and FCM has refreshed a token.
-    final identity = context.ref.read(deviceIdentityProvider);
+    final identity = ref.read(deviceIdentityProvider);
     final newDevice = JoinNetworkNewDevice(
       displayName: identity.defaultDisplayName(),
       icon: identity.defaultIcon(),
@@ -376,6 +393,11 @@ class _ReadyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sorted = _sortedDevices(devices, currentDeviceId);
+    final merged = context.ref.watch(mergedNetworkDevicesProvider);
+    final onlineByDeviceId = <String, bool>{
+      for (final m in merged)
+        if (m.cloud != null) m.cloud!.deviceId: m.isOnline,
+    };
     return _SectionShell(
       showRefresh: true,
       child: Column(
@@ -386,6 +408,7 @@ class _ReadyCard extends StatelessWidget {
             CloudDeviceListTile(
               device: device,
               isCurrent: device.deviceId == currentDeviceId,
+              isOnline: device.deviceId == currentDeviceId ? true : (onlineByDeviceId[device.deviceId] ?? false),
               thisDeviceLabel: t.settingsTab.deviceGroup.thisDevice,
               onlineLabel: t.settingsTab.deviceGroup.presenceOnline,
               offlineLabel: t.settingsTab.deviceGroup.presenceOffline,
@@ -581,8 +604,8 @@ class _ReadyCard extends StatelessWidget {
   }
 }
 
-/// Sorted: current device first, then online by name (case-insensitive),
-/// then offline by name. Visible for testing.
+/// Sorted: current device first, then alphabetical on display name
+/// (case-insensitive). Visible for testing.
 @visibleForTesting
 List<CloudDevice> sortDevicesForSection(List<CloudDevice> devices, String currentDeviceId) {
   return _sortedDevices(devices, currentDeviceId);
@@ -594,9 +617,6 @@ List<CloudDevice> _sortedDevices(List<CloudDevice> devices, String currentDevice
     final aCurrent = a.deviceId == currentDeviceId;
     final bCurrent = b.deviceId == currentDeviceId;
     if (aCurrent != bCurrent) return aCurrent ? -1 : 1;
-    final aOnline = a.presence == CloudDevicePresence.online;
-    final bOnline = b.presence == CloudDevicePresence.online;
-    if (aOnline != bOnline) return aOnline ? -1 : 1;
     return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
   });
   return list;
@@ -638,11 +658,10 @@ class _SectionShell extends StatelessWidget {
   }
 }
 
-/// Section-header icon that re-fetches Firestore device data on tap and
-/// pings `updateDevicePresence(online)` so peers see this device as
-/// online faster than the 70 s heartbeat would deliver. Visible only
-/// when there's an attached account to refresh — i.e. `AccountReady` /
-/// `AccountLoading` paths.
+/// Section-header icon that triggers a fresh LAN discovery round and
+/// re-fetches the Firestore device registry. Online status is now driven
+/// purely by LAN reachability (multicast announce + HTTP `/info`), so the
+/// button just rebuilds the inputs that feed `MergedDevice.isLanReachable`.
 class _RefreshButton extends StatefulWidget {
   const _RefreshButton();
 
@@ -658,10 +677,52 @@ class _RefreshButtonState extends State<_RefreshButton> {
     setState(() => _spinning = true);
     final ref = context.ref;
     try {
-      // Re-announce online first so other devices see us active before the
-      // re-fetch returns. markForeground is internally rate-limited so the
-      // common "user smashes the button" case is harmless.
-      ref.notifier(presenceHeartbeatProvider).markForeground();
+      // Re-announce on multicast so peers reply to our /api/localsend/v2
+      // /register endpoint and refresh their entry in
+      // `nearbyDevicesProvider.devices`.
+      ref.redux(nearbyDevicesProvider).dispatch(StartMulticastScan());
+
+      // For every cloud-known peer with a known LAN twin, fire a
+      // targeted HTTP /info round-trip. Successful responses re-register
+      // the peer (refreshing `isLanReachable: true`); unreachable peers
+      // simply don't reply, and the multicast round above is responsible
+      // for the more general re-discovery.
+      final account = ref.read(accountRepositoryProvider);
+      if (account is AccountReady) {
+        // Cert-hash → LAN twin. CloudDevice.fingerprint is the cert
+        // hash; matching it against a SignalingEndpoint.serverToken
+        // would be a category error.
+        final lanByCertHash = <String, _Twin>{};
+        for (final entry in ref.read(nearbyDevicesProvider).devices.values) {
+          final endpoint = entry.firstHttpEndpoint;
+          if (endpoint == null || endpoint.ip.isEmpty || endpoint.certHash.isEmpty) continue;
+          lanByCertHash[endpoint.certHash] = _Twin(
+            ip: endpoint.ip,
+            port: endpoint.port,
+            alias: entry.alias,
+          );
+        }
+        final probes = <FavoriteDevice>[];
+        for (final cloudDev in account.devices) {
+          final fp = cloudDev.fingerprint;
+          if (fp == null || fp.isEmpty) continue;
+          final twin = lanByCertHash[fp];
+          if (twin == null) continue;
+          probes.add(
+            FavoriteDevice.fromValues(
+              fingerprint: fp,
+              ip: twin.ip,
+              port: twin.port,
+              alias: twin.alias,
+            ),
+          );
+        }
+        if (probes.isNotEmpty) {
+          final https = ref.read(settingsProvider).https;
+          await ref.redux(nearbyDevicesProvider).dispatchAsync(StartFavoriteScan(devices: probes, https: https));
+        }
+      }
+
       await ref.notifier(accountRepositoryProvider).refresh();
     } finally {
       if (mounted) setState(() => _spinning = false);
@@ -682,4 +743,11 @@ class _RefreshButtonState extends State<_RefreshButton> {
           : const Icon(Icons.refresh, size: 20),
     );
   }
+}
+
+class _Twin {
+  const _Twin({required this.ip, required this.port, required this.alias});
+  final String ip;
+  final int port;
+  final String alias;
 }

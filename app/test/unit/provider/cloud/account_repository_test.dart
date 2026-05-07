@@ -5,7 +5,6 @@ import 'package:magicshare_app/model/cloud/cloud_account.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
@@ -249,6 +248,4 @@ CloudDevice _fakeDevice(String id) => CloudDevice(
   icon: CloudDeviceIcon.phone,
   fcmToken: null,
   platform: CloudDevicePlatform.android,
-  lastSeenAtMs: 0,
-  presence: CloudDevicePresence.online,
 );

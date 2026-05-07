@@ -125,6 +125,8 @@
     <string>The app needs photo library access so that the user can select photos to share.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>The app saves received media to the photo library.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>The app uses the camera to scan QR codes for joining device groups and pairing nearby devices.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>The app requires the local IP to communicate.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
@@ -137,6 +139,21 @@
         <string>_bonjour._tcp</string>
         <string>_lnp._tcp.</string>
     </array>
+
+    <!--
+        Allow plain-HTTP loads to LAN-local resources. Required so the
+        debug build can talk to the Firebase emulator suite running on
+        the macOS host (FIREBASE_EMULATOR_HOST=<LAN ip>:9099) and to
+        peer LocalSend instances on the same Wi-Fi over the pairing
+        handshake's HTTP channel. NSAllowsLocalNetworking only relaxes
+        ATS for IP literals, .local hosts, and single-label hostnames —
+        public-internet plain HTTP is still blocked.
+    -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
 
     <!-- share_handler -->
     <key>CFBundleURLTypes</key>

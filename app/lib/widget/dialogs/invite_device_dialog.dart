@@ -83,7 +83,7 @@ class InviteDeviceDialog extends StatefulWidget {
     this.cloudFunctionsClient,
     this.lanServerFactory,
     this.currentDeviceIdOverride,
-    this.lanAddressOverride,
+    this.lanAddressesOverride,
     this.groupKeyOverride,
     this.now = _systemNow,
   });
@@ -97,8 +97,10 @@ class InviteDeviceDialog extends StatefulWidget {
   /// Test override.
   final String? currentDeviceIdOverride;
 
-  /// Test override; in production read from `localIpProvider`.
-  final String? lanAddressOverride;
+  /// Test override; in production read from `localIpProvider` (and
+  /// optionally prefixed with the [_kDebugLanHostOverride]
+  /// dart-define value).
+  final List<String>? lanAddressesOverride;
 
   /// Test override; in production read from `groupKeyProvider`.
   final Uint8List? groupKeyOverride;
@@ -148,26 +150,26 @@ class _InviteDeviceDialogState extends State<InviteDeviceDialog> {
       // small.
       final clientOverride = widget.cloudFunctionsClient;
       final currentDeviceIdOverride = widget.currentDeviceIdOverride;
-      final lanAddressOverride = widget.lanAddressOverride;
+      final lanAddressesOverride = widget.lanAddressesOverride;
       final groupKeyOverride = widget.groupKeyOverride;
 
-      final allOverridden = clientOverride != null && currentDeviceIdOverride != null && lanAddressOverride != null && groupKeyOverride != null;
+      final allOverridden = clientOverride != null && currentDeviceIdOverride != null && lanAddressesOverride != null && groupKeyOverride != null;
 
       final CloudFunctionsClient client;
       final String? currentDeviceId;
-      final String? lanAddress;
+      final List<String> lanAddresses;
       final Uint8List? groupKey;
 
       if (allOverridden) {
         client = clientOverride;
         currentDeviceId = currentDeviceIdOverride;
-        lanAddress = lanAddressOverride;
+        lanAddresses = lanAddressesOverride;
         groupKey = groupKeyOverride;
       } else {
         final ref = context.ref;
         client = clientOverride ?? ref.read(cloudFunctionsClientProvider);
         currentDeviceId = currentDeviceIdOverride ?? _readCurrentDeviceId(ref);
-        lanAddress = lanAddressOverride ?? _readPrimaryLanIp(ref);
+        lanAddresses = lanAddressesOverride ?? _readLanAddresses(ref);
         groupKey = groupKeyOverride ?? _readGroupKey(ref);
       }
 
@@ -177,7 +179,7 @@ class _InviteDeviceDialogState extends State<InviteDeviceDialog> {
         );
         return;
       }
-      if (lanAddress == null) {
+      if (lanAddresses.isEmpty) {
         setState(
           () => _session = _SessionError(t.settingsTab.deviceGroup.pairing.errors.noLan),
         );
@@ -203,21 +205,20 @@ class _InviteDeviceDialogState extends State<InviteDeviceDialog> {
       );
       final port = await realServer.start();
 
-      // Apply the debug host override if set. Useful when running
-      // the issuer on the Android emulator: pair with
-      // `CLOUD_PAIRING_LAN_PORT` and `adb forward tcp:N tcp:N` to
-      // make 127.0.0.1 on the host route to the emulator's bound
-      // port.
-      final advertisedHost = _kDebugLanHostOverride.isNotEmpty ? _kDebugLanHostOverride : lanAddress;
-      if (_kDebugLanHostOverride.isNotEmpty) {
-        _logger.info(
-          'CLOUD_PAIRING_LAN_HOST override active: advertising $advertisedHost (real LAN ip is $lanAddress)',
-        );
-      }
+      // Compose the advertised address list for the QR / manual
+      // code. The override (when set via `--dart-define`) goes
+      // FIRST so an Android-emulator joiner reaching the host via
+      // `adb reverse tcp:N tcp:N` wins the joiner-side race
+      // immediately. The real LAN IPs follow so a physical-device
+      // joiner on the same Wi-Fi has a reachable target too — this
+      // is the multi-joiner scenario v2 PairingPayload was designed
+      // for.
+      final advertisedAddresses = _composeAdvertisedAddresses(lanAddresses);
+      _logger.info('Pairing payload advertising $advertisedAddresses');
 
       final payload = PairingPayload(
         tokenId: tokenResult.tokenId,
-        issuerLanAddress: advertisedHost,
+        issuerLanAddresses: advertisedAddresses,
         issuerLanPort: port,
         issuerPubKeyCompressed: compressPublicKey(keypair.publicKey),
       );
@@ -258,9 +259,8 @@ class _InviteDeviceDialogState extends State<InviteDeviceDialog> {
     };
   }
 
-  String? _readPrimaryLanIp(Ref ref) {
-    final ips = ref.read(localIpProvider).localIps;
-    return ips.isEmpty ? null : ips.first;
+  List<String> _readLanAddresses(Ref ref) {
+    return ref.read(localIpProvider).localIps;
   }
 
   Uint8List? _readGroupKey(Ref ref) {
@@ -446,3 +446,40 @@ class _SessionReady extends _SessionState {
 }
 
 DateTime _systemNow() => DateTime.now();
+
+/// Build the ordered list of LAN addresses to advertise in the QR /
+/// manual code. The debug `CLOUD_PAIRING_LAN_HOST` override goes
+/// first when set; the remaining slots are filled by addresses from
+/// [localLanIps] that look reachable on the LAN. Loopback (127.x.x.x)
+/// and IPv4 link-local (169.254.x.x) addresses are dropped from the
+/// real-LAN side because no remote joiner can reach them.
+/// Result is deduped (preserving order) and capped at
+/// [kMaxPairingAddresses] to stay within the codec's size budget.
+@visibleForTesting
+List<String> composeAdvertisedAddresses({
+  required Iterable<String> localLanIps,
+  String? debugHostOverride,
+}) {
+  final ordered = <String>[];
+  if (debugHostOverride != null && debugHostOverride.isNotEmpty) {
+    ordered.add(debugHostOverride);
+  }
+  for (final ip in localLanIps) {
+    if (_isLoopbackIPv4(ip) || _isLinkLocalIPv4(ip)) continue;
+    if (ordered.contains(ip)) continue;
+    ordered.add(ip);
+    if (ordered.length >= kMaxPairingAddresses) break;
+  }
+  return ordered;
+}
+
+List<String> _composeAdvertisedAddresses(List<String> localLanIps) {
+  return composeAdvertisedAddresses(
+    localLanIps: localLanIps,
+    debugHostOverride: _kDebugLanHostOverride.isEmpty ? null : _kDebugLanHostOverride,
+  );
+}
+
+bool _isLoopbackIPv4(String ip) => ip.startsWith('127.');
+
+bool _isLinkLocalIPv4(String ip) => ip.startsWith('169.254.');

@@ -7,6 +7,9 @@ pubsub-debug.log
 auth-debug.log
 *-debug.log
 
+# Persisted emulator state (auto-export/import for `npm run dev`)
+.emulator-data/
+
 # Local-only overrides
 *.local
 .runtimeconfig.json

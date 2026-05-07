@@ -103,16 +103,30 @@ is documented but not yet wired up.
 
 ## Logs and persistence
 
-By default the emulator keeps no state between restarts. To preserve
-Firestore data across restarts:
+`npm run dev` persists emulator state by default. The script passes
+`--import=../.emulator-data --export-on-exit=../.emulator-data`, so the
+Auth users + Firestore documents you create during a session are
+written to `firebase/.emulator-data/` when you Ctrl+C the emulator and
+loaded back on the next start. This keeps a paired device group alive
+across emulator restarts, so you don't have to re-pair every time.
 
-```bash
-firebase emulators:start \
-  --import=./.emulator-data \
-  --export-on-exit=./.emulator-data
-```
+`firebase/.emulator-data/` is ignored by `firebase/.gitignore`.
 
-`.emulator-data/` is ignored by `firebase/.gitignore`.
+Caveats:
+
+- **Graceful shutdown only.** `--export-on-exit` runs on SIGINT
+  (Ctrl+C). A hard kill (`kill -9`, closing the Terminal window before
+  the export finishes) will skip the snapshot.
+- **Wiping the slate.** When you *want* a clean cloud (e.g. to verify
+  the stale-session recovery banner, or to switch Firebase projects),
+  delete the snapshot:
+  ```bash
+  rm -rf firebase/.emulator-data
+  ```
+  The next `npm run dev` will start fresh and create the directory on
+  the next graceful exit.
+- **First run.** Before the directory exists, the CLI logs a one-time
+  warning that the import path is missing, then proceeds normally.
 
 Cloud Functions logs print to the terminal running `npm run dev` and are
 also surfaced under the *Logs* tab in the emulator UI. Structured logs

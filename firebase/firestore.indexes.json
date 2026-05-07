@@ -1,13 +1,4 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "devices",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "presence", "order": "ASCENDING" },
-        { "fieldPath": "lastSeenAt", "order": "ASCENDING" }
-      ]
-    }
-  ],
+  "indexes": [],
   "fieldOverrides": []
 }

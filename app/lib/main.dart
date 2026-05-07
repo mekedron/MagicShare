@@ -11,7 +11,6 @@ import 'package:magicshare_app/model/persistence/color_mode.dart';
 import 'package:magicshare_app/pages/home_page.dart';
 import 'package:magicshare_app/provider/cloud/cloud_message_listener_provider.dart';
 import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
-import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/util/native/cloud_platform.dart';
@@ -66,36 +65,10 @@ class MagicShareApp extends StatelessWidget {
       child: WindowWatcher(
         child: LifeCycleWatcher(
           onChangedState: (AppLifecycleState state) {
-            // Desktop and mobile read AppLifecycleState differently:
-            // - macOS / Windows / Linux: `inactive` and `hidden` fire
-            //   when another window steals focus or the user minimises.
-            //   The MagicShare process is still alive and reachable, so
-            //   it should stay online.
-            // - Android / iOS: only `paused` / `hidden` mean the OS
-            //   actually suspended the app — it can't respond to LAN
-            //   sends until FCM wakes it. Mark offline there so peers
-            //   fall back to the wake-then-send path.
-            //
-            // `inactive` is treated as foreground on both platforms.
-            // On the Android emulator running inside a macOS window
-            // (and on iOS during transient system events like a phone
-            // call banner) the Activity often sits at `inactive` while
-            // still being fully visible to the user. Treating it as
-            // background made the emulator look permanently offline
-            // from every other device, which the user reported.
-            // Treating it as background AND treating it as foreground
-            // (as we did before this fix) caused the device to flap
-            // online / offline as the host window's focus oscillated.
-            // The middle ground — `inactive` keeps presence online —
-            // matches the expectation that "if the app is on screen
-            // and the process is alive, peers should see it as
-            // online".
-            final isDesktop = checkPlatformIsDesktop();
             switch (state) {
               case AppLifecycleState.resumed:
               case AppLifecycleState.inactive:
                 ref.redux(localIpProvider).dispatch(InitLocalIpAction());
-                ref.notifier(presenceHeartbeatProvider).markForeground();
                 ref.notifier(linuxWakePollerProvider).start();
                 // Background FCM isolate may have persisted wake nonces
                 // while we were paused; drain them into the in-memory
@@ -105,17 +78,9 @@ class MagicShareApp extends StatelessWidget {
                 break;
               case AppLifecycleState.paused:
               case AppLifecycleState.hidden:
-                if (!isDesktop) {
-                  ref.notifier(presenceHeartbeatProvider).markBackground();
+                if (!checkPlatformIsDesktop()) {
                   ref.notifier(linuxWakePollerProvider).stop();
                 }
-                // Desktop: window minimised, hidden, or moved to
-                // another Space — the process is still alive and the
-                // LAN listener still works. Stay online so peers
-                // don't see us flap to offline every time the user
-                // switches windows. The heartbeat and the LAN
-                // re-announce loop continue; they only stop on
-                // `detached`.
                 break;
               case AppLifecycleState.detached:
                 // The main isolate is only exited when all child isolates are exited.

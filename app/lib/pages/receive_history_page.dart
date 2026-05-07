@@ -134,16 +134,19 @@ class ReceiveHistoryPage extends StatelessWidget {
                               return ReceivePageVm(
                                 status: SessionStatus.waiting,
                                 sender: Device(
-                                  signalingId: null,
-                                  ip: '0.0.0.0',
                                   version: '1.0.0',
-                                  port: 8080,
-                                  https: false,
-                                  fingerprint: 'fingerprint',
                                   alias: entry.senderAlias,
                                   deviceModel: 'deviceModel',
                                   deviceType: DeviceType.web,
                                   download: true,
+                                  endpoints: {
+                                    HttpEndpoint(
+                                      ip: '0.0.0.0',
+                                      port: 8080,
+                                      https: false,
+                                      certHash: 'fingerprint',
+                                    ),
+                                  },
                                   discoveryMethods: const {},
                                 ),
                                 showSenderInfo: false,

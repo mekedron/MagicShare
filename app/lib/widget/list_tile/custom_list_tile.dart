@@ -4,7 +4,7 @@ import 'package:magicshare_app/config/theme.dart';
 class CustomListTile extends StatelessWidget {
   final Widget? icon;
   final Widget title;
-  final Widget subTitle;
+  final Widget? subTitle;
   final Widget? trailing;
   final EdgeInsets padding;
   final VoidCallback? onTap;
@@ -12,7 +12,7 @@ class CustomListTile extends StatelessWidget {
   const CustomListTile({
     this.icon,
     required this.title,
-    required this.subTitle,
+    this.subTitle,
     this.trailing,
     this.padding = const EdgeInsets.all(15),
     this.onTap,
@@ -45,8 +45,10 @@ class CustomListTile extends StatelessWidget {
                     FittedBox(
                       child: title,
                     ),
-                    const SizedBox(height: 5),
-                    subTitle,
+                    if (subTitle != null) ...[
+                      const SizedBox(height: 5),
+                      subTitle!,
+                    ],
                   ],
                 ),
               ),

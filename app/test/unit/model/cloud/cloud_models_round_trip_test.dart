@@ -3,7 +3,6 @@ import 'package:magicshare_app/model/cloud/cloud_account.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/delivery_channel.dart';
 import 'package:magicshare_app/model/cloud/inbox_item.dart';
 import 'package:magicshare_app/model/cloud/inbox_item_type.dart';
@@ -20,7 +19,6 @@ import 'package:magicshare_app/model/cloud/results/register_device_result.dart';
 import 'package:magicshare_app/model/cloud/results/remove_device_result.dart';
 import 'package:magicshare_app/model/cloud/results/send_link_notification_result.dart';
 import 'package:magicshare_app/model/cloud/results/send_wake_result.dart';
-import 'package:magicshare_app/model/cloud/results/update_presence_result.dart';
 
 void main() {
   group('Enums encode to lowercase strings matching firebase/functions', () {
@@ -35,13 +33,6 @@ void main() {
       expect(
         CloudDevicePlatform.values.map((e) => e.name).toList(),
         const ['android', 'ios', 'macos', 'windows', 'linux'],
-      );
-    });
-
-    test('CloudDevicePresence values', () {
-      expect(
-        CloudDevicePresence.values.map((e) => e.name).toList(),
-        const ['online', 'offline'],
       );
     });
 
@@ -107,14 +98,11 @@ void main() {
         'icon': 'laptop',
         'fcmToken': 'fcm-abc',
         'platform': 'macos',
-        'lastSeenAtMs': 1714780800000,
-        'presence': 'online',
         'fingerprint': 'cert-hash-abc',
       };
       final decoded = CloudDevice.fromJson(fixture);
       expect(decoded.icon, CloudDeviceIcon.laptop);
       expect(decoded.platform, CloudDevicePlatform.macos);
-      expect(decoded.presence, CloudDevicePresence.online);
       expect(decoded.fingerprint, 'cert-hash-abc');
       expect(decoded.toJson(), fixture);
     });
@@ -126,8 +114,6 @@ void main() {
         'icon': 'server',
         'fcmToken': null,
         'platform': 'linux',
-        'lastSeenAtMs': 1714780800000,
-        'presence': 'offline',
         'fingerprint': null,
       };
       final decoded = CloudDevice.fromJson(fixture);
@@ -135,7 +121,6 @@ void main() {
       expect(decoded.fingerprint, isNull);
       expect(decoded.icon, CloudDeviceIcon.server);
       expect(decoded.platform, CloudDevicePlatform.linux);
-      expect(decoded.presence, CloudDevicePresence.offline);
     });
 
     test('decodes a doc that pre-dates the fingerprint field as null', () {
@@ -145,8 +130,6 @@ void main() {
         'icon': 'laptop',
         'fcmToken': null,
         'platform': 'macos',
-        'lastSeenAtMs': 0,
-        'presence': 'offline',
         // Note: no `fingerprint` key — older device that hasn't re-registered.
       });
       expect(decoded.fingerprint, isNull);
@@ -159,8 +142,6 @@ void main() {
         'icon': 'spaceship',
         'fcmToken': null,
         'platform': 'ios',
-        'lastSeenAtMs': 0,
-        'presence': 'offline',
       });
       expect(decoded.icon, CloudDeviceIcon.other);
     });
@@ -178,14 +159,12 @@ void main() {
             'displayName': 'Macbook Pro',
             'icon': 'laptop',
             'platform': 'macos',
-            'presence': 'online',
           },
           {
             'deviceId': 'device-2',
             'displayName': 'Pixel 8',
             'icon': 'phone',
             'platform': 'android',
-            'presence': 'offline',
           },
         ],
       };
@@ -213,11 +192,6 @@ void main() {
       expect(RegisterDeviceResult.fromJson(fixture).toJson(), fixture);
     });
 
-    test('UpdatePresenceResult', () {
-      const fixture = {'updated': false};
-      expect(UpdatePresenceResult.fromJson(fixture).toJson(), fixture);
-    });
-
     test('RemoveDeviceResult', () {
       const fixture = {'accountDeleted': true};
       expect(RemoveDeviceResult.fromJson(fixture).toJson(), fixture);
@@ -239,7 +213,6 @@ void main() {
             'displayName': 'Mac',
             'icon': 'laptop',
             'platform': 'macos',
-            'presence': 'online',
           },
         ],
       };
@@ -256,7 +229,6 @@ void main() {
             'displayName': 'Pixel',
             'icon': 'phone',
             'platform': 'android',
-            'presence': 'online',
           },
         ],
         'customToken': 'eyJhbGciOiJSUzI1NiJ9.fixturePayload.fixtureSig',

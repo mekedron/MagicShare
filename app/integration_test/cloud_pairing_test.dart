@@ -91,7 +91,6 @@ void main() {
     final movedDeviceSnap = await firestore.doc('accounts/${issuerCtx.uid}/devices/$joinerDeviceId').get();
     expect(movedDeviceSnap.exists, isTrue);
     expect(movedDeviceSnap.data()?['displayName'], 'Joiner phone');
-    expect(movedDeviceSnap.data()?['presence'], 'offline');
 
     // 5. The cloud function's oldAccountDeleted flag is the
     //    authoritative signal — the joiner can't directly read

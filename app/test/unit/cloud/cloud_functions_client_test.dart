@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:magicshare_app/cloud/cloud_functions_client.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cloud/delivery_channel.dart';
 import 'package:magicshare_app/model/cloud/inbox_item_type.dart';
@@ -100,18 +99,6 @@ void main() {
       expect((inv.calls.single.data as Map).containsKey('fcmToken'), isTrue);
       expect((inv.calls.single.data as Map)['fingerprint'], isNull);
       expect((inv.calls.single.data as Map).containsKey('fingerprint'), isTrue);
-    });
-
-    test('updateDevicePresence encodes presence as enum.name', () async {
-      final inv = _RecordingInvoker()..respond = (_, __) => {'updated': true};
-      final c = _client(inv);
-
-      await c.updateDevicePresence(
-        deviceId: 'd-1',
-        presence: CloudDevicePresence.online,
-      );
-
-      expect(inv.calls.single.data, {'deviceId': 'd-1', 'presence': 'online'});
     });
 
     test('renameDevice returns void and forwards args', () async {

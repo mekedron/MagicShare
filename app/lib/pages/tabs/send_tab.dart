@@ -360,7 +360,14 @@ class _ScanButton extends StatelessWidget {
           reverse: true,
           child: CustomIconButton(
             onPressed: () async {
-              context.redux(nearbyDevicesProvider).dispatch(ClearFoundDevicesAction());
+              // Don't clear `state.devices` before scanning: clearing
+              // wipes LAN-side entries but leaves signaling entries
+              // intact, which produces a WebRTC-only render until the
+              // multicast roundtrip completes. If the peer is in
+              // background or the multicast doesn't make it back, the
+              // user is stuck on WebRTC-only and transfers don't
+              // work. Just trigger the scan; new announces overwrite
+              // existing state.devices entries by IP.
               await context.global.dispatchAsync(StartSmartScan(forceLegacy: true));
             },
             child: Icon(Icons.sync, color: iconColor),
@@ -372,7 +379,8 @@ class _ScanButton extends StatelessWidget {
     return _CircularPopupButton(
       tooltip: t.sendTab.scan,
       onSelected: (ip) async {
-        context.redux(nearbyDevicesProvider).dispatch(ClearFoundDevicesAction());
+        // See the comment in the smart-scan branch — same reasoning,
+        // don't clear before rescanning.
         await context.global.dispatchAsync(StartLegacySubnetScan(subnets: [ip]));
       },
       itemBuilder: (_) {
@@ -557,7 +565,10 @@ class _MultiSendDeviceListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final device = merged.displayDevice;
     final ref = context.ref;
-    final session = merged.isLanReachable ? ref.watch(sendProvider).values.firstWhereOrNull((s) => s.target.ip == device.ip) : null;
+    final deviceIp = device.firstHttpEndpoint?.ip;
+    final session = merged.isLanReachable && deviceIp != null
+        ? ref.watch(sendProvider).values.firstWhereOrNull((s) => s.target.firstHttpEndpoint?.ip == deviceIp)
+        : null;
     final double? progress;
     if (session != null) {
       final files = session.files.values.where((f) => f.token != null);
@@ -578,7 +589,7 @@ class _MultiSendDeviceListTile extends StatelessWidget {
       isFavorite: isFavorite,
       nameOverride: nameOverride,
       networkPresence: networkPresence,
-      onFavoriteTap: merged.isLanReachable && device.ip != null ? () async => await vm.onToggleFavorite(context, device) : null,
+      onFavoriteTap: merged.isLanReachable && device.hasHttpEndpoint ? () async => await vm.onToggleFavorite(context, device) : null,
       onTap: merged.isOfflineCloud
           ? _onTapHandlerFor(context: context, merged: merged, wakeStatus: wakeStatus, vm: vm)
           : () async => await vm.onTapDeviceMultiSend(context, device),
@@ -586,11 +597,14 @@ class _MultiSendDeviceListTile extends StatelessWidget {
   }
 }
 
-NetworkPresenceInfo? _presenceInfoFor({
+NetworkPresenceInfo _presenceInfoFor({
   required MergedDevice merged,
   required WakeStatus? wakeStatus,
 }) {
-  if (merged.cloud == null) return null;
+  // Online/offline is independent of Firebase: a device is online when
+  // it's reachable on LAN (multicast + HTTP /info) or via WebRTC
+  // signaling. The cloud account only contributes the wake-indicator —
+  // we can fire `sendWake` for cloud-known peers that have gone dark.
   final String statusLabel;
   final String? wakeLabel;
   switch (wakeStatus) {

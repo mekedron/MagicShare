@@ -101,7 +101,7 @@ Future<void> _pump(
                   cloudFunctionsClient: client,
                   lanServerFactory: factory.call,
                   currentDeviceIdOverride: 'fake-current-device',
-                  lanAddressOverride: '192.168.1.42',
+                  lanAddressesOverride: const ['192.168.1.42'],
                   groupKeyOverride: Uint8List(groupKeyLengthBytes),
                   now: now,
                 ),
@@ -128,6 +128,59 @@ Future<void> _pump(
 }
 
 void main() {
+  group('composeAdvertisedAddresses', () {
+    test('puts the debug override first, real LAN IPs after', () {
+      final result = composeAdvertisedAddresses(
+        localLanIps: const ['192.168.1.42', '10.0.0.5'],
+        debugHostOverride: '127.0.0.1',
+      );
+      expect(result, ['127.0.0.1', '192.168.1.42', '10.0.0.5']);
+    });
+
+    test('skips loopback and link-local from real LAN IPs', () {
+      final result = composeAdvertisedAddresses(
+        localLanIps: const [
+          '127.0.0.1',
+          '169.254.5.6',
+          '192.168.1.42',
+        ],
+        debugHostOverride: null,
+      );
+      expect(result, ['192.168.1.42']);
+    });
+
+    test('dedupes the override against the real-LAN list', () {
+      final result = composeAdvertisedAddresses(
+        localLanIps: const ['192.168.1.42'],
+        debugHostOverride: '192.168.1.42',
+      );
+      expect(result, ['192.168.1.42']);
+    });
+
+    test('caps the result at the codec\'s max-address budget', () {
+      final result = composeAdvertisedAddresses(
+        localLanIps: const [
+          '10.0.0.1',
+          '10.0.0.2',
+          '10.0.0.3',
+          '10.0.0.4',
+          '10.0.0.5',
+        ],
+        debugHostOverride: '127.0.0.1',
+      );
+      expect(result.length, 4);
+      expect(result.first, '127.0.0.1');
+    });
+
+    test('returns an empty list when no usable address exists', () {
+      final result = composeAdvertisedAddresses(
+        localLanIps: const ['127.0.0.1', '169.254.1.2'],
+        debugHostOverride: null,
+      );
+      expect(result, isEmpty);
+    });
+  });
+
   testWidgets('renders QR (PrettyQrView), manual code, countdown, and copy button', (tester) async {
     final expiresAt = DateTime.utc(2026, 1, 1, 0, 5);
     final now = DateTime.utc(2026, 1, 1, 0, 0);

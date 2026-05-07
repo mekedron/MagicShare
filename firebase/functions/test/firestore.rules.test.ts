@@ -32,8 +32,6 @@ const deviceDoc = () => ({
   icon: 'laptop',
   fcmToken: null,
   platform: 'macos',
-  lastSeenAt: Timestamp.now(),
-  presence: 'offline',
 });
 
 const inboxItemDoc = () => ({

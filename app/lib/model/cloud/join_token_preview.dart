@@ -1,7 +1,6 @@
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 
 part 'join_token_preview.mapper.dart';
 
@@ -13,14 +12,12 @@ class JoinTokenPreviewDevice with JoinTokenPreviewDeviceMappable {
   final String displayName;
   final CloudDeviceIcon icon;
   final CloudDevicePlatform platform;
-  final CloudDevicePresence presence;
 
   const JoinTokenPreviewDevice({
     required this.deviceId,
     required this.displayName,
     required this.icon,
     required this.platform,
-    required this.presence,
   });
 
   static const fromJson = JoinTokenPreviewDeviceMapper.fromJson;

@@ -3,10 +3,10 @@ import { logger } from 'firebase-functions';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 
 import { getDb } from './admin';
-import { ACCOUNTS_COLLECTION, DEVICES_SUBCOLLECTION, JOIN_TOKENS_COLLECTION } from './models';
+import { ACCOUNTS_COLLECTION, JOIN_TOKENS_COLLECTION } from './models';
 
 /**
- * Scheduled maintenance jobs (Epic 6). Three sweeps keep the cloud
+ * Scheduled maintenance jobs (Epic 6). Two sweeps keep the cloud
  * footprint bounded:
  *
  *   - cleanupExpiredJoinTokens (daily): delete pairing tokens past
@@ -19,27 +19,16 @@ import { ACCOUNTS_COLLECTION, DEVICES_SUBCOLLECTION, JOIN_TOKENS_COLLECTION } fr
  *     "Inactive groups (no device check-in for 90 days) are
  *     garbage-collected by a scheduled job."
  *
- *   - markStalePresence (every ~5 min): flip devices that haven't
- *     heartbeated in 10 minutes from `online` to `offline`. The
- *     client only updates `presence` while foregrounded; without
- *     this sweep a backgrounded app would stay green in the Send tab
- *     until its FCM token rotation, which is hours.
- *
  * Each `*Logic` function is pure, takes `now: Date` so tests pass a
  * fake clock, and returns a small summary so the scheduler logs are
  * useful for ops dashboards (Epic 14).
  */
 
-const STALE_PRESENCE_MS = 10 * 60_000;
 const INACTIVE_ACCOUNT_DAYS = 90;
 const INACTIVE_ACCOUNT_MS = INACTIVE_ACCOUNT_DAYS * 24 * 60 * 60 * 1000;
 
 export interface CleanupResult {
   deleted: number;
-}
-
-export interface MarkStalePresenceResult {
-  marked: number;
 }
 
 export async function cleanupExpiredJoinTokensLogic(
@@ -78,27 +67,6 @@ export async function cleanupInactiveAccountsLogic(
   return { deleted: snap.size };
 }
 
-export async function markStalePresenceLogic(
-  db: Firestore,
-  now: Date,
-): Promise<MarkStalePresenceResult> {
-  const cutoff = Timestamp.fromMillis(now.getTime() - STALE_PRESENCE_MS);
-  const snap = await db
-    .collectionGroup(DEVICES_SUBCOLLECTION)
-    .where('presence', '==', 'online')
-    .where('lastSeenAt', '<=', cutoff)
-    .get();
-  if (snap.empty) {
-    return { marked: 0 };
-  }
-  const batch = db.batch();
-  for (const doc of snap.docs) {
-    batch.update(doc.ref, { presence: 'offline' });
-  }
-  await batch.commit();
-  return { marked: snap.size };
-}
-
 export const cleanupExpiredJoinTokens = onSchedule(
   { schedule: 'every day 03:00', timeZone: 'UTC' },
   async () => {
@@ -123,11 +91,3 @@ export const cleanupInactiveAccounts = onSchedule(
   },
 );
 
-export const markStalePresence = onSchedule({ schedule: 'every 5 minutes' }, async () => {
-  const start = Date.now();
-  const result = await markStalePresenceLogic(getDb(), new Date());
-  logger.info('scheduled:markStalePresence', {
-    marked: result.marked,
-    latencyMs: Date.now() - start,
-  });
-});

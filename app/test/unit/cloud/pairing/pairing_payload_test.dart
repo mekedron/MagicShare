@@ -13,33 +13,99 @@ void main() {
     for (var i = 1; i <= 32; i++) i,
   ]);
 
-  PairingPayload sample({String ip = '192.168.1.42', int port = 53317}) {
+  PairingPayload sample({
+    List<String> ips = const ['192.168.1.42'],
+    int port = 53317,
+  }) {
     return PairingPayload(
       tokenId: tokenIdFixture,
-      issuerLanAddress: ip,
+      issuerLanAddresses: ips,
       issuerLanPort: port,
       issuerPubKeyCompressed: pubFixture,
     );
   }
 
   group('encodePairingPayload / decodePairingPayload', () {
-    test('round-trips a representative payload', () {
+    test('round-trips a single-address payload', () {
       final p = sample();
       final bytes = encodePairingPayload(p);
       final back = decodePairingPayload(bytes);
       expect(back, equals(p));
+      expect(back.version, pairingPayloadVersionV2);
     });
 
-    test('encodes the address as four big-endian octets', () {
-      final p = sample(ip: '10.0.0.1', port: 9090);
+    test('round-trips a multi-address payload', () {
+      final p = sample(ips: const ['127.0.0.1', '192.168.101.129']);
       final bytes = encodePairingPayload(p);
-      // Skip version(1) + tokenLen(1) + token(32) + addrFamily(1)
-      // = first 35 bytes; next 4 are the IPv4 octets.
-      final ipStart = 1 + 1 + tokenIdFixture.length + 1;
-      expect(bytes.sublist(ipStart, ipStart + 4), [10, 0, 0, 1]);
+      final back = decodePairingPayload(bytes);
+      expect(back, equals(p));
+      expect(back.issuerLanAddresses, ['127.0.0.1', '192.168.101.129']);
+    });
+
+    test('round-trips the maximum supported address count (4)', () {
+      final p = sample(
+        ips: const [
+          '127.0.0.1',
+          '10.0.0.1',
+          '192.168.1.10',
+          '172.16.0.5',
+        ],
+      );
+      final bytes = encodePairingPayload(p);
+      final back = decodePairingPayload(bytes);
+      expect(back, equals(p));
+      expect(back.issuerLanAddresses.length, 4);
+    });
+
+    test('preserves address order across the round-trip', () {
+      // Order matters: the issuer puts the override first so the
+      // joiner's race terminates fast on `adb reverse` paths.
+      final p = sample(ips: const ['127.0.0.1', '192.168.1.42']);
+      final back = decodePairingPayload(encodePairingPayload(p));
+      expect(back.issuerLanAddresses.first, '127.0.0.1');
+    });
+
+    test('encodes the addresses as four big-endian octets each', () {
+      final p = sample(ips: const ['10.0.0.1', '192.168.5.6'], port: 9090);
+      final bytes = encodePairingPayload(p);
+      // Skip version(1) + tokenLen(1) + token(32) + addrCount(1) +
+      // addrFamily(1) = 36 bytes; next 4 are the first IPv4's octets.
+      final firstIpStart = 1 + 1 + tokenIdFixture.length + 1 + 1;
+      expect(bytes.sublist(firstIpStart, firstIpStart + 4), [10, 0, 0, 1]);
+      // After the first ipv4 + the second's family byte, the second
+      // address octets begin.
+      final secondIpStart = firstIpStart + 4 + 1;
+      expect(bytes.sublist(secondIpStart, secondIpStart + 4), [192, 168, 5, 6]);
       // Then the 2-byte port.
-      expect(bytes[ipStart + 4], (9090 >> 8) & 0xff);
-      expect(bytes[ipStart + 5], 9090 & 0xff);
+      final portStart = secondIpStart + 4;
+      expect(bytes[portStart], (9090 >> 8) & 0xff);
+      expect(bytes[portStart + 1], 9090 & 0xff);
+    });
+
+    test('decodes a v1 (single-address) blob for back-compat', () {
+      // Hand-roll the legacy v1 layout so we keep coverage even
+      // though the encoder no longer emits v1.
+      final tokenBytes = Uint8List.fromList(tokenIdFixture.codeUnits);
+      final builder = BytesBuilder()
+        ..addByte(pairingPayloadVersionV1)
+        ..addByte(tokenBytes.length)
+        ..add(tokenBytes)
+        ..addByte(4) // addrFamily IPv4
+        ..add(<int>[10, 0, 0, 1])
+        ..addByte((9090 >> 8) & 0xff)
+        ..addByte(9090 & 0xff)
+        ..addByte(pubFixture.length)
+        ..add(pubFixture);
+      final core = builder.toBytes();
+      final crc = _crc8(core);
+      final blob = Uint8List(core.length + 1);
+      blob.setRange(0, core.length, core);
+      blob[core.length] = crc;
+      final back = decodePairingPayload(blob);
+      expect(back.version, pairingPayloadVersionV1);
+      expect(back.issuerLanAddresses, ['10.0.0.1']);
+      expect(back.issuerLanPort, 9090);
+      expect(back.tokenId, tokenIdFixture);
     });
 
     test('rejects bad checksum', () {
@@ -90,7 +156,41 @@ void main() {
         () => encodePairingPayload(
           PairingPayload(
             tokenId: tokenIdFixture,
-            issuerLanAddress: '999.0.0.1',
+            issuerLanAddresses: const ['999.0.0.1'],
+            issuerLanPort: 53317,
+            issuerPubKeyCompressed: pubFixture,
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('encode rejects an empty address list', () {
+      expect(
+        () => encodePairingPayload(
+          PairingPayload(
+            tokenId: tokenIdFixture,
+            issuerLanAddresses: const [],
+            issuerLanPort: 53317,
+            issuerPubKeyCompressed: pubFixture,
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('encode rejects more than the max supported addresses', () {
+      expect(
+        () => encodePairingPayload(
+          PairingPayload(
+            tokenId: tokenIdFixture,
+            issuerLanAddresses: const [
+              '10.0.0.1',
+              '10.0.0.2',
+              '10.0.0.3',
+              '10.0.0.4',
+              '10.0.0.5',
+            ],
             issuerLanPort: 53317,
             issuerPubKeyCompressed: pubFixture,
           ),
@@ -104,7 +204,7 @@ void main() {
         () => encodePairingPayload(
           PairingPayload(
             tokenId: tokenIdFixture,
-            issuerLanAddress: '10.0.0.1',
+            issuerLanAddresses: const ['10.0.0.1'],
             issuerLanPort: 0,
             issuerPubKeyCompressed: pubFixture,
           ),
@@ -115,7 +215,7 @@ void main() {
         () => encodePairingPayload(
           PairingPayload(
             tokenId: tokenIdFixture,
-            issuerLanAddress: '10.0.0.1',
+            issuerLanAddresses: const ['10.0.0.1'],
             issuerLanPort: 70000,
             issuerPubKeyCompressed: pubFixture,
           ),
@@ -132,6 +232,12 @@ void main() {
       expect(uri, startsWith('magicshare-pair:'));
       final back = tryDecodePairingUri(uri);
       expect(back, equals(p));
+    });
+
+    test('round-trips a multi-address payload through the URI form', () {
+      final p = sample(ips: const ['127.0.0.1', '192.168.1.42']);
+      final uri = encodePairingUri(p);
+      expect(tryDecodePairingUri(uri), equals(p));
     });
 
     test('decodes raw base64url without the scheme prefix', () {

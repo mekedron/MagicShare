@@ -8,7 +8,6 @@ import 'package:magicshare_app/cloud/cloud_functions_client.dart';
 import 'package:magicshare_app/cloud/wake/wake_payload.dart';
 import 'package:magicshare_app/cloud/wake/wake_payload_codec.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cross_file.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
@@ -56,14 +55,6 @@ class WakeStatusError extends WakeStatus {
   final bool timedOut;
 }
 
-/// Window we let the LAN multicast announce arrive after the cloud
-/// presence has flipped to online before declaring the receiver
-/// "awake but not LAN-reachable". Empirically the LAN announce arrives
-/// within 1–2 s of the cloud heartbeat that flipped presence; 10 s is
-/// generous enough to absorb timing skew without making the user wait
-/// the full kWakeWaitTimeout.
-const Duration kCloudOnlineLanGrace = Duration(seconds: 10);
-
 class WakeOrchestratorDeps {
   WakeOrchestratorDeps({
     required this.accountStateReader,
@@ -72,14 +63,10 @@ class WakeOrchestratorDeps {
     required this.client,
     required this.nearbyDevicesStream,
     required this.startSession,
-    Stream<AccountState> Function()? accountStateChanges,
     DateTime Function()? clock,
     Duration timeoutDuration = kWakeWaitTimeout,
-    Duration cloudOnlineGrace = kCloudOnlineLanGrace,
-  }) : _accountStateChanges = accountStateChanges ?? (() => const Stream<AccountState>.empty()),
-       _clock = clock ?? DateTime.now,
-       _timeout = timeoutDuration,
-       _cloudOnlineGrace = cloudOnlineGrace;
+  }) : _clock = clock ?? DateTime.now,
+       _timeout = timeoutDuration;
 
   final AccountState Function() accountStateReader;
   final Uint8List? Function() groupKeyReader;
@@ -94,15 +81,11 @@ class WakeOrchestratorDeps {
   })
   startSession;
 
-  final Stream<AccountState> Function() _accountStateChanges;
   final DateTime Function() _clock;
   final Duration _timeout;
-  final Duration _cloudOnlineGrace;
 
-  Stream<AccountState> accountStateChanges() => _accountStateChanges();
   DateTime now() => _clock();
   Duration get timeout => _timeout;
-  Duration get cloudOnlineGrace => _cloudOnlineGrace;
 }
 
 class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
@@ -207,8 +190,12 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
     });
     pending.subscription = _deps.nearbyDevicesStream().listen(
       (devices) {
+        // Wake requires HTTP reachability — the receiver must be
+        // serving on a LAN endpoint to accept the transfer. A
+        // signaling-only match isn't enough. Cert-hash compare only:
+        // signaling tokens live in a different value space.
         final match = devices.firstWhereOrNull(
-          (d) => d.fingerprint == targetFingerprint && d.ip != null,
+          (d) => d.hasHttpEndpoint && d.certHashes.contains(targetFingerprint),
         );
         if (match != null) {
           _onLanMatch(
@@ -229,61 +216,6 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
         unawaited(_cancel(target.deviceId));
       },
     );
-    // Cloud-presence fallback: when the receiver's heartbeat flips to
-    // online but the LAN multicast announce never arrives (e.g.
-    // Android emulator on the same host as the sender — qemu's
-    // user-mode NAT doesn't forward multicast), we'd otherwise sit on
-    // the spinner for the full 60 s LAN-match timeout. Watch the
-    // account-state stream; the moment we see this target as cloud-
-    // online, start a short grace timer for the LAN announce to catch
-    // up. If the grace expires without LAN, fail fast with a clearer
-    // diagnostic so the user can act.
-    pending.accountSubscription = _deps.accountStateChanges().listen(
-      (accountState) {
-        if (accountState is! AccountReady) return;
-        final live = accountState.devices.firstWhereOrNull(
-          (d) => d.deviceId == target.deviceId,
-        );
-        if (live == null) return;
-        if (live.presence != CloudDevicePresence.online) return;
-        _onCloudOnline(target.deviceId);
-      },
-      onError: (Object error, StackTrace stack) => _logger.warning('Account-state stream errored during wake', error, stack),
-    );
-  }
-
-  /// First time we observe target's cloud presence flipping to online
-  /// during a pending wake, start a [WakeOrchestratorDeps.cloudOnlineGrace]
-  /// timer. If LAN multicast doesn't catch up before it expires, fail
-  /// fast with a LAN-unreachable message rather than running out the
-  /// full LAN-match timeout.
-  void _onCloudOnline(String targetDeviceId) {
-    final pending = _pending[targetDeviceId];
-    if (pending == null) return;
-    if (pending.cloudGraceTimer != null) return;
-    _logger.info(
-      'Wake target $targetDeviceId is cloud-online; '
-      'allowing ${_deps.cloudOnlineGrace.inSeconds}s for LAN to catch up',
-    );
-    pending.cloudGraceTimer = Timer(_deps.cloudOnlineGrace, () {
-      final stillPending = _pending.remove(targetDeviceId);
-      if (stillPending == null) return; // LAN matched during grace.
-      stillPending.timeoutTimer.cancel();
-      unawaited(stillPending.subscription.cancel());
-      unawaited(stillPending.accountSubscription.cancel());
-      _setStatus(
-        targetDeviceId,
-        const WakeStatusError(
-          message:
-              'Receiver woke up but isn\'t visible on the local '
-              'network. Make sure both devices are on the same Wi-Fi. '
-              'On an Android emulator on the same machine as this app, '
-              "the multicast announce doesn't escape the emulator — use "
-              'a real device on the same Wi-Fi instead.',
-          timedOut: false,
-        ),
-      );
-    });
   }
 
   /// Cancels an in-flight wake for [targetDeviceId]. Idempotent. Used
@@ -312,9 +244,7 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
   }) {
     final pending = _pending.remove(targetDeviceId);
     pending?.timeoutTimer.cancel();
-    pending?.cloudGraceTimer?.cancel();
     unawaited(pending?.subscription.cancel());
-    unawaited(pending?.accountSubscription.cancel());
     _clearStatus(targetDeviceId);
     unawaited(
       _deps.startSession(
@@ -328,9 +258,7 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
 
   void _onTimeout(String targetDeviceId) {
     final pending = _pending.remove(targetDeviceId);
-    pending?.cloudGraceTimer?.cancel();
     unawaited(pending?.subscription.cancel());
-    unawaited(pending?.accountSubscription.cancel());
     _setStatus(
       targetDeviceId,
       const WakeStatusError(
@@ -344,9 +272,7 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
     final pending = _pending.remove(targetDeviceId);
     if (pending == null) return;
     pending.timeoutTimer.cancel();
-    pending.cloudGraceTimer?.cancel();
     await pending.subscription.cancel();
-    await pending.accountSubscription.cancel();
   }
 
   void _setStatus(String targetDeviceId, WakeStatus status) {
@@ -363,9 +289,7 @@ class WakeOrchestrator extends Notifier<Map<String, WakeStatus>> {
   Future<void> dispose() async {
     for (final pending in _pending.values) {
       pending.timeoutTimer.cancel();
-      pending.cloudGraceTimer?.cancel();
       await pending.subscription.cancel();
-      await pending.accountSubscription.cancel();
     }
     _pending.clear();
     super.dispose();
@@ -377,8 +301,6 @@ class _PendingWake {
   final String targetDeviceId;
   late final Timer timeoutTimer;
   late final StreamSubscription<Iterable<Device>> subscription;
-  late final StreamSubscription<AccountState> accountSubscription;
-  Timer? cloudGraceTimer;
 }
 
 final wakeOrchestratorProvider = NotifierProvider<WakeOrchestrator, Map<String, WakeStatus>>((ref) {
@@ -392,7 +314,6 @@ final wakeOrchestratorProvider = NotifierProvider<WakeOrchestrator, Map<String, 
       sourceFingerprintReader: () => ref.read(securityProvider).certificateHash,
       client: () => ref.read(cloudFunctionsClientProvider),
       nearbyDevicesStream: () => ref.stream(nearbyDevicesProvider).map((event) => event.next.allDevices.values),
-      accountStateChanges: () => ref.stream(accountRepositoryProvider).map((event) => event.next),
       startSession:
           ({
             required Device target,

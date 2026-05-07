@@ -23,12 +23,12 @@ import 'package:magicshare_app/provider/animation_provider.dart';
 import 'package:magicshare_app/provider/app_arguments_provider.dart';
 import 'package:magicshare_app/provider/cloud/account_repository.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
+import 'package:magicshare_app/provider/cloud/cloud_alias_sync_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_message_listener_provider.dart';
 import 'package:magicshare_app/provider/cloud/fcm_provider.dart';
 import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
 import 'package:magicshare_app/provider/cloud/local_notifications_provider.dart';
-import 'package:magicshare_app/provider/cloud/presence_heartbeat_service.dart';
 import 'package:magicshare_app/provider/device_info_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
 import 'package:magicshare_app/provider/network/server/server_provider.dart';
@@ -211,18 +211,18 @@ Future<RefenaContainer> preInit(List<String> args) async {
       );
 
   // Seed-instantiate the cloud providers. Refena instantiates lazily, so
-  // without these reads the chain (auth → bootstrap → account repository
-  // → presence heartbeat) never starts and the device is never registered
-  // in Firestore. Each notifier short-circuits internally when cloud sync
-  // is disabled or the platform is unsupported, so the seed is safe even
-  // on Linux or with the master toggle off.
+  // without these reads the chain (auth → bootstrap → account repository)
+  // never starts and the device is never registered in Firestore. Each
+  // notifier short-circuits internally when cloud sync is disabled or the
+  // platform is unsupported, so the seed is safe even on Linux or with the
+  // master toggle off.
   container.read(cloudAuthProvider);
   container.read(fcmProvider);
   container.read(linuxWakePollerProvider);
   container.read(accountRepositoryProvider);
   container.read(cloudBootstrapProvider);
-  container.read(presenceHeartbeatProvider);
   container.read(cloudMessageListenerProvider);
+  container.read(cloudAliasSyncProvider);
 
   return container;
 }

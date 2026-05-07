@@ -6,7 +6,6 @@ import 'package:magicshare_app/model/cloud/cloud_account.dart';
 import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 import 'package:magicshare_app/provider/cloud/account_reset_service.dart';
 import 'package:magicshare_app/provider/cloud/auth_provider.dart';
 import 'package:magicshare_app/provider/cloud/device_identity_service.dart';
@@ -28,7 +27,7 @@ class AccountIdle extends AccountState {
 }
 
 /// Cloud sync is on but Firebase Firestore isn't supported on this
-/// platform (currently Linux). Bootstrap and presence will also bail out;
+/// platform (currently Linux). Bootstrap also bails out;
 /// see [accountRepositoryProvider] for the gating decision.
 class AccountUnsupported extends AccountState {
   const AccountUnsupported();
@@ -354,10 +353,6 @@ CloudDevice _decodeDevice(String deviceId, Map<String, dynamic>? data) {
     fcmToken: raw['fcmToken'] as String?,
     platform: CloudDevicePlatformMapper.fromValue(
       raw['platform'] as String? ?? CloudDevicePlatform.linux.name,
-    ),
-    lastSeenAtMs: _timestampMs(raw['lastSeenAt']) ?? 0,
-    presence: CloudDevicePresenceMapper.fromValue(
-      raw['presence'] as String? ?? CloudDevicePresence.offline.name,
     ),
     fingerprint: raw['fingerprint'] as String?,
   );

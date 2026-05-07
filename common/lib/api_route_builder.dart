@@ -24,12 +24,21 @@ enum ApiRoute {
   /// The server url for v2
   final String v2;
 
-  /// The client url
+  /// The client url. Reads the device's first [HttpEndpoint]; throws
+  /// if the device has no HTTP endpoint (i.e. is signaling-only or
+  /// purely cloud-known).
   String target(Device target, {Map<String, String>? query}) {
+    final endpoint = target.firstHttpEndpoint;
+    if (endpoint == null) {
+      throw StateError(
+        'Cannot build HTTP route for device "${target.alias}" '
+        '— it has no HttpEndpoint',
+      );
+    }
     return Uri(
-      scheme: target.https ? 'https' : 'http',
-      host: target.ip,
-      port: target.port,
+      scheme: endpoint.https ? 'https' : 'http',
+      host: endpoint.ip,
+      port: endpoint.port,
       path: target.version == '1.0' ? v1 : v2,
       queryParameters: query,
     ).toString();

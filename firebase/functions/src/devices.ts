@@ -11,23 +11,15 @@ import {
   parseRemoveDeviceInput,
   parseRenameDeviceInput,
   parseSetDeviceIconInput,
-  parseUpdatePresenceInput,
   type RegisterDeviceInput,
   type RemoveDeviceInput,
   type RenameDeviceInput,
   type SetDeviceIconInput,
-  type UpdatePresenceInput,
 } from './validation';
 
 export interface RegisterDeviceResult {
   created: boolean;
 }
-
-export interface UpdatePresenceResult {
-  updated: boolean;
-}
-
-const PRESENCE_RATE_LIMIT_MS = 60_000;
 
 /**
  * Register a device under the caller's account, or refresh transient
@@ -39,11 +31,10 @@ const PRESENCE_RATE_LIMIT_MS = 60_000;
  *   client's `defaultDisplayName` (LAN alias) and `defaultIcon`
  *   become the initial values.
  * - On *update* (doc already exists): only transient fields refresh
- *   (`fcmToken`, `platform`, `lastSeenAt`, `presence`). User-edited
- *   fields — `displayName` and `icon` — are preserved. Otherwise
- *   every bootstrap on app relaunch would overwrite a previous
- *   `renameDevice` or `setDeviceIcon` call. Subsequent renames go
- *   through the dedicated callables.
+ *   (`fcmToken`, `platform`). User-edited fields — `displayName` and
+ *   `icon` — are preserved. Otherwise every bootstrap on app relaunch
+ *   would overwrite a previous `renameDevice` or `setDeviceIcon` call.
+ *   Subsequent renames go through the dedicated callables.
  *
  * Pre-condition: `accounts/{uid}` must exist (call `createAccount` first).
  */
@@ -72,8 +63,6 @@ export async function registerDeviceLogic(
         icon: input.icon,
         fcmToken: input.fcmToken,
         platform: input.platform,
-        lastSeenAt: now,
-        presence: 'online',
         fingerprint: input.fingerprint ?? null,
       };
       tx.set(deviceRef, deviceDoc);
@@ -82,8 +71,6 @@ export async function registerDeviceLogic(
       const refresh: Partial<DeviceDoc> = {
         fcmToken: input.fcmToken,
         platform: input.platform,
-        lastSeenAt: now,
-        presence: 'online',
       };
       // Only refresh fingerprint when the caller actually supplied it.
       // An older client that omits the field must not clobber whatever
@@ -111,44 +98,6 @@ export const registerDevice = onCall<unknown, Promise<RegisterDeviceResult>>(
     const uid = requireAuth(request);
     const input = parseRegisterDeviceInput(request.data);
     return registerDeviceLogic(getDb(), uid, input);
-  }),
-);
-
-/**
- * Heartbeat / presence update. Hard rate-limited to one accepted call
- * per 60 s per device: a second call landing within 60 s of the
- * previous `lastSeenAt` throws `resource-exhausted`. The 4-minute
- * heartbeat in Epic 8 is well clear of the limit; the only legitimate
- * caller that may collide is the best-effort offline mark on
- * backgrounding shortly after registration, which the spec already
- * tolerates as best-effort.
- */
-export async function updateDevicePresenceLogic(
-  db: Firestore,
-  uid: string,
-  input: UpdatePresenceInput,
-): Promise<UpdatePresenceResult> {
-  const accountRef = db.doc(accountPath(uid));
-  return db.runTransaction(async (tx) => {
-    const { ref: deviceRef, doc: device } = await assertSameAccountTx(tx, db, uid, input.deviceId);
-    const now = Timestamp.now();
-    if (now.toMillis() - device.lastSeenAt.toMillis() < PRESENCE_RATE_LIMIT_MS) {
-      throw new HttpsError('resource-exhausted', 'Presence update rate limit exceeded.');
-    }
-    tx.update(deviceRef, {
-      presence: input.presence,
-      lastSeenAt: now,
-    });
-    tx.update(accountRef, { lastActiveAt: now });
-    return { updated: true };
-  });
-}
-
-export const updateDevicePresence = onCall<unknown, Promise<UpdatePresenceResult>>(
-  instrument('updateDevicePresence', async (request) => {
-    const uid = requireAuth(request);
-    const input = parseUpdatePresenceInput(request.data);
-    return updateDevicePresenceLogic(getDb(), uid, input);
   }),
 );
 

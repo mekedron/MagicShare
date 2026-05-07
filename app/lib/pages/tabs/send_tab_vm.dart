@@ -141,7 +141,7 @@ final sendTabVmProvider = ViewProvider((ref) {
           builder: (_) => FavoriteDeleteDialog(favoriteDevice),
         );
         if (result == true) {
-          await ref.redux(favoritesProvider).dispatchAsync(RemoveFavoriteAction(deviceFingerprint: device.fingerprint));
+          await ref.redux(favoritesProvider).dispatchAsync(RemoveFavoriteAction(deviceFingerprint: favoriteDevice.fingerprint));
         }
       } else {
         await showDialog(
@@ -165,7 +165,15 @@ final sendTabVmProvider = ViewProvider((ref) {
           );
     },
     onTapDeviceMultiSend: (context, device) async {
-      final session = ref.read(sendProvider).values.firstWhereOrNull((s) => s.target.ip == device.ip);
+      final deviceIp = device.firstHttpEndpoint?.ip;
+      final session = deviceIp == null
+          ? null
+          : ref
+                .read(sendProvider)
+                .values
+                .firstWhereOrNull(
+                  (s) => s.target.firstHttpEndpoint?.ip == deviceIp,
+                );
       if (session != null) {
         if (session.status == SessionStatus.waiting) {
           ref.notifier(sendProvider).setBackground(session.sessionId, false);

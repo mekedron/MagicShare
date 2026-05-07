@@ -117,7 +117,7 @@ class _SendPageState extends State<SendPage> with Refena {
                           ),
                           const SizedBox(height: 20),
                           Hero(
-                            tag: 'device-${targetDevice.ip}',
+                            tag: 'device-${targetDevice.firstHttpEndpoint?.certHash ?? targetDevice.firstHttpEndpoint?.ip ?? targetDevice.alias}',
                             child: DeviceListTile(
                               device: targetDevice,
                               nameOverride: targetFavoriteEntry?.alias,

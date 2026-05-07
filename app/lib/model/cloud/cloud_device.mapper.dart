@@ -17,7 +17,6 @@ class CloudDeviceMapper extends ClassMapperBase<CloudDevice> {
       MapperContainer.globals.use(_instance = CloudDeviceMapper._());
       CloudDeviceIconMapper.ensureInitialized();
       CloudDevicePlatformMapper.ensureInitialized();
-      CloudDevicePresenceMapper.ensureInitialized();
     }
     return _instance!;
   }
@@ -50,16 +49,6 @@ class CloudDeviceMapper extends ClassMapperBase<CloudDevice> {
     'platform',
     _$platform,
   );
-  static int _$lastSeenAtMs(CloudDevice v) => v.lastSeenAtMs;
-  static const Field<CloudDevice, int> _f$lastSeenAtMs = Field(
-    'lastSeenAtMs',
-    _$lastSeenAtMs,
-  );
-  static CloudDevicePresence _$presence(CloudDevice v) => v.presence;
-  static const Field<CloudDevice, CloudDevicePresence> _f$presence = Field(
-    'presence',
-    _$presence,
-  );
   static String? _$fingerprint(CloudDevice v) => v.fingerprint;
   static const Field<CloudDevice, String> _f$fingerprint = Field(
     'fingerprint',
@@ -74,8 +63,6 @@ class CloudDeviceMapper extends ClassMapperBase<CloudDevice> {
     #icon: _f$icon,
     #fcmToken: _f$fcmToken,
     #platform: _f$platform,
-    #lastSeenAtMs: _f$lastSeenAtMs,
-    #presence: _f$presence,
     #fingerprint: _f$fingerprint,
   };
 
@@ -86,8 +73,6 @@ class CloudDeviceMapper extends ClassMapperBase<CloudDevice> {
       icon: data.dec(_f$icon),
       fcmToken: data.dec(_f$fcmToken),
       platform: data.dec(_f$platform),
-      lastSeenAtMs: data.dec(_f$lastSeenAtMs),
-      presence: data.dec(_f$presence),
       fingerprint: data.dec(_f$fingerprint),
     );
   }
@@ -158,8 +143,6 @@ abstract class CloudDeviceCopyWith<$R, $In extends CloudDevice, $Out>
     CloudDeviceIcon? icon,
     String? fcmToken,
     CloudDevicePlatform? platform,
-    int? lastSeenAtMs,
-    CloudDevicePresence? presence,
     String? fingerprint,
   });
   CloudDeviceCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -180,8 +163,6 @@ class _CloudDeviceCopyWithImpl<$R, $Out>
     CloudDeviceIcon? icon,
     Object? fcmToken = $none,
     CloudDevicePlatform? platform,
-    int? lastSeenAtMs,
-    CloudDevicePresence? presence,
     Object? fingerprint = $none,
   }) => $apply(
     FieldCopyWithData({
@@ -190,8 +171,6 @@ class _CloudDeviceCopyWithImpl<$R, $Out>
       if (icon != null) #icon: icon,
       if (fcmToken != $none) #fcmToken: fcmToken,
       if (platform != null) #platform: platform,
-      if (lastSeenAtMs != null) #lastSeenAtMs: lastSeenAtMs,
-      if (presence != null) #presence: presence,
       if (fingerprint != $none) #fingerprint: fingerprint,
     }),
   );
@@ -202,8 +181,6 @@ class _CloudDeviceCopyWithImpl<$R, $Out>
     icon: data.get(#icon, or: $value.icon),
     fcmToken: data.get(#fcmToken, or: $value.fcmToken),
     platform: data.get(#platform, or: $value.platform),
-    lastSeenAtMs: data.get(#lastSeenAtMs, or: $value.lastSeenAtMs),
-    presence: data.get(#presence, or: $value.presence),
     fingerprint: data.get(#fingerprint, or: $value.fingerprint),
   );
 

@@ -8,7 +8,6 @@ import {
   type DeviceDoc,
   type DeviceIcon,
   type DevicePlatform,
-  type DevicePresence,
   devicePath,
   inboxItemPath,
   type InboxItemDoc,
@@ -62,8 +61,6 @@ export interface SeedDeviceOverrides {
   icon?: DeviceIcon;
   fcmToken?: string | null;
   platform?: DevicePlatform;
-  lastSeenAt?: Timestamp;
-  presence?: DevicePresence;
 }
 
 export async function seedDevice(
@@ -76,8 +73,6 @@ export async function seedDevice(
     icon: overrides.icon ?? 'laptop',
     fcmToken: overrides.fcmToken ?? null,
     platform: overrides.platform ?? 'macos',
-    lastSeenAt: overrides.lastSeenAt ?? Timestamp.now(),
-    presence: overrides.presence ?? 'offline',
   };
   await getDb().doc(devicePath(uid, deviceId)).set(doc);
 }

@@ -35,16 +35,19 @@ final deviceFullInfoProvider = ViewProvider((ref) {
   final rawInfo = ref.watch(deviceInfoProvider);
   final securityContext = ref.read(securityProvider);
   return Device(
-    signalingId: null,
-    ip: networkInfo.localIps.firstOrNull ?? '-',
     version: protocolVersion,
-    port: serverState?.port ?? -1,
     alias: serverState?.alias ?? '-',
-    https: serverState?.https ?? true,
-    fingerprint: securityContext.certificateHash,
     deviceModel: rawInfo.deviceModel,
     deviceType: rawInfo.deviceType,
     download: serverState?.webSendState != null,
+    endpoints: {
+      HttpEndpoint(
+        ip: networkInfo.localIps.firstOrNull ?? '-',
+        port: serverState?.port ?? -1,
+        https: serverState?.https ?? true,
+        certHash: securityContext.certificateHash,
+      ),
+    },
     discoveryMethods: const {},
   );
 });

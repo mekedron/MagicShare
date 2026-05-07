@@ -98,7 +98,7 @@ run_analyze() {
     return 0
   fi
   echo "pre-commit: $cmd analyze ${pkg_dir}/{${*}}"
-  if ! (cd "$pkg_dir" && "$cmd" analyze --no-pub "$@"); then
+  if ! (cd "$pkg_dir" && "$cmd" analyze "$@"); then
     echo
     echo "pre-commit: $cmd analyze found issues. Fix them, or set"
     echo "  SKIP_DART_ANALYZE_HOOK=1 git commit ..."

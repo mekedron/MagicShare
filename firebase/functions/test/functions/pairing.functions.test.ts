@@ -111,14 +111,12 @@ describe('previewJoinTokenLogic', () => {
       displayName: 'MacBook Pro',
       icon: 'laptop',
       platform: 'macos',
-      presence: 'online',
       fcmToken: 'fcm-token-laptop',
     });
     await seedDevice(TARGET_UID, TARGET_DEVICE_B, {
       displayName: 'Pixel 8',
       icon: 'phone',
       platform: 'android',
-      presence: 'offline',
       fcmToken: 'fcm-token-phone',
     });
     await seedJoinToken(TOKEN_ID, {
@@ -145,7 +143,7 @@ describe('previewJoinTokenLogic', () => {
 
     // Locks the projection: any new field added to DeviceDoc must be
     // explicitly opted into the preview projection or this test fails.
-    const expectedKeys = ['deviceId', 'displayName', 'icon', 'platform', 'presence'].sort();
+    const expectedKeys = ['deviceId', 'displayName', 'icon', 'platform'].sort();
     for (const device of result.devices) {
       expect(Object.keys(device).sort()).toEqual(expectedKeys);
     }
@@ -244,7 +242,6 @@ describe('joinNetworkLogic', () => {
       displayName: 'MacBook Pro',
       icon: 'laptop',
       platform: 'macos',
-      presence: 'online',
       fcmToken: 'fcm-target-laptop',
     });
     await seedJoinToken(TOKEN_ID, {
@@ -259,7 +256,6 @@ describe('joinNetworkLogic', () => {
       displayName: 'Pixel 8',
       icon: 'phone',
       platform: 'android',
-      presence: 'online',
       fcmToken: 'fcm-source-pixel',
     });
   }
@@ -270,14 +266,12 @@ describe('joinNetworkLogic', () => {
       displayName: 'Pixel 8',
       icon: 'phone',
       platform: 'android',
-      presence: 'online',
       fcmToken: 'fcm-source-pixel',
     });
     await seedDevice(SOURCE_UID, SOURCE_OTHER, {
       displayName: 'iPad',
       icon: 'tablet',
       platform: 'ios',
-      presence: 'offline',
       fcmToken: 'fcm-source-ipad',
     });
   }
@@ -313,7 +307,6 @@ describe('joinNetworkLogic', () => {
     expect(moved?.icon).toBe('phone');
     expect(moved?.platform).toBe('android');
     expect(moved?.fcmToken).toBe('fcm-source-pixel');
-    expect(moved?.presence).toBe('offline');
 
     const token = await readJoinToken(TOKEN_ID);
     expect(token?.consumedAt).not.toBeNull();
@@ -531,7 +524,6 @@ describe('joinNetworkLogic', () => {
       expect(created?.icon).toBe('tablet');
       expect(created?.platform).toBe('ios');
       expect(created?.fcmToken).toBe('fcm-new-device');
-      expect(created?.presence).toBe('offline');
 
       // No source account doc was ever created or touched.
       expect(await readAccount(ANON_UID)).toBeNull();

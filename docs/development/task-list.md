@@ -2,7 +2,7 @@
 
 **Status:** Draft
 **Owner:** Product (Nikita)
-**Last updated:** 2026-05-03
+**Last updated:** 2026-05-07
 
 > Reference spec: [`cloud-sync-spec.md`](./cloud-sync-spec.md). Read
 > it first if you need context on what is being built and why.
@@ -503,7 +503,52 @@ lands.
     URL in the browser without launching the app where
     supported.
 
-- [ ] **Epic 14 — Polish and operability.** Cross-cutting work
+- [ ] **Epic 14 — Send-tab UX for the device group.** With the
+  cloud-presence layer dropped (already in flight on `main`), the
+  Send tab merges LAN-discovered peers with the user's device-group
+  members. Two cases the UI must handle, no over-engineering beyond
+  them:
+
+  - **Case 1 — a LAN-discovered peer is also in the user's
+    device group.** The tile uses the cloud-side `displayName`
+    and `icon` (not the LAN-announced alias / auto-detected
+    icon), so the device shows up with the name and look the
+    user picked in *Settings → Device group*. Add a small
+    *In your group* label or badge so the user can tell at a
+    glance which LAN peers are paired.
+  - **Case 2 — a device-group member is NOT on the LAN.** Show
+    it in the list anyway, with an *Offline* status. Tapping it
+    fires a wake notification via `sendWake`; the tile flips to
+    a *Waking up \[device\]…* indicator. As soon as the woken
+    device appears on the LAN through the standard LocalSend
+    multicast / `/info` path, the transfer starts automatically
+    against the freshly-announced LAN address. 60 s timeout →
+    existing *"Device did not respond"* surface.
+
+  No new presence layer, no polling. "Online" means observed via
+  LAN multicast or the WebRTC signaling channel right now;
+  "Offline" means a known group member with no current observation.
+
+  - **Tests:**
+    - Widget: a LAN tile matched against a cloud device renders
+      with the cloud `displayName` + `icon` and the *In your
+      group* label.
+    - Widget: cloud devices with no current LAN entry render in
+      the offline state and remain tappable.
+    - Unit: tapping an offline cloud device fires `sendWake`,
+      flips the tile to a waking indicator, and starts the
+      transfer on the first matching LAN announce within the
+      timeout window.
+    - Hardware: send a file from macOS to a backgrounded iPhone;
+      the iPhone wakes via FCM, announces on the LAN, and the
+      transfer completes without further user action.
+  - **Done when:** a paired device on the same Wi-Fi is visible
+    once with the user's chosen name + icon and the *In your
+    group* label; a paired device that's asleep is visible with
+    the offline state, and tapping it produces the wake →
+    auto-transfer flow described above.
+
+- [ ] **Epic 15 — Polish and operability.** Cross-cutting work
   that ties the feature together.
 
   - *Cloud features* master toggle in the General settings
@@ -511,8 +556,8 @@ lands.
     uninitialized, no cloud calls.
   - Privacy copy below the device-group section: lists what data
     leaves the device (account ID, device ID, name, icon, FCM
-    token, presence timestamps, encrypted wake payloads); covers
-    both link-mode paths. Localized.
+    token, encrypted wake payloads); covers both link-mode paths.
+    Localized.
   - Telemetry hook around every cloud function call: function
     name, success/error, latency. No PII. Debug builds print;
     release builds suppress.
@@ -521,7 +566,7 @@ lands.
     unavailable* banner instead of a spinner.
   - Account-state debug page under the existing debug menu.
     Dumps account ID, device ID, FCM token (truncated),
-    shared-key fingerprint, last-presence timestamp.
+    shared-key fingerprint.
   - **Tests:**
     - Widget (`flutter test`): master-toggle hides the
       device-group section and short-circuits cloud calls; the
@@ -535,7 +580,7 @@ lands.
     shows the unavailable banner; the debug page renders real
     values.
 
-- [ ] **Epic 15 — QA and release.** Final verification and
+- [ ] **Epic 16 — QA and release.** Final verification and
   shipping.
 
   - Manual QA checklist at
@@ -557,7 +602,7 @@ lands.
   - **Done when:** the manual QA checklist passes; CI is green
     on the release commit; release notes published.
 
-- [ ] **Epic 16 — Linux/Windows REST cloud client.** FlutterFire
+- [ ] **Epic 17 — Linux/Windows REST cloud client.** FlutterFire
   ships no native bindings on Linux and only partial coverage on
   Windows (no `cloud_functions`, no `firebase_messaging`). Epic 7
   scaffolds the platform predicates and the Linux polling
@@ -592,7 +637,7 @@ lands.
     a desktop notification within ~30 s; a wake sent to a Windows
     client surfaces a toast within ~30 s.
 
-- [ ] **Epic 17 — Self-hosted Firebase backend.** Ship the bits
+- [ ] **Epic 18 — Self-hosted Firebase backend.** Ship the bits
   needed for community members to deploy their own MagicShare
   backend (their own Firebase project + Cloud Functions) and
   point the app at it. Today every install is hard-pinned to

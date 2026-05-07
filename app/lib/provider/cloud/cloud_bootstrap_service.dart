@@ -198,6 +198,7 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
     try {
       state = const BootstrapInFlight();
       _currentUid = uid;
+      _logger.info('Bootstrap: starting for uid=$uid');
       final identity = _deps.deviceIdentity();
 
       // Adoption pass: if our local device-id slot is empty AND the
@@ -229,9 +230,12 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
 
       final deviceId = await identity.ensureDeviceId();
       _currentDeviceId = deviceId;
+      _logger.info('Bootstrap: deviceId resolved → $deviceId');
 
       final client = _deps.client();
+      _logger.info('Bootstrap: calling createAccount');
       final accountResult = await client.createAccount();
+      _logger.info('Bootstrap: createAccount → created=${accountResult.created} accountId=${accountResult.accountId}');
 
       // Group-key path:
       //  - Always generate when createAccount returned `created: true`.
@@ -255,6 +259,7 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
         _ => null,
       };
 
+      _logger.info('Bootstrap: calling registerDevice deviceId=$deviceId');
       await client.registerDevice(
         deviceId: deviceId,
         displayName: identity.defaultDisplayName(),
@@ -264,12 +269,13 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
         fingerprint: _deps.fingerprintReader(),
       );
       _lastUploadedFcmToken = fcmToken;
+      _logger.info('Bootstrap: DONE for uid=$uid deviceId=$deviceId');
       state = BootstrapDone(accountId: uid, deviceId: deviceId);
     } on CloudException catch (e, st) {
-      _logger.warning('Bootstrap failed (${e.code.name})', e, st);
+      _logger.warning('Bootstrap failed (code=${e.code.name} message="${e.message}" details=${e.details})', e, st);
       state = BootstrapFailed(message: e.message, error: e);
     } catch (e, st) {
-      _logger.warning('Bootstrap failed', e, st);
+      _logger.warning('Bootstrap failed (non-CloudException): $e', e, st);
       state = BootstrapFailed(message: 'Bootstrap failed: $e', error: e);
     } finally {
       completer.complete();
@@ -352,16 +358,11 @@ final cloudBootstrapProvider = NotifierProvider<CloudBootstrapService, Bootstrap
             .get();
         if (query.docs.isEmpty) return null;
         // If multiple rows match (a previous bug already created a
-        // duplicate), prefer the one with the highest lastSeenAtMs so
-        // the user keeps the most recently active row. Old stale row
-        // can be removed manually from the device-group list.
-        var best = query.docs.first;
-        for (final doc in query.docs.skip(1)) {
-          final bestSeen = (best.data()['lastSeenAtMs'] as num?)?.toInt() ?? 0;
-          final docSeen = (doc.data()['lastSeenAtMs'] as num?)?.toInt() ?? 0;
-          if (docSeen > bestSeen) best = doc;
-        }
-        return best.id;
+        // duplicate), pick deterministically by lexicographically-first
+        // deviceId. Stale row can be removed manually from the
+        // device-group list.
+        final ids = query.docs.map((d) => d.id).toList()..sort();
+        return ids.first;
       },
     ),
   );

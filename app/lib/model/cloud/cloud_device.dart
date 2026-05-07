@@ -1,13 +1,13 @@
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
-import 'package:magicshare_app/model/cloud/cloud_device_presence.dart';
 
 part 'cloud_device.mapper.dart';
 
 /// Mirrors `DeviceDoc` in firebase/functions/src/models.ts plus the document
-/// id. Timestamp fields are encoded as integer milliseconds since the Unix
-/// epoch — see plan note in `app/lib/model/cloud/cloud_account.dart`.
+/// id. The doc is a pure registry of group membership — no online-status
+/// fields. Online truth is derived from LAN multicast / HTTP `/info` and
+/// WebRTC signaling, not from the cloud.
 @MappableClass()
 class CloudDevice with CloudDeviceMappable {
   final String deviceId;
@@ -15,8 +15,6 @@ class CloudDevice with CloudDeviceMappable {
   final CloudDeviceIcon icon;
   final String? fcmToken;
   final CloudDevicePlatform platform;
-  final int lastSeenAtMs;
-  final CloudDevicePresence presence;
 
   /// LocalSend cert hash announced by this device on multicast. Mirrors
   /// `DeviceDoc.fingerprint` in firebase/functions/src/models.ts. Lets
@@ -31,8 +29,6 @@ class CloudDevice with CloudDeviceMappable {
     required this.icon,
     required this.fcmToken,
     required this.platform,
-    required this.lastSeenAtMs,
-    required this.presence,
     this.fingerprint,
   });
 

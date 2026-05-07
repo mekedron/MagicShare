@@ -135,7 +135,7 @@ class MulticastService {
             uri: ApiRoute.register.target(peer),
             json: _getRegisterDto().toJson(),
           );
-      _logger.info('Respond to announcement of ${peer.alias} (${peer.ip}, model: ${peer.deviceModel}) via TCP');
+      _logger.info('Respond to announcement of ${peer.alias} (${peer.firstHttpEndpoint?.ip}, model: ${peer.deviceModel}) via TCP');
     } catch (e) {
       // Fallback: Answer with UDP
       final syncState = _ref.read(syncProvider);
@@ -153,7 +153,8 @@ class MulticastService {
           _logger.warning('Could not send multicast message', e);
         }
       }
-      _logger.info('Respond to announcement of ${peer.alias} (${peer.ip}, model: ${peer.deviceModel}) with UDP because TCP failed');
+      _logger
+          .info('Respond to announcement of ${peer.alias} (${peer.firstHttpEndpoint?.ip}, model: ${peer.deviceModel}) with UDP because TCP failed');
     }
   }
 

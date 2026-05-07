@@ -4,12 +4,30 @@ import 'dart:typed_data';
 /// Pairing payload format.
 ///
 /// One self-describing byte blob carries everything a joining device
-/// needs to pair off the QR / manual code alone:
+/// needs to pair off the QR / manual code alone.
 ///
-///   version(1) | tokenLen(1) | tokenId(N) |
+/// **v1** (legacy — still decodable for back-compat):
+///
+///   version=1(1) | tokenLen(1) | tokenId(N) |
 ///   addrFamily(1) | ipBytes(4) | port(2, BE) |
 ///   pubkeyLen(1) | pubkey(33) |
 ///   crc8(1)
+///
+/// **v2** (current — what `encodePairingPayload` always emits):
+///
+///   version=2(1) | tokenLen(1) | tokenId(N) |
+///   addrCount(1) | [addrFamily(1) | ipBytes(4)](xAddrCount) |
+///   port(2, BE) | pubkeyLen(1) | pubkey(33) |
+///   crc8(1)
+///
+/// v2 lets the issuer advertise multiple LAN addresses for a single
+/// pairing session — required when one issuer needs to be reachable
+/// to joiners on different network paths simultaneously (e.g. macOS
+/// host advertising `127.0.0.1` for an Android emulator joiner that
+/// reaches it via `adb reverse`, AND its real `192.168.x.x` for a
+/// physical iPhone joiner on the same Wi-Fi). The joiner races
+/// connect attempts across the listed addresses and uses the first
+/// one that succeeds.
 ///
 /// The same blob is encoded two ways:
 ///
@@ -27,18 +45,24 @@ import 'dart:typed_data';
 /// instead of falling through to an opaque "join token not found"
 /// cloud error.
 ///
-/// IPv6 is intentionally out of scope for v1: pairing happens on the
-/// same Wi-Fi LAN, which in practice is IPv4 99% of the time. Adding
-/// IPv6 without bumping `version` would silently break older
-/// installs that decode the payload.
+/// IPv6 is intentionally out of scope: pairing happens on the same
+/// Wi-Fi LAN, which in practice is IPv4 99% of the time. Adding IPv6
+/// without bumping `version` would silently break older installs that
+/// decode the payload.
 
 const int pairingPayloadVersionV1 = 1;
+const int pairingPayloadVersionV2 = 2;
 const int _addrFamilyIPv4 = 4;
 const int _ipv4LengthBytes = 4;
 const int _portLengthBytes = 2;
 const int _crcLengthBytes = 1;
 const int _maxPubkeyLengthBytes = 64;
 const int _maxTokenLengthBytes = 96;
+
+/// Cap on the number of LAN addresses per payload. Bounds the QR /
+/// manual-code size and prevents an attacker who can poison the
+/// issuer's interface list from inflating the blob.
+const int kMaxPairingAddresses = 4;
 
 /// URI scheme used by the QR form. Includes the trailing `:` so the
 /// caller doesn't accidentally double-up.
@@ -52,10 +76,10 @@ const String _crockfordAlphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 class PairingPayload {
   PairingPayload({
     required this.tokenId,
-    required this.issuerLanAddress,
+    required this.issuerLanAddresses,
     required this.issuerLanPort,
     required this.issuerPubKeyCompressed,
-    this.version = pairingPayloadVersionV1,
+    this.version = pairingPayloadVersionV2,
   });
 
   /// Same shape the cloud function expects on `previewJoinToken` /
@@ -64,8 +88,12 @@ class PairingPayload {
   /// agnostic to a future backend change.
   final String tokenId;
 
-  /// IPv4 dotted-quad. IPv6 is intentionally not supported in v1.
-  final String issuerLanAddress;
+  /// Ordered list of IPv4 dotted-quad addresses the joiner should try
+  /// to reach the issuer on. Order matters: the issuer puts its
+  /// preferred reachability path first (e.g. an `adb reverse`
+  /// loopback override) so the joiner's race terminates on the
+  /// most-likely-fast path. IPv6 is intentionally not supported.
+  final List<String> issuerLanAddresses;
 
   /// 1..65535. The issuer's ephemeral pairing-LAN-server port; the
   /// joiner connects here over plain TCP / HTTP after `joinNetwork`
@@ -84,7 +112,7 @@ class PairingPayload {
       identical(this, other) ||
       other is PairingPayload &&
           tokenId == other.tokenId &&
-          issuerLanAddress == other.issuerLanAddress &&
+          _listEquals(issuerLanAddresses, other.issuerLanAddresses) &&
           issuerLanPort == other.issuerLanPort &&
           version == other.version &&
           _bytesEqual(issuerPubKeyCompressed, other.issuerPubKeyCompressed);
@@ -92,7 +120,7 @@ class PairingPayload {
   @override
   int get hashCode => Object.hash(
     tokenId,
-    issuerLanAddress,
+    Object.hashAll(issuerLanAddresses),
     issuerLanPort,
     version,
     Object.hashAll(issuerPubKeyCompressed),
@@ -100,7 +128,7 @@ class PairingPayload {
 
   @override
   String toString() =>
-      'PairingPayload(tokenId: $tokenId, issuerLanAddress: $issuerLanAddress, '
+      'PairingPayload(tokenId: $tokenId, issuerLanAddresses: $issuerLanAddresses, '
       'issuerLanPort: $issuerLanPort, version: $version, '
       'pubkeyLen: ${issuerPubKeyCompressed.length})';
 }
@@ -129,14 +157,23 @@ class PairingPayloadDecodeException implements Exception {
 // ---------------------------------------------------------------------------
 
 Uint8List encodePairingPayload(PairingPayload payload) {
-  if (payload.version != pairingPayloadVersionV1) {
-    throw ArgumentError('Only version 1 is supported, got ${payload.version}');
-  }
+  // The encoder always emits v2. Callers cannot opt back into v1 —
+  // the version field on PairingPayload is honoured on decode (so a
+  // round-trip of a v1-decoded payload preserves its original
+  // version byte for tests/debugging) but encode normalises forward.
   final tokenBytes = Uint8List.fromList(ascii.encode(payload.tokenId));
   if (tokenBytes.isEmpty || tokenBytes.length > _maxTokenLengthBytes) {
     throw ArgumentError('Token byte length out of range: ${tokenBytes.length}');
   }
-  final ipBytes = _encodeIPv4(payload.issuerLanAddress);
+  if (payload.issuerLanAddresses.isEmpty) {
+    throw ArgumentError('Pairing payload must carry at least one LAN address');
+  }
+  if (payload.issuerLanAddresses.length > kMaxPairingAddresses) {
+    throw ArgumentError(
+      'Too many LAN addresses (${payload.issuerLanAddresses.length}, max $kMaxPairingAddresses)',
+    );
+  }
+  final ipByteBlocks = payload.issuerLanAddresses.map(_encodeIPv4).toList(growable: false);
   if (payload.issuerLanPort < 1 || payload.issuerLanPort > 0xffff) {
     throw ArgumentError('Port out of range: ${payload.issuerLanPort}');
   }
@@ -146,11 +183,16 @@ Uint8List encodePairingPayload(PairingPayload payload) {
   }
 
   final builder = BytesBuilder()
-    ..addByte(payload.version)
+    ..addByte(pairingPayloadVersionV2)
     ..addByte(tokenBytes.length)
     ..add(tokenBytes)
-    ..addByte(_addrFamilyIPv4)
-    ..add(ipBytes)
+    ..addByte(ipByteBlocks.length);
+  for (final ipBytes in ipByteBlocks) {
+    builder
+      ..addByte(_addrFamilyIPv4)
+      ..add(ipBytes);
+  }
+  builder
     ..addByte((payload.issuerLanPort >> 8) & 0xff)
     ..addByte(payload.issuerLanPort & 0xff)
     ..addByte(pub.length)
@@ -182,7 +224,7 @@ PairingPayload decodePairingPayload(Uint8List bytes) {
 
   var i = 0;
   final version = core[i++];
-  if (version != pairingPayloadVersionV1) {
+  if (version != pairingPayloadVersionV1 && version != pairingPayloadVersionV2) {
     throw PairingPayloadDecodeException(
       PairingPayloadDecodeError.wrongVersion,
       'unknown version: $version',
@@ -202,24 +244,48 @@ PairingPayload decodePairingPayload(Uint8List bytes) {
   if (i >= core.length) {
     throw PairingPayloadDecodeException(
       PairingPayloadDecodeError.wrongLength,
-      'truncated before address family',
+      'truncated before address section',
     );
   }
-  final addrFamily = core[i++];
-  if (addrFamily != _addrFamilyIPv4) {
-    throw PairingPayloadDecodeException(
-      PairingPayloadDecodeError.malformed,
-      'unsupported address family: $addrFamily (only IPv4 in v1)',
-    );
+
+  final int addrCount;
+  if (version == pairingPayloadVersionV2) {
+    addrCount = core[i++];
+    if (addrCount == 0 || addrCount > kMaxPairingAddresses) {
+      throw PairingPayloadDecodeException(
+        PairingPayloadDecodeError.wrongLength,
+        'addrCount out of range: $addrCount',
+      );
+    }
+  } else {
+    // v1 had an implicit single-address layout with no count byte.
+    addrCount = 1;
   }
-  if (i + _ipv4LengthBytes > core.length) {
-    throw PairingPayloadDecodeException(
-      PairingPayloadDecodeError.wrongLength,
-      'truncated IPv4 octets',
-    );
+
+  final addresses = <String>[];
+  for (var n = 0; n < addrCount; n++) {
+    if (i >= core.length) {
+      throw PairingPayloadDecodeException(
+        PairingPayloadDecodeError.wrongLength,
+        'truncated before address family for entry $n',
+      );
+    }
+    final addrFamily = core[i++];
+    if (addrFamily != _addrFamilyIPv4) {
+      throw PairingPayloadDecodeException(
+        PairingPayloadDecodeError.malformed,
+        'unsupported address family: $addrFamily (only IPv4 supported)',
+      );
+    }
+    if (i + _ipv4LengthBytes > core.length) {
+      throw PairingPayloadDecodeException(
+        PairingPayloadDecodeError.wrongLength,
+        'truncated IPv4 octets for entry $n',
+      );
+    }
+    addresses.add('${core[i]}.${core[i + 1]}.${core[i + 2]}.${core[i + 3]}');
+    i += _ipv4LengthBytes;
   }
-  final ip = '${core[i]}.${core[i + 1]}.${core[i + 2]}.${core[i + 3]}';
-  i += _ipv4LengthBytes;
 
   if (i + _portLengthBytes > core.length) {
     throw PairingPayloadDecodeException(
@@ -253,7 +319,7 @@ PairingPayload decodePairingPayload(Uint8List bytes) {
 
   return PairingPayload(
     tokenId: tokenId,
-    issuerLanAddress: ip,
+    issuerLanAddresses: List.unmodifiable(addresses),
     issuerLanPort: port,
     issuerPubKeyCompressed: pub,
     version: version,
@@ -354,6 +420,14 @@ int _crc8(Uint8List bytes) {
 }
 
 bool _bytesEqual(Uint8List a, Uint8List b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+bool _listEquals(List<String> a, List<String> b) {
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {
     if (a[i] != b[i]) return false;

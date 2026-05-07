@@ -59,7 +59,7 @@ class HttpScanDiscoveryService {
       onError: null,
     );
     if (device != null) {
-      _logger.info('[DISCOVER/TCP] ${device.alias} (${device.ip}, model: ${device.deviceModel})');
+      _logger.info('[DISCOVER/TCP] ${device.alias} (${device.firstHttpEndpoint?.ip}, model: ${device.deviceModel})');
     }
 
     return device;

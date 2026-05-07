@@ -498,8 +498,9 @@ class ReceiveController {
       return await request.respondJson(409, message: 'No session');
     }
 
-    if (request.ip != receiveState.sender.ip) {
-      _logger.warning('Invalid ip address: ${request.ip} (expected: ${receiveState.sender.ip})');
+    final senderIps = receiveState.sender.httpEndpoints.map((e) => e.ip).toSet();
+    if (!senderIps.contains(request.ip)) {
+      _logger.warning('Invalid ip address: ${request.ip} (expected one of: $senderIps)');
       return await request.respondJson(403, message: 'Invalid IP address: ${request.ip}');
     }
 
@@ -652,8 +653,11 @@ class ReceiveController {
       bool quickSave = settings.quickSave && server.getState().session?.message == null;
       final quickSaveFromFavorites = settings.quickSaveFromFavorites && server.getState().session?.message == null;
       if (quickSaveFromFavorites) {
-        // dto is not defined here. I must check sender fingerprint
-        final bool isFavorite = server.ref.read(favoritesProvider).any((e) => e.fingerprint == session.sender.fingerprint);
+        // dto is not defined here. I must check sender fingerprint —
+        // favorites carry cert hashes, so match against
+        // sender.certHashes.
+        final senderHashes = session.sender.certHashes;
+        final bool isFavorite = senderHashes.isNotEmpty && server.ref.read(favoritesProvider).any((e) => senderHashes.contains(e.fingerprint));
         if (isFavorite) {
           quickSave = true;
         }
@@ -700,7 +704,7 @@ class ReceiveController {
         return await request.respondJson(403, message: 'No permission');
       }
 
-      if (receiveSession.sender.ip != request.ip) {
+      if (!receiveSession.sender.httpEndpoints.any((e) => e.ip == request.ip)) {
         return await request.respondJson(403, message: 'No permission');
       }
 
@@ -748,7 +752,7 @@ class ReceiveController {
         sendState = onlySession;
       }
 
-      if (sendState.target.ip != request.ip) {
+      if (!sendState.target.httpEndpoints.any((e) => e.ip == request.ip)) {
         return await request.respondJson(403, message: 'No permission');
       }
 
@@ -852,19 +856,24 @@ class ReceiveController {
 
     // notify sender
     final target = session.sender;
-    try {
-      server.ref
-          .read(httpProvider)
-          .v2
-          // ignore: unawaited_futures
-          .cancel(
-            protocol: target.getProtocolType(),
-            ip: target.ip!,
-            port: target.port,
-            sessionId: session.sessionId,
-          );
-    } catch (e) {
-      _logger.warning('Failed to notify sender', e);
+    final endpoint = target.firstHttpEndpoint;
+    if (endpoint == null) {
+      _logger.warning('Cannot notify sender: no HttpEndpoint on ${target.alias}');
+    } else {
+      try {
+        server.ref
+            .read(httpProvider)
+            .v2
+            // ignore: unawaited_futures
+            .cancel(
+              protocol: target.getProtocolType(),
+              ip: endpoint.ip,
+              port: endpoint.port,
+              sessionId: session.sessionId,
+            );
+      } catch (e) {
+        _logger.warning('Failed to notify sender', e);
+      }
     }
 
     closeSession();
