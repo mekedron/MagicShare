@@ -290,6 +290,7 @@ class TranslationsSettingsTabEn {
   late final TranslationsSettingsTabReceiveEn receive = TranslationsSettingsTabReceiveEn.internal(_root);
   late final TranslationsSettingsTabSendEn send = TranslationsSettingsTabSendEn.internal(_root);
   late final TranslationsSettingsTabNetworkEn network = TranslationsSettingsTabNetworkEn.internal(_root);
+  late final TranslationsSettingsTabPermissionsEn permissions = TranslationsSettingsTabPermissionsEn.internal(_root);
   late final TranslationsSettingsTabDeviceGroupEn deviceGroup = TranslationsSettingsTabDeviceGroupEn.internal(_root);
   late final TranslationsSettingsTabOtherEn other = TranslationsSettingsTabOtherEn.internal(_root);
 
@@ -412,8 +413,11 @@ class TranslationsReceivePageEn {
   // Translations
 
   /// en: '(one) {wants to send you a file} (other) {wants to send you {n} files}'
-  String subTitle({required num n}) =>
-      (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: 'wants to send you a file', other: 'wants to send you ${n} files');
+  String subTitle({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(
+    n,
+    one: 'wants to send you a file',
+    other: 'wants to send you ${n} files',
+  );
 
   /// en: 'sent you a message:'
   String get subTitleMessage => 'sent you a message:';
@@ -1167,6 +1171,48 @@ class TranslationsSettingsTabNetworkEn {
   /// en: 'You might not be detected by other devices because you are using a custom multicast address. (default: {defaultMulticast})'
   String multicastGroupWarning({required Object defaultMulticast}) =>
       'You might not be detected by other devices because you are using a custom multicast address. (default: ${defaultMulticast})';
+}
+
+// Path: settingsTab.permissions
+class TranslationsSettingsTabPermissionsEn {
+  TranslationsSettingsTabPermissionsEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Permissions'
+  String get title => 'Permissions';
+
+  /// en: 'Notifications'
+  String get notifications => 'Notifications';
+
+  /// en: 'Camera'
+  String get camera => 'Camera';
+
+  /// en: 'Granted'
+  String get statusGranted => 'Granted';
+
+  /// en: 'Not granted'
+  String get statusDenied => 'Not granted';
+
+  /// en: 'Denied — open OS Settings'
+  String get statusPermanentlyDenied => 'Denied — open OS Settings';
+
+  /// en: 'Restricted by device'
+  String get statusRestricted => 'Restricted by device';
+
+  /// en: 'Grant'
+  String get grant => 'Grant';
+
+  /// en: 'Open Settings'
+  String get openSettings => 'Open Settings';
+
+  /// en: 'Re-check permissions'
+  String get refreshLabel => 'Re-check permissions';
+
+  /// en: 'Refresh'
+  String get refresh => 'Refresh';
 }
 
 // Path: settingsTab.deviceGroup

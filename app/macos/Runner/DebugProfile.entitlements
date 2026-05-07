@@ -24,6 +24,10 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- QR-pairing scanner uses mobile_scanner; under the macOS sandbox
+	     Permission.camera.request() returns denied without this entitlement. -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
 	<!-- com.apple.developer.aps-environment is intentionally NOT in the
 	     Debug entitlements. Push Notifications is a restricted capability
 	     that requires a paid Apple Developer team — Personal (free) teams

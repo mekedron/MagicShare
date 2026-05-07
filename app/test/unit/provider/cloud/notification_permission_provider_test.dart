@@ -8,8 +8,12 @@ class _RecordingGateway {
   PermissionStatus androidStatus = PermissionStatus.granted;
   Object? firebaseThrows;
   Object? androidThrows;
+  Object? firebaseGetThrows;
+  Object? androidGetThrows;
   int firebaseCalls = 0;
   int androidCalls = 0;
+  int firebaseGetCalls = 0;
+  int androidGetCalls = 0;
 
   NotificationPermissionGateway gateway() => NotificationPermissionGateway(
     requestFirebase: () async {
@@ -17,9 +21,19 @@ class _RecordingGateway {
       if (firebaseThrows != null) throw firebaseThrows!;
       return firebaseStatus;
     },
+    getFirebase: () async {
+      firebaseGetCalls++;
+      if (firebaseGetThrows != null) throw firebaseGetThrows!;
+      return firebaseStatus;
+    },
     requestAndroid: () async {
       androidCalls++;
       if (androidThrows != null) throw androidThrows!;
+      return androidStatus;
+    },
+    getAndroid: () async {
+      androidGetCalls++;
+      if (androidGetThrows != null) throw androidGetThrows!;
       return androidStatus;
     },
   );

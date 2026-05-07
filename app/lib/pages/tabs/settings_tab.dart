@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:magicshare_app/config/theme.dart';
 import 'package:magicshare_app/gen/strings.g.dart';
+import 'package:magicshare_app/model/permission_availability.dart';
 import 'package:magicshare_app/model/persistence/color_mode.dart';
 import 'package:magicshare_app/pages/about/about_page.dart';
 import 'package:magicshare_app/pages/changelog_page.dart';
@@ -15,6 +16,7 @@ import 'package:magicshare_app/pages/donation/donation_page.dart';
 import 'package:magicshare_app/pages/language_page.dart';
 import 'package:magicshare_app/pages/settings/network_interfaces_page.dart';
 import 'package:magicshare_app/pages/tabs/settings_tab_controller.dart';
+import 'package:magicshare_app/provider/permissions_status_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:magicshare_app/provider/version_provider.dart';
 import 'package:magicshare_app/util/alias_generator.dart';
@@ -34,6 +36,7 @@ import 'package:magicshare_app/widget/dialogs/text_field_with_actions.dart';
 import 'package:magicshare_app/widget/labeled_checkbox.dart';
 import 'package:magicshare_app/widget/local_send_logo.dart';
 import 'package:magicshare_app/widget/responsive_list_view.dart';
+import 'package:magicshare_app/widget/watcher/life_cycle_watcher.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -499,6 +502,45 @@ class SettingsTab extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (checkPlatform([TargetPlatform.android, TargetPlatform.iOS, TargetPlatform.macOS]))
+                    Consumer(
+                      builder: (context, ref) {
+                        final permissions = ref.watch(permissionsStatusProvider);
+                        final notifier = ref.redux(permissionsStatusProvider);
+                        return LifeCycleWatcher(
+                          onChangedState: (state) {
+                            if (state == AppLifecycleState.resumed) {
+                              // ignore: discarded_futures
+                              notifier.dispatchAsync(RefreshPermissionsAction());
+                            }
+                          },
+                          child: _SettingsSection(
+                            title: t.settingsTab.permissions.title,
+                            children: [
+                              if (permissions.notification != PermissionAvailability.unsupported)
+                                _PermissionEntry(
+                                  label: t.settingsTab.permissions.notifications,
+                                  status: permissions.notification,
+                                  busy: permissions.requestInFlight,
+                                  onTap: () => notifier.dispatchAsync(RequestNotificationAction()),
+                                ),
+                              if (permissions.camera != PermissionAvailability.unsupported)
+                                _PermissionEntry(
+                                  label: t.settingsTab.permissions.camera,
+                                  status: permissions.camera,
+                                  busy: permissions.requestInFlight,
+                                  onTap: () => notifier.dispatchAsync(RequestCameraAction()),
+                                ),
+                              _ButtonEntry(
+                                label: t.settingsTab.permissions.refreshLabel,
+                                buttonLabel: t.settingsTab.permissions.refresh,
+                                onTap: () => notifier.dispatchAsync(RefreshPermissionsAction()),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   _SettingsSection(
                     title: t.settingsTab.other.title,
                     padding: const EdgeInsets.only(bottom: 0),
@@ -723,6 +765,120 @@ class _ButtonEntry extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A specialized version of [_SettingsEntry] that surfaces an OS
+/// permission's authorization state and offers the appropriate next
+/// action. Renders nothing when [PermissionAvailability.unsupported]
+/// is passed; the caller is expected to gate on that.
+class _PermissionEntry extends StatelessWidget {
+  final String label;
+  final PermissionAvailability status;
+  final bool busy;
+  final VoidCallback onTap;
+
+  const _PermissionEntry({
+    required this.label,
+    required this.status,
+    required this.busy,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _SettingsEntry(
+      label: label,
+      child: switch (status) {
+        PermissionAvailability.unsupported => const SizedBox.shrink(),
+        PermissionAvailability.granted => _PermissionGrantedBadge(
+          label: t.settingsTab.permissions.statusGranted,
+        ),
+        PermissionAvailability.unknown => Container(
+          height: 50,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: theme.inputDecorationTheme.fillColor,
+            borderRadius: theme.inputDecorationTheme.borderRadius,
+          ),
+          child: const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+        PermissionAvailability.restricted => _PermissionStatusText(
+          text: t.settingsTab.permissions.statusRestricted,
+        ),
+        PermissionAvailability.denied || PermissionAvailability.permanentlyDenied => TextButton(
+          style: TextButton.styleFrom(
+            backgroundColor: theme.inputDecorationTheme.fillColor,
+            shape: RoundedRectangleBorder(borderRadius: theme.inputDecorationTheme.borderRadius),
+            foregroundColor: theme.colorScheme.onSurface,
+          ),
+          onPressed: busy ? null : onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Text(
+              status == PermissionAvailability.permanentlyDenied ? t.settingsTab.permissions.openSettings : t.settingsTab.permissions.grant,
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      },
+    );
+  }
+}
+
+class _PermissionGrantedBadge extends StatelessWidget {
+  final String label;
+
+  const _PermissionGrantedBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: theme.inputDecorationTheme.fillColor,
+        borderRadius: theme.inputDecorationTheme.borderRadius,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 18),
+          const SizedBox(width: 8),
+          Text(label, style: theme.textTheme.titleMedium),
+        ],
+      ),
+    );
+  }
+}
+
+class _PermissionStatusText extends StatelessWidget {
+  final String text;
+
+  const _PermissionStatusText({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 50,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: theme.inputDecorationTheme.fillColor,
+        borderRadius: theme.inputDecorationTheme.borderRadius,
+      ),
+      child: Text(
+        text,
+        style: theme.textTheme.titleMedium,
+        textAlign: TextAlign.center,
       ),
     );
   }

@@ -21,6 +21,12 @@
          *Join*) via NotificationPermissionService. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- QR-pairing scanner. Declared as a permission only (not a uses-feature)
+         so cameraless devices (TVs, Chromebooks) can still install and use
+         the manual code fallback. Requested in-app from the Settings →
+         Permissions section. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
     <!-- Android TV -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />

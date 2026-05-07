@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
+import 'package:magicshare_app/model/permission_availability.dart';
 import 'package:magicshare_app/util/native/cloud_platform.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:refena_flutter/refena_flutter.dart';
@@ -36,16 +37,25 @@ enum NotificationPermissionOutcome {
 class NotificationPermissionGateway {
   NotificationPermissionGateway({
     required this.requestFirebase,
+    required this.getFirebase,
     required this.requestAndroid,
+    required this.getAndroid,
   });
 
   /// Triggers the iOS / macOS notification-permission prompt via
   /// FirebaseMessaging. Returns the resulting authorization status.
   final Future<AuthorizationStatus> Function() requestFirebase;
 
+  /// Reads the current iOS / macOS notification-permission status via
+  /// FirebaseMessaging without prompting the user.
+  final Future<AuthorizationStatus> Function() getFirebase;
+
   /// Triggers the Android 13+ POST_NOTIFICATIONS prompt via
   /// permission_handler.
   final Future<PermissionStatus> Function() requestAndroid;
+
+  /// Reads the current Android POST_NOTIFICATIONS status without prompting.
+  final Future<PermissionStatus> Function() getAndroid;
 
   factory NotificationPermissionGateway.live() {
     return NotificationPermissionGateway(
@@ -53,7 +63,12 @@ class NotificationPermissionGateway {
         final settings = await FirebaseMessaging.instance.requestPermission();
         return settings.authorizationStatus;
       },
+      getFirebase: () async {
+        final settings = await FirebaseMessaging.instance.getNotificationSettings();
+        return settings.authorizationStatus;
+      },
       requestAndroid: () => Permission.notification.request(),
+      getAndroid: () => Permission.notification.status,
     );
   }
 }
@@ -129,6 +144,61 @@ class NotificationPermissionService {
     } catch (e, st) {
       _logger.warning('Android POST_NOTIFICATIONS request failed', e, st);
       return NotificationPermissionOutcome.failed;
+    }
+  }
+
+  /// Reads the current authorization without triggering the OS prompt.
+  /// Mirrors [request] platform branching but never surfaces UI.
+  Future<PermissionAvailability> status() async {
+    if (!_isSupported) {
+      return PermissionAvailability.unsupported;
+    }
+    if (_isApplePlatform()) {
+      return _statusApple();
+    }
+    if (_isAndroid()) {
+      return _statusAndroid();
+    }
+    return PermissionAvailability.unsupported;
+  }
+
+  Future<PermissionAvailability> _statusApple() async {
+    try {
+      final status = await _gateway.getFirebase();
+      switch (status) {
+        case AuthorizationStatus.authorized:
+        case AuthorizationStatus.provisional:
+          return PermissionAvailability.granted;
+        case AuthorizationStatus.denied:
+          // Apple's notDetermined collapses into the .denied bucket from a
+          // user's standpoint, but on iOS the OS will not re-prompt once
+          // the user has tapped Don't Allow — only path is system Settings.
+          return PermissionAvailability.permanentlyDenied;
+        case AuthorizationStatus.notDetermined:
+          return PermissionAvailability.denied;
+      }
+    } catch (e, st) {
+      _logger.warning('iOS / macOS getNotificationSettings failed', e, st);
+      return PermissionAvailability.denied;
+    }
+  }
+
+  Future<PermissionAvailability> _statusAndroid() async {
+    try {
+      final status = await _gateway.getAndroid();
+      if (status.isGranted || status.isLimited || status.isProvisional) {
+        return PermissionAvailability.granted;
+      }
+      if (status.isPermanentlyDenied) {
+        return PermissionAvailability.permanentlyDenied;
+      }
+      if (status.isRestricted) {
+        return PermissionAvailability.restricted;
+      }
+      return PermissionAvailability.denied;
+    } catch (e, st) {
+      _logger.warning('Android POST_NOTIFICATIONS status read failed', e, st);
+      return PermissionAvailability.denied;
     }
   }
 }

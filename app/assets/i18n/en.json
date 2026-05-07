@@ -154,6 +154,19 @@
       "multicastGroup": "Multicast address",
       "multicastGroupWarning": "You might not be detected by other devices because you are using a custom multicast address. (default: {defaultMulticast})"
     },
+    "permissions": {
+      "title": "Permissions",
+      "notifications": "Notifications",
+      "camera": "Camera",
+      "statusGranted": "Granted",
+      "statusDenied": "Not granted",
+      "statusPermanentlyDenied": "Denied — open OS Settings",
+      "statusRestricted": "Restricted by device",
+      "grant": "Grant",
+      "openSettings": "Open Settings",
+      "refreshLabel": "Re-check permissions",
+      "refresh": "Refresh"
+    },
     "deviceGroup": {
       "title": "Device group",
       "thisDevice": "This device",
