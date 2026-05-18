@@ -83,6 +83,18 @@ Widget _wrap(SendSessionState session) {
   );
 }
 
+// `find.widgetWithText(FilledButton, ...)` uses `find.byType(FilledButton)`
+// under the hood, which compares `runtimeType` strictly. In Flutter 3.38
+// (the version pinned in `.github/workflows/ci.yml`) `FilledButton.icon`
+// still returns a private `_FilledButtonWithIcon` subclass — so strict
+// `runtimeType ==` finds zero matches even though the rendered widget IS a
+// FilledButton by inheritance. The `OutlinedButton.icon` factory was
+// already migrated to the plain pattern in 3.38, hence the asymmetry. Use
+// an `is`-based predicate so the assertion holds on both Flutter versions.
+Finder _ancestorOfText(String text, bool Function(Widget) match) {
+  return find.ancestor(of: find.text(text), matching: find.byWidgetPredicate(match));
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -106,7 +118,7 @@ void main() {
 
     expect(find.textContaining('Waiting for Pixel 6'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, t.general.cancel), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Retry'), findsNothing);
+    expect(_ancestorOfText('Retry', (w) => w is FilledButton), findsNothing);
 
     // Tear down so the per-second countdown timer is cancelled before
     // the binding asserts "no pending timers".
@@ -125,7 +137,7 @@ void main() {
 
     expect(find.textContaining("didn't come online in time"), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, t.general.cancel), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+    expect(_ancestorOfText('Retry', (w) => w is FilledButton), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
