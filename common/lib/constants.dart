@@ -24,7 +24,13 @@ const defaultPort = 53317;
 /// The default discovery timeout in milliseconds.
 /// This is the time the discovery server waits for responses.
 /// If no response is received within this time, the target server is unavailable.
-const defaultDiscoveryTimeout = 500;
+///
+/// 500 ms is too aggressive for iOS HTTPS handshakes against a self-signed
+/// cert — the receiver can easily exceed the budget on first contact, leaving
+/// the device discoverable via signaling but not via LAN HTTP. 2000 ms keeps
+/// the subnet scan bounded (256 IPs / 50-way concurrency ≈ ~10 s worst case)
+/// while reliably catching slow iOS responders.
+const defaultDiscoveryTimeout = 2000;
 
 /// The default multicast group should be 224.0.0.0/24
 /// because on some Android devices this is the only IP range

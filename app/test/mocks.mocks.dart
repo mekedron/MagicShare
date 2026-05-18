@@ -3,20 +3,33 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 
-import 'package:common/model/device.dart' as _i12;
+import 'package:common/model/device.dart' as _i15;
 import 'package:common/model/stored_security_context.dart' as _i2;
-import 'package:flutter/material.dart' as _i8;
-import 'package:magicshare_app/gen/strings.g.dart' as _i10;
-import 'package:magicshare_app/model/persistence/color_mode.dart' as _i9;
-import 'package:magicshare_app/model/persistence/favorite_device.dart' as _i6;
-import 'package:magicshare_app/model/persistence/receive_history_entry.dart' as _i5;
-import 'package:magicshare_app/model/send_mode.dart' as _i11;
-import 'package:magicshare_app/provider/persistence_provider.dart' as _i3;
+import 'package:common/src/isolate/parent/parent_isolate_provider.dart' as _i3;
+import 'package:flutter/material.dart' as _i11;
+import 'package:magicshare_app/gen/strings.g.dart' as _i13;
+import 'package:magicshare_app/model/log_entry.dart' as _i24;
+import 'package:magicshare_app/model/persistence/color_mode.dart' as _i12;
+import 'package:magicshare_app/model/persistence/favorite_device.dart' as _i9;
+import 'package:magicshare_app/model/persistence/receive_history_entry.dart' as _i8;
+import 'package:magicshare_app/model/send_mode.dart' as _i14;
+import 'package:magicshare_app/provider/favorites_provider.dart' as _i22;
+import 'package:magicshare_app/provider/logging/discovery_logs_provider.dart' as _i23;
+import 'package:magicshare_app/provider/persistence_provider.dart' as _i7;
+import 'package:magicshare_app/rust/api/model.dart' as _i26;
+import 'package:magicshare_app/rust/api/webrtc.dart' as _i6;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i7;
-import 'package:shared_preferences/shared_preferences.dart' as _i13;
+import 'package:mockito/src/dummies.dart' as _i10;
+import 'package:refena/src/action/redux_action.dart' as _i18;
+import 'package:refena/src/notifier/base_notifier.dart' as _i17;
+import 'package:refena/src/notifier/listener.dart' as _i21;
+import 'package:refena/src/provider/base_provider.dart' as _i20;
+import 'package:refena/src/proxy_ref.dart' as _i19;
+import 'package:refena_flutter/refena_flutter.dart' as _i4;
+import 'package:shared_preferences/shared_preferences.dart' as _i16;
+import 'package:uuid/uuid.dart' as _i25;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -37,10 +50,38 @@ class _FakeStoredSecurityContext_0 extends _i1.SmartFake implements _i2.StoredSe
   _FakeStoredSecurityContext_0(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
+class _FakeParentIsolateState_1 extends _i1.SmartFake implements _i3.ParentIsolateState {
+  _FakeParentIsolateState_1(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+}
+
+class _FakeDispatcher_2<N extends _i4.ReduxNotifier<T>, T> extends _i1.SmartFake implements _i4.Dispatcher<N, T> {
+  _FakeDispatcher_2(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+}
+
+class _FakeGlobalActionDispatcher_3 extends _i1.SmartFake implements _i4.GlobalActionDispatcher {
+  _FakeGlobalActionDispatcher_3(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+}
+
+class _FakeFuture_4<T> extends _i1.SmartFake implements _i5.Future<T> {
+  _FakeFuture_4(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+}
+
+class _FakeRef_5 extends _i1.SmartFake implements _i4.Ref {
+  _FakeRef_5(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+}
+
+class _FakeRtcReceiveController_6 extends _i1.SmartFake implements _i6.RtcReceiveController {
+  _FakeRtcReceiveController_6(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+}
+
+class _FakeRtcSendController_7 extends _i1.SmartFake implements _i6.RtcSendController {
+  _FakeRtcSendController_7(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
+}
+
 /// A class which mocks [PersistenceService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService {
+class MockPersistenceService extends _i1.Mock implements _i7.PersistenceService {
   @override
   bool get isFirstAppStart =>
       (super.noSuchMethod(
@@ -75,77 +116,77 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as _i2.StoredSecurityContext);
 
   @override
-  _i4.Future<void> setSecurityContext(_i2.StoredSecurityContext? context) =>
+  _i5.Future<void> setSecurityContext(_i2.StoredSecurityContext? context) =>
       (super.noSuchMethod(
             Invocation.method(#setSecurityContext, [context]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setSignalingServers(List<String>? servers) =>
+  _i5.Future<void> setSignalingServers(List<String>? servers) =>
       (super.noSuchMethod(
             Invocation.method(#setSignalingServers, [servers]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setStunServers(List<String>? servers) =>
+  _i5.Future<void> setStunServers(List<String>? servers) =>
       (super.noSuchMethod(
             Invocation.method(#setStunServers, [servers]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  List<_i5.ReceiveHistoryEntry> getReceiveHistory() =>
+  List<_i8.ReceiveHistoryEntry> getReceiveHistory() =>
       (super.noSuchMethod(
             Invocation.method(#getReceiveHistory, []),
-            returnValue: <_i5.ReceiveHistoryEntry>[],
-            returnValueForMissingStub: <_i5.ReceiveHistoryEntry>[],
+            returnValue: <_i8.ReceiveHistoryEntry>[],
+            returnValueForMissingStub: <_i8.ReceiveHistoryEntry>[],
           )
-          as List<_i5.ReceiveHistoryEntry>);
+          as List<_i8.ReceiveHistoryEntry>);
 
   @override
-  _i4.Future<void> setReceiveHistory(List<_i5.ReceiveHistoryEntry>? entries) =>
+  _i5.Future<void> setReceiveHistory(List<_i8.ReceiveHistoryEntry>? entries) =>
       (super.noSuchMethod(
             Invocation.method(#setReceiveHistory, [entries]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  List<_i6.FavoriteDevice> getFavorites() =>
+  List<_i9.FavoriteDevice> getFavorites() =>
       (super.noSuchMethod(
             Invocation.method(#getFavorites, []),
-            returnValue: <_i6.FavoriteDevice>[],
-            returnValueForMissingStub: <_i6.FavoriteDevice>[],
+            returnValue: <_i9.FavoriteDevice>[],
+            returnValueForMissingStub: <_i9.FavoriteDevice>[],
           )
-          as List<_i6.FavoriteDevice>);
+          as List<_i9.FavoriteDevice>);
 
   @override
-  _i4.Future<void> setFavorites(List<_i6.FavoriteDevice>? entries) =>
+  _i5.Future<void> setFavorites(List<_i9.FavoriteDevice>? entries) =>
       (super.noSuchMethod(
             Invocation.method(#setFavorites, [entries]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   String getShowToken() =>
       (super.noSuchMethod(
             Invocation.method(#getShowToken, []),
-            returnValue: _i7.dummyValue<String>(
+            returnValue: _i10.dummyValue<String>(
               this,
               Invocation.method(#getShowToken, []),
             ),
-            returnValueForMissingStub: _i7.dummyValue<String>(
+            returnValueForMissingStub: _i10.dummyValue<String>(
               this,
               Invocation.method(#getShowToken, []),
             ),
@@ -156,11 +197,11 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
   String getAlias() =>
       (super.noSuchMethod(
             Invocation.method(#getAlias, []),
-            returnValue: _i7.dummyValue<String>(
+            returnValue: _i10.dummyValue<String>(
               this,
               Invocation.method(#getAlias, []),
             ),
-            returnValueForMissingStub: _i7.dummyValue<String>(
+            returnValueForMissingStub: _i10.dummyValue<String>(
               this,
               Invocation.method(#getAlias, []),
             ),
@@ -168,58 +209,58 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as String);
 
   @override
-  _i4.Future<void> setAlias(String? alias) =>
+  _i5.Future<void> setAlias(String? alias) =>
       (super.noSuchMethod(
             Invocation.method(#setAlias, [alias]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i8.ThemeMode getTheme() =>
+  _i11.ThemeMode getTheme() =>
       (super.noSuchMethod(
             Invocation.method(#getTheme, []),
-            returnValue: _i8.ThemeMode.system,
-            returnValueForMissingStub: _i8.ThemeMode.system,
+            returnValue: _i11.ThemeMode.system,
+            returnValueForMissingStub: _i11.ThemeMode.system,
           )
-          as _i8.ThemeMode);
+          as _i11.ThemeMode);
 
   @override
-  _i4.Future<void> setTheme(_i8.ThemeMode? theme) =>
+  _i5.Future<void> setTheme(_i11.ThemeMode? theme) =>
       (super.noSuchMethod(
             Invocation.method(#setTheme, [theme]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i9.ColorMode getColorMode() =>
+  _i12.ColorMode getColorMode() =>
       (super.noSuchMethod(
             Invocation.method(#getColorMode, []),
-            returnValue: _i9.ColorMode.system,
-            returnValueForMissingStub: _i9.ColorMode.system,
+            returnValue: _i12.ColorMode.system,
+            returnValueForMissingStub: _i12.ColorMode.system,
           )
-          as _i9.ColorMode);
+          as _i12.ColorMode);
 
   @override
-  _i4.Future<void> setColorMode(_i9.ColorMode? color) =>
+  _i5.Future<void> setColorMode(_i12.ColorMode? color) =>
       (super.noSuchMethod(
             Invocation.method(#setColorMode, [color]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setLocale(_i10.AppLocale? locale) =>
+  _i5.Future<void> setLocale(_i13.AppLocale? locale) =>
       (super.noSuchMethod(
             Invocation.method(#setLocale, [locale]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   int getPort() =>
@@ -231,31 +272,31 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as int);
 
   @override
-  _i4.Future<void> setPort(int? port) =>
+  _i5.Future<void> setPort(int? port) =>
       (super.noSuchMethod(
             Invocation.method(#setPort, [port]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setNetworkWhitelist(List<String>? whitelist) =>
+  _i5.Future<void> setNetworkWhitelist(List<String>? whitelist) =>
       (super.noSuchMethod(
             Invocation.method(#setNetworkWhitelist, [whitelist]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setNetworkBlacklist(List<String>? blacklist) =>
+  _i5.Future<void> setNetworkBlacklist(List<String>? blacklist) =>
       (super.noSuchMethod(
             Invocation.method(#setNetworkBlacklist, [blacklist]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   int getDiscoveryTimeout() =>
@@ -267,13 +308,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as int);
 
   @override
-  _i4.Future<void> setDiscoveryTimeout(int? timeout) =>
+  _i5.Future<void> setDiscoveryTimeout(int? timeout) =>
       (super.noSuchMethod(
             Invocation.method(#setDiscoveryTimeout, [timeout]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool getShareViaLinkAutoAccept() =>
@@ -285,25 +326,25 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setShareViaLinkAutoAccept(bool? shareViaLinkAutoAccept) =>
+  _i5.Future<void> setShareViaLinkAutoAccept(bool? shareViaLinkAutoAccept) =>
       (super.noSuchMethod(
             Invocation.method(#setShareViaLinkAutoAccept, [
               shareViaLinkAutoAccept,
             ]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   String getMulticastGroup() =>
       (super.noSuchMethod(
             Invocation.method(#getMulticastGroup, []),
-            returnValue: _i7.dummyValue<String>(
+            returnValue: _i10.dummyValue<String>(
               this,
               Invocation.method(#getMulticastGroup, []),
             ),
-            returnValueForMissingStub: _i7.dummyValue<String>(
+            returnValueForMissingStub: _i10.dummyValue<String>(
               this,
               Invocation.method(#getMulticastGroup, []),
             ),
@@ -311,22 +352,22 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as String);
 
   @override
-  _i4.Future<void> setMulticastGroup(String? group) =>
+  _i5.Future<void> setMulticastGroup(String? group) =>
       (super.noSuchMethod(
             Invocation.method(#setMulticastGroup, [group]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setDestination(String? destination) =>
+  _i5.Future<void> setDestination(String? destination) =>
       (super.noSuchMethod(
             Invocation.method(#setDestination, [destination]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool isSaveToGallery() =>
@@ -338,13 +379,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setSaveToGallery(bool? saveToGallery) =>
+  _i5.Future<void> setSaveToGallery(bool? saveToGallery) =>
       (super.noSuchMethod(
             Invocation.method(#setSaveToGallery, [saveToGallery]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool isSaveToHistory() =>
@@ -356,13 +397,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setSaveToHistory(bool? saveToHistory) =>
+  _i5.Future<void> setSaveToHistory(bool? saveToHistory) =>
       (super.noSuchMethod(
             Invocation.method(#setSaveToHistory, [saveToHistory]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool getAdvancedSettingsEnabled() =>
@@ -374,13 +415,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setAdvancedSettingsEnabled(bool? isEnabled) =>
+  _i5.Future<void> setAdvancedSettingsEnabled(bool? isEnabled) =>
       (super.noSuchMethod(
             Invocation.method(#setAdvancedSettingsEnabled, [isEnabled]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool getCloudSyncEnabled() =>
@@ -392,13 +433,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setCloudSyncEnabled(bool? isEnabled) =>
+  _i5.Future<void> setCloudSyncEnabled(bool? isEnabled) =>
       (super.noSuchMethod(
             Invocation.method(#setCloudSyncEnabled, [isEnabled]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool getEncryptLinkNotifications() =>
@@ -410,13 +451,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setEncryptLinkNotifications(bool? isEnabled) =>
+  _i5.Future<void> setEncryptLinkNotifications(bool? isEnabled) =>
       (super.noSuchMethod(
             Invocation.method(#setEncryptLinkNotifications, [isEnabled]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool getCloudWelcomeDismissed() =>
@@ -428,31 +469,31 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setCloudWelcomeDismissed(bool? isDismissed) =>
+  _i5.Future<void> setCloudWelcomeDismissed(bool? isDismissed) =>
       (super.noSuchMethod(
             Invocation.method(#setCloudWelcomeDismissed, [isDismissed]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setCloudDeviceId(String? deviceId) =>
+  _i5.Future<void> setCloudDeviceId(String? deviceId) =>
       (super.noSuchMethod(
             Invocation.method(#setCloudDeviceId, [deviceId]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> clearCloudDeviceId() =>
+  _i5.Future<void> clearCloudDeviceId() =>
       (super.noSuchMethod(
             Invocation.method(#clearCloudDeviceId, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool isQuickSave() =>
@@ -464,13 +505,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setQuickSave(bool? quickSave) =>
+  _i5.Future<void> setQuickSave(bool? quickSave) =>
       (super.noSuchMethod(
             Invocation.method(#setQuickSave, [quickSave]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool isQuickSaveFromFavorites() =>
@@ -482,24 +523,24 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setQuickSaveFromFavorites(bool? quickSaveFromFavorites) =>
+  _i5.Future<void> setQuickSaveFromFavorites(bool? quickSaveFromFavorites) =>
       (super.noSuchMethod(
             Invocation.method(#setQuickSaveFromFavorites, [
               quickSaveFromFavorites,
             ]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setReceivePin(String? pin) =>
+  _i5.Future<void> setReceivePin(String? pin) =>
       (super.noSuchMethod(
             Invocation.method(#setReceivePin, [pin]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool isAutoFinish() =>
@@ -511,13 +552,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setAutoFinish(bool? autoFinish) =>
+  _i5.Future<void> setAutoFinish(bool? autoFinish) =>
       (super.noSuchMethod(
             Invocation.method(#setAutoFinish, [autoFinish]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool isMinimizeToTray() =>
@@ -529,13 +570,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setMinimizeToTray(bool? minimizeToTray) =>
+  _i5.Future<void> setMinimizeToTray(bool? minimizeToTray) =>
       (super.noSuchMethod(
             Invocation.method(#setMinimizeToTray, [minimizeToTray]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool isHttps() =>
@@ -547,76 +588,76 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setHttps(bool? https) =>
+  _i5.Future<void> setHttps(bool? https) =>
       (super.noSuchMethod(
             Invocation.method(#setHttps, [https]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i11.SendMode getSendMode() =>
+  _i14.SendMode getSendMode() =>
       (super.noSuchMethod(
             Invocation.method(#getSendMode, []),
-            returnValue: _i11.SendMode.single,
-            returnValueForMissingStub: _i11.SendMode.single,
+            returnValue: _i14.SendMode.single,
+            returnValueForMissingStub: _i14.SendMode.single,
           )
-          as _i11.SendMode);
+          as _i14.SendMode);
 
   @override
-  _i4.Future<void> setSendMode(_i11.SendMode? mode) =>
+  _i5.Future<void> setSendMode(_i14.SendMode? mode) =>
       (super.noSuchMethod(
             Invocation.method(#setSendMode, [mode]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setWindowOffsetX(double? x) =>
+  _i5.Future<void> setWindowOffsetX(double? x) =>
       (super.noSuchMethod(
             Invocation.method(#setWindowOffsetX, [x]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setWindowOffsetY(double? y) =>
+  _i5.Future<void> setWindowOffsetY(double? y) =>
       (super.noSuchMethod(
             Invocation.method(#setWindowOffsetY, [y]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setWindowHeight(double? height) =>
+  _i5.Future<void> setWindowHeight(double? height) =>
       (super.noSuchMethod(
             Invocation.method(#setWindowHeight, [height]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setWindowWidth(double? width) =>
+  _i5.Future<void> setWindowWidth(double? width) =>
       (super.noSuchMethod(
             Invocation.method(#setWindowWidth, [width]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setSaveWindowPlacement(bool? savePlacement) =>
+  _i5.Future<void> setSaveWindowPlacement(bool? savePlacement) =>
       (super.noSuchMethod(
             Invocation.method(#setSaveWindowPlacement, [savePlacement]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool getSaveWindowPlacement() =>
@@ -628,13 +669,13 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setEnableAnimations(bool? enableAnimations) =>
+  _i5.Future<void> setEnableAnimations(bool? enableAnimations) =>
       (super.noSuchMethod(
             Invocation.method(#setEnableAnimations, [enableAnimations]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
   bool getEnableAnimations() =>
@@ -646,37 +687,37 @@ class MockPersistenceService extends _i1.Mock implements _i3.PersistenceService 
           as bool);
 
   @override
-  _i4.Future<void> setDeviceType(_i12.DeviceType? deviceType) =>
+  _i5.Future<void> setDeviceType(_i15.DeviceType? deviceType) =>
       (super.noSuchMethod(
             Invocation.method(#setDeviceType, [deviceType]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> setDeviceModel(String? deviceModel) =>
+  _i5.Future<void> setDeviceModel(String? deviceModel) =>
       (super.noSuchMethod(
             Invocation.method(#setDeviceModel, [deviceModel]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> clear() =>
+  _i5.Future<void> clear() =>
       (super.noSuchMethod(
             Invocation.method(#clear, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 }
 
 /// A class which mocks [SharedPreferences].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockSharedPreferences extends _i1.Mock implements _i13.SharedPreferences {
+class MockSharedPreferences extends _i1.Mock implements _i16.SharedPreferences {
   @override
   Set<String> getKeys() =>
       (super.noSuchMethod(
@@ -744,83 +785,1351 @@ class MockSharedPreferences extends _i1.Mock implements _i13.SharedPreferences {
           as List<String>?);
 
   @override
-  _i4.Future<bool> setBool(String? key, bool? value) =>
+  _i5.Future<bool> setBool(String? key, bool? value) =>
       (super.noSuchMethod(
             Invocation.method(#setBool, [key, value]),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> setInt(String? key, int? value) =>
+  _i5.Future<bool> setInt(String? key, int? value) =>
       (super.noSuchMethod(
             Invocation.method(#setInt, [key, value]),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> setDouble(String? key, double? value) =>
+  _i5.Future<bool> setDouble(String? key, double? value) =>
       (super.noSuchMethod(
             Invocation.method(#setDouble, [key, value]),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> setString(String? key, String? value) =>
+  _i5.Future<bool> setString(String? key, String? value) =>
       (super.noSuchMethod(
             Invocation.method(#setString, [key, value]),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> setStringList(String? key, List<String>? value) =>
+  _i5.Future<bool> setStringList(String? key, List<String>? value) =>
       (super.noSuchMethod(
             Invocation.method(#setStringList, [key, value]),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> remove(String? key) =>
+  _i5.Future<bool> remove(String? key) =>
       (super.noSuchMethod(
             Invocation.method(#remove, [key]),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> commit() =>
+  _i5.Future<bool> commit() =>
       (super.noSuchMethod(
             Invocation.method(#commit, []),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<bool> clear() =>
+  _i5.Future<bool> clear() =>
       (super.noSuchMethod(
             Invocation.method(#clear, []),
-            returnValue: _i4.Future<bool>.value(false),
-            returnValueForMissingStub: _i4.Future<bool>.value(false),
+            returnValue: _i5.Future<bool>.value(false),
+            returnValueForMissingStub: _i5.Future<bool>.value(false),
           )
-          as _i4.Future<bool>);
+          as _i5.Future<bool>);
 
   @override
-  _i4.Future<void> reload() =>
+  _i5.Future<void> reload() =>
       (super.noSuchMethod(
             Invocation.method(#reload, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
+}
+
+/// A class which mocks [IsolateController].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockIsolateController extends _i1.Mock implements _i3.IsolateController {
+  @override
+  _i3.ParentIsolateState get initialState =>
+      (super.noSuchMethod(
+            Invocation.getter(#initialState),
+            returnValue: _FakeParentIsolateState_1(
+              this,
+              Invocation.getter(#initialState),
+            ),
+            returnValueForMissingStub: _FakeParentIsolateState_1(
+              this,
+              Invocation.getter(#initialState),
+            ),
+          )
+          as _i3.ParentIsolateState);
+
+  @override
+  _i4.Dispatcher<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState> get redux =>
+      (super.noSuchMethod(
+            Invocation.getter(#redux),
+            returnValue: _FakeDispatcher_2<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState>(this, Invocation.getter(#redux)),
+            returnValueForMissingStub: _FakeDispatcher_2<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState>(
+              this,
+              Invocation.getter(#redux),
+            ),
+          )
+          as _i4.Dispatcher<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState>);
+
+  @override
+  _i4.GlobalActionDispatcher get global =>
+      (super.noSuchMethod(
+            Invocation.getter(#global),
+            returnValue: _FakeGlobalActionDispatcher_3(
+              this,
+              Invocation.getter(#global),
+            ),
+            returnValueForMissingStub: _FakeGlobalActionDispatcher_3(
+              this,
+              Invocation.getter(#global),
+            ),
+          )
+          as _i4.GlobalActionDispatcher);
+
+  @override
+  set global(_i4.GlobalActionDispatcher? value) => super.noSuchMethod(
+    Invocation.setter(#global, value),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  set state(_i3.ParentIsolateState? value) => super.noSuchMethod(
+    Invocation.setter(#state, value),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  Set<_i17.BaseNotifier<dynamic>> get dependencies =>
+      (super.noSuchMethod(
+            Invocation.getter(#dependencies),
+            returnValue: <_i17.BaseNotifier<dynamic>>{},
+            returnValueForMissingStub: <_i17.BaseNotifier<dynamic>>{},
+          )
+          as Set<_i17.BaseNotifier<dynamic>>);
+
+  @override
+  Set<_i17.BaseNotifier<dynamic>> get dependents =>
+      (super.noSuchMethod(
+            Invocation.getter(#dependents),
+            returnValue: <_i17.BaseNotifier<dynamic>>{},
+            returnValueForMissingStub: <_i17.BaseNotifier<dynamic>>{},
+          )
+          as Set<_i17.BaseNotifier<dynamic>>);
+
+  @override
+  bool get disposed =>
+      (super.noSuchMethod(
+            Invocation.getter(#disposed),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  _i3.ParentIsolateState get state =>
+      (super.noSuchMethod(
+            Invocation.getter(#state),
+            returnValue: _FakeParentIsolateState_1(
+              this,
+              Invocation.getter(#state),
+            ),
+            returnValueForMissingStub: _FakeParentIsolateState_1(
+              this,
+              Invocation.getter(#state),
+            ),
+          )
+          as _i3.ParentIsolateState);
+
+  @override
+  String get debugLabel =>
+      (super.noSuchMethod(
+            Invocation.getter(#debugLabel),
+            returnValue: _i10.dummyValue<String>(
+              this,
+              Invocation.getter(#debugLabel),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<String>(
+              this,
+              Invocation.getter(#debugLabel),
+            ),
+          )
+          as String);
+
+  @override
+  bool get requireBuildContext =>
+      (super.noSuchMethod(
+            Invocation.getter(#requireBuildContext),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  _i3.ParentIsolateState init() =>
+      (super.noSuchMethod(
+            Invocation.method(#init, []),
+            returnValue: _FakeParentIsolateState_1(
+              this,
+              Invocation.method(#init, []),
+            ),
+            returnValueForMissingStub: _FakeParentIsolateState_1(
+              this,
+              Invocation.method(#init, []),
+            ),
+          )
+          as _i3.ParentIsolateState);
+
+  @override
+  _i4.Dispatcher<_i4.ReduxNotifier<T2>, T2> external<T2>(
+    _i4.ReduxNotifier<T2>? notifier,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#external, [notifier]),
+            returnValue: _FakeDispatcher_2<_i4.ReduxNotifier<T2>, T2>(
+              this,
+              Invocation.method(#external, [notifier]),
+            ),
+            returnValueForMissingStub: _FakeDispatcher_2<_i4.ReduxNotifier<T2>, T2>(
+              this,
+              Invocation.method(#external, [notifier]),
+            ),
+          )
+          as _i4.Dispatcher<_i4.ReduxNotifier<T2>, T2>);
+
+  @override
+  _i3.ParentIsolateState dispatch(
+    _i18.SynchronousReduxAction<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState, dynamic>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatch,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: _FakeParentIsolateState_1(
+              this,
+              Invocation.method(
+                #dispatch,
+                [action],
+                {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+              ),
+            ),
+            returnValueForMissingStub: _FakeParentIsolateState_1(
+              this,
+              Invocation.method(
+                #dispatch,
+                [action],
+                {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+              ),
+            ),
+          )
+          as _i3.ParentIsolateState);
+
+  @override
+  (_i3.ParentIsolateState, R) dispatchWithResult<R>(
+    _i18.BaseReduxActionWithResult<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchWithResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: (
+              _FakeParentIsolateState_1(
+                this,
+                Invocation.method(
+                  #dispatchWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            ),
+            returnValueForMissingStub: (
+              _FakeParentIsolateState_1(
+                this,
+                Invocation.method(
+                  #dispatchWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            ),
+          )
+          as (_i3.ParentIsolateState, R));
+
+  @override
+  R dispatchTakeResult<R>(
+    _i18.BaseReduxActionWithResult<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchTakeResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: _i10.dummyValue<R>(
+              this,
+              Invocation.method(
+                #dispatchTakeResult,
+                [action],
+                {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+              ),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<R>(
+              this,
+              Invocation.method(
+                #dispatchTakeResult,
+                [action],
+                {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+              ),
+            ),
+          )
+          as R);
+
+  @override
+  _i5.Future<_i3.ParentIsolateState> dispatchAsync(
+    _i18.AsynchronousReduxAction<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState, dynamic>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchAsync,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: _i5.Future<_i3.ParentIsolateState>.value(
+              _FakeParentIsolateState_1(
+                this,
+                Invocation.method(
+                  #dispatchAsync,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            ),
+            returnValueForMissingStub: _i5.Future<_i3.ParentIsolateState>.value(
+              _FakeParentIsolateState_1(
+                this,
+                Invocation.method(
+                  #dispatchAsync,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.ParentIsolateState>);
+
+  @override
+  _i5.Future<(_i3.ParentIsolateState, R)> dispatchAsyncWithResult<R>(
+    _i18.BaseAsyncReduxActionWithResult<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchAsyncWithResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: _i5.Future<(_i3.ParentIsolateState, R)>.value((
+              _FakeParentIsolateState_1(
+                this,
+                Invocation.method(
+                  #dispatchAsyncWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchAsyncWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            )),
+            returnValueForMissingStub: _i5.Future<(_i3.ParentIsolateState, R)>.value((
+              _FakeParentIsolateState_1(
+                this,
+                Invocation.method(
+                  #dispatchAsyncWithResult,
+                  [action],
+                  {
+                    #debugOrigin: debugOrigin,
+                    #debugOriginRef: debugOriginRef,
+                  },
+                ),
+              ),
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchAsyncWithResult,
+                  [action],
+                  {
+                    #debugOrigin: debugOrigin,
+                    #debugOriginRef: debugOriginRef,
+                  },
+                ),
+              ),
+            )),
+          )
+          as _i5.Future<(_i3.ParentIsolateState, R)>);
+
+  @override
+  _i5.Future<R> dispatchAsyncTakeResult<R>(
+    _i18.BaseAsyncReduxActionWithResult<_i4.ReduxNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchAsyncTakeResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue:
+                _i10.ifNotNull(
+                  _i10.dummyValueOrNull<R>(
+                    this,
+                    Invocation.method(
+                      #dispatchAsyncTakeResult,
+                      [action],
+                      {
+                        #debugOrigin: debugOrigin,
+                        #debugOriginRef: debugOriginRef,
+                      },
+                    ),
+                  ),
+                  (R v) => _i5.Future<R>.value(v),
+                ) ??
+                _FakeFuture_4<R>(
+                  this,
+                  Invocation.method(
+                    #dispatchAsyncTakeResult,
+                    [action],
+                    {
+                      #debugOrigin: debugOrigin,
+                      #debugOriginRef: debugOriginRef,
+                    },
+                  ),
+                ),
+            returnValueForMissingStub:
+                _i10.ifNotNull(
+                  _i10.dummyValueOrNull<R>(
+                    this,
+                    Invocation.method(
+                      #dispatchAsyncTakeResult,
+                      [action],
+                      {
+                        #debugOrigin: debugOrigin,
+                        #debugOriginRef: debugOriginRef,
+                      },
+                    ),
+                  ),
+                  (R v) => _i5.Future<R>.value(v),
+                ) ??
+                _FakeFuture_4<R>(
+                  this,
+                  Invocation.method(
+                    #dispatchAsyncTakeResult,
+                    [action],
+                    {
+                      #debugOrigin: debugOrigin,
+                      #debugOriginRef: debugOriginRef,
+                    },
+                  ),
+                ),
+          )
+          as _i5.Future<R>);
+
+  @override
+  void postInit() => super.noSuchMethod(
+    Invocation.method(#postInit, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void dispose() => super.noSuchMethod(
+    Invocation.method(#dispose, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void internalSetup(
+    _i19.ProxyRef? ref,
+    _i20.BaseProvider<_i17.BaseNotifier<_i3.ParentIsolateState>, _i3.ParentIsolateState>? provider,
+  ) => super.noSuchMethod(
+    Invocation.method(#internalSetup, [ref, provider]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void registerWatchAction(_i4.WatchActionSubscription? subscription) => super.noSuchMethod(
+    Invocation.method(#registerWatchAction, [subscription]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  bool updateShouldNotify(
+    _i3.ParentIsolateState? prev,
+    _i3.ParentIsolateState? next,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateShouldNotify, [prev, next]),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  String describeState(_i3.ParentIsolateState? state) =>
+      (super.noSuchMethod(
+            Invocation.method(#describeState, [state]),
+            returnValue: _i10.dummyValue<String>(
+              this,
+              Invocation.method(#describeState, [state]),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<String>(
+              this,
+              Invocation.method(#describeState, [state]),
+            ),
+          )
+          as String);
+
+  @override
+  List<_i4.Rebuildable> getListeners() =>
+      (super.noSuchMethod(
+            Invocation.method(#getListeners, []),
+            returnValue: <_i4.Rebuildable>[],
+            returnValueForMissingStub: <_i4.Rebuildable>[],
+          )
+          as List<_i4.Rebuildable>);
+
+  @override
+  void cleanupListeners() => super.noSuchMethod(
+    Invocation.method(#cleanupListeners, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void addListener(
+    _i4.Rebuildable? rebuildable,
+    _i21.ListenerConfig<_i3.ParentIsolateState>? config,
+  ) => super.noSuchMethod(
+    Invocation.method(#addListener, [rebuildable, config]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void removeListener(_i4.Rebuildable? rebuildable) => super.noSuchMethod(
+    Invocation.method(#removeListener, [rebuildable]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  _i5.Stream<_i4.NotifierEvent<_i3.ParentIsolateState>> getStream() =>
+      (super.noSuchMethod(
+            Invocation.method(#getStream, []),
+            returnValue: _i5.Stream<_i4.NotifierEvent<_i3.ParentIsolateState>>.empty(),
+            returnValueForMissingStub: _i5.Stream<_i4.NotifierEvent<_i3.ParentIsolateState>>.empty(),
+          )
+          as _i5.Stream<_i4.NotifierEvent<_i3.ParentIsolateState>>);
+}
+
+/// A class which mocks [FavoritesService].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockFavoritesService extends _i1.Mock implements _i22.FavoritesService {
+  @override
+  _i4.Dispatcher<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>> get redux =>
+      (super.noSuchMethod(
+            Invocation.getter(#redux),
+            returnValue: _FakeDispatcher_2<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>>(this, Invocation.getter(#redux)),
+            returnValueForMissingStub: _FakeDispatcher_2<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>>(
+              this,
+              Invocation.getter(#redux),
+            ),
+          )
+          as _i4.Dispatcher<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>>);
+
+  @override
+  _i4.GlobalActionDispatcher get global =>
+      (super.noSuchMethod(
+            Invocation.getter(#global),
+            returnValue: _FakeGlobalActionDispatcher_3(
+              this,
+              Invocation.getter(#global),
+            ),
+            returnValueForMissingStub: _FakeGlobalActionDispatcher_3(
+              this,
+              Invocation.getter(#global),
+            ),
+          )
+          as _i4.GlobalActionDispatcher);
+
+  @override
+  set global(_i4.GlobalActionDispatcher? value) => super.noSuchMethod(
+    Invocation.setter(#global, value),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  set state(List<_i9.FavoriteDevice>? value) => super.noSuchMethod(
+    Invocation.setter(#state, value),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  Set<_i17.BaseNotifier<dynamic>> get dependencies =>
+      (super.noSuchMethod(
+            Invocation.getter(#dependencies),
+            returnValue: <_i17.BaseNotifier<dynamic>>{},
+            returnValueForMissingStub: <_i17.BaseNotifier<dynamic>>{},
+          )
+          as Set<_i17.BaseNotifier<dynamic>>);
+
+  @override
+  Set<_i17.BaseNotifier<dynamic>> get dependents =>
+      (super.noSuchMethod(
+            Invocation.getter(#dependents),
+            returnValue: <_i17.BaseNotifier<dynamic>>{},
+            returnValueForMissingStub: <_i17.BaseNotifier<dynamic>>{},
+          )
+          as Set<_i17.BaseNotifier<dynamic>>);
+
+  @override
+  bool get disposed =>
+      (super.noSuchMethod(
+            Invocation.getter(#disposed),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  List<_i9.FavoriteDevice> get state =>
+      (super.noSuchMethod(
+            Invocation.getter(#state),
+            returnValue: <_i9.FavoriteDevice>[],
+            returnValueForMissingStub: <_i9.FavoriteDevice>[],
+          )
+          as List<_i9.FavoriteDevice>);
+
+  @override
+  String get debugLabel =>
+      (super.noSuchMethod(
+            Invocation.getter(#debugLabel),
+            returnValue: _i10.dummyValue<String>(
+              this,
+              Invocation.getter(#debugLabel),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<String>(
+              this,
+              Invocation.getter(#debugLabel),
+            ),
+          )
+          as String);
+
+  @override
+  bool get requireBuildContext =>
+      (super.noSuchMethod(
+            Invocation.getter(#requireBuildContext),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  List<_i9.FavoriteDevice> init() =>
+      (super.noSuchMethod(
+            Invocation.method(#init, []),
+            returnValue: <_i9.FavoriteDevice>[],
+            returnValueForMissingStub: <_i9.FavoriteDevice>[],
+          )
+          as List<_i9.FavoriteDevice>);
+
+  @override
+  _i4.Dispatcher<_i4.ReduxNotifier<T2>, T2> external<T2>(
+    _i4.ReduxNotifier<T2>? notifier,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#external, [notifier]),
+            returnValue: _FakeDispatcher_2<_i4.ReduxNotifier<T2>, T2>(
+              this,
+              Invocation.method(#external, [notifier]),
+            ),
+            returnValueForMissingStub: _FakeDispatcher_2<_i4.ReduxNotifier<T2>, T2>(
+              this,
+              Invocation.method(#external, [notifier]),
+            ),
+          )
+          as _i4.Dispatcher<_i4.ReduxNotifier<T2>, T2>);
+
+  @override
+  List<_i9.FavoriteDevice> dispatch(
+    _i18.SynchronousReduxAction<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>, dynamic>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatch,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: <_i9.FavoriteDevice>[],
+            returnValueForMissingStub: <_i9.FavoriteDevice>[],
+          )
+          as List<_i9.FavoriteDevice>);
+
+  @override
+  (List<_i9.FavoriteDevice>, R) dispatchWithResult<R>(
+    _i18.BaseReduxActionWithResult<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchWithResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: (
+              <_i9.FavoriteDevice>[],
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            ),
+            returnValueForMissingStub: (
+              <_i9.FavoriteDevice>[],
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            ),
+          )
+          as (List<_i9.FavoriteDevice>, R));
+
+  @override
+  R dispatchTakeResult<R>(
+    _i18.BaseReduxActionWithResult<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchTakeResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: _i10.dummyValue<R>(
+              this,
+              Invocation.method(
+                #dispatchTakeResult,
+                [action],
+                {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+              ),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<R>(
+              this,
+              Invocation.method(
+                #dispatchTakeResult,
+                [action],
+                {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+              ),
+            ),
+          )
+          as R);
+
+  @override
+  _i5.Future<List<_i9.FavoriteDevice>> dispatchAsync(
+    _i18.AsynchronousReduxAction<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>, dynamic>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchAsync,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: _i5.Future<List<_i9.FavoriteDevice>>.value(
+              <_i9.FavoriteDevice>[],
+            ),
+            returnValueForMissingStub: _i5.Future<List<_i9.FavoriteDevice>>.value(
+              <_i9.FavoriteDevice>[],
+            ),
+          )
+          as _i5.Future<List<_i9.FavoriteDevice>>);
+
+  @override
+  _i5.Future<(List<_i9.FavoriteDevice>, R)> dispatchAsyncWithResult<R>(
+    _i18.BaseAsyncReduxActionWithResult<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchAsyncWithResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue: _i5.Future<(List<_i9.FavoriteDevice>, R)>.value((
+              <_i9.FavoriteDevice>[],
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchAsyncWithResult,
+                  [action],
+                  {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+                ),
+              ),
+            )),
+            returnValueForMissingStub: _i5.Future<(List<_i9.FavoriteDevice>, R)>.value((
+              <_i9.FavoriteDevice>[],
+              _i10.dummyValue<R>(
+                this,
+                Invocation.method(
+                  #dispatchAsyncWithResult,
+                  [action],
+                  {
+                    #debugOrigin: debugOrigin,
+                    #debugOriginRef: debugOriginRef,
+                  },
+                ),
+              ),
+            )),
+          )
+          as _i5.Future<(List<_i9.FavoriteDevice>, R)>);
+
+  @override
+  _i5.Future<R> dispatchAsyncTakeResult<R>(
+    _i18.BaseAsyncReduxActionWithResult<_i4.ReduxNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>, R>? action, {
+    String? debugOrigin,
+    _i4.LabeledReference? debugOriginRef,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #dispatchAsyncTakeResult,
+              [action],
+              {#debugOrigin: debugOrigin, #debugOriginRef: debugOriginRef},
+            ),
+            returnValue:
+                _i10.ifNotNull(
+                  _i10.dummyValueOrNull<R>(
+                    this,
+                    Invocation.method(
+                      #dispatchAsyncTakeResult,
+                      [action],
+                      {
+                        #debugOrigin: debugOrigin,
+                        #debugOriginRef: debugOriginRef,
+                      },
+                    ),
+                  ),
+                  (R v) => _i5.Future<R>.value(v),
+                ) ??
+                _FakeFuture_4<R>(
+                  this,
+                  Invocation.method(
+                    #dispatchAsyncTakeResult,
+                    [action],
+                    {
+                      #debugOrigin: debugOrigin,
+                      #debugOriginRef: debugOriginRef,
+                    },
+                  ),
+                ),
+            returnValueForMissingStub:
+                _i10.ifNotNull(
+                  _i10.dummyValueOrNull<R>(
+                    this,
+                    Invocation.method(
+                      #dispatchAsyncTakeResult,
+                      [action],
+                      {
+                        #debugOrigin: debugOrigin,
+                        #debugOriginRef: debugOriginRef,
+                      },
+                    ),
+                  ),
+                  (R v) => _i5.Future<R>.value(v),
+                ) ??
+                _FakeFuture_4<R>(
+                  this,
+                  Invocation.method(
+                    #dispatchAsyncTakeResult,
+                    [action],
+                    {
+                      #debugOrigin: debugOrigin,
+                      #debugOriginRef: debugOriginRef,
+                    },
+                  ),
+                ),
+          )
+          as _i5.Future<R>);
+
+  @override
+  void postInit() => super.noSuchMethod(
+    Invocation.method(#postInit, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void dispose() => super.noSuchMethod(
+    Invocation.method(#dispose, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void internalSetup(
+    _i19.ProxyRef? ref,
+    _i20.BaseProvider<_i17.BaseNotifier<List<_i9.FavoriteDevice>>, List<_i9.FavoriteDevice>>? provider,
+  ) => super.noSuchMethod(
+    Invocation.method(#internalSetup, [ref, provider]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void registerWatchAction(_i4.WatchActionSubscription? subscription) => super.noSuchMethod(
+    Invocation.method(#registerWatchAction, [subscription]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  bool updateShouldNotify(
+    List<_i9.FavoriteDevice>? prev,
+    List<_i9.FavoriteDevice>? next,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateShouldNotify, [prev, next]),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  String describeState(List<_i9.FavoriteDevice>? state) =>
+      (super.noSuchMethod(
+            Invocation.method(#describeState, [state]),
+            returnValue: _i10.dummyValue<String>(
+              this,
+              Invocation.method(#describeState, [state]),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<String>(
+              this,
+              Invocation.method(#describeState, [state]),
+            ),
+          )
+          as String);
+
+  @override
+  List<_i4.Rebuildable> getListeners() =>
+      (super.noSuchMethod(
+            Invocation.method(#getListeners, []),
+            returnValue: <_i4.Rebuildable>[],
+            returnValueForMissingStub: <_i4.Rebuildable>[],
+          )
+          as List<_i4.Rebuildable>);
+
+  @override
+  void cleanupListeners() => super.noSuchMethod(
+    Invocation.method(#cleanupListeners, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void addListener(
+    _i4.Rebuildable? rebuildable,
+    _i21.ListenerConfig<List<_i9.FavoriteDevice>>? config,
+  ) => super.noSuchMethod(
+    Invocation.method(#addListener, [rebuildable, config]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void removeListener(_i4.Rebuildable? rebuildable) => super.noSuchMethod(
+    Invocation.method(#removeListener, [rebuildable]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  _i5.Stream<_i4.NotifierEvent<List<_i9.FavoriteDevice>>> getStream() =>
+      (super.noSuchMethod(
+            Invocation.method(#getStream, []),
+            returnValue: _i5.Stream<_i4.NotifierEvent<List<_i9.FavoriteDevice>>>.empty(),
+            returnValueForMissingStub: _i5.Stream<_i4.NotifierEvent<List<_i9.FavoriteDevice>>>.empty(),
+          )
+          as _i5.Stream<_i4.NotifierEvent<List<_i9.FavoriteDevice>>>);
+}
+
+/// A class which mocks [DiscoveryLogger].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockDiscoveryLogger extends _i1.Mock implements _i23.DiscoveryLogger {
+  @override
+  _i4.Ref get ref =>
+      (super.noSuchMethod(
+            Invocation.getter(#ref),
+            returnValue: _FakeRef_5(this, Invocation.getter(#ref)),
+            returnValueForMissingStub: _FakeRef_5(
+              this,
+              Invocation.getter(#ref),
+            ),
+          )
+          as _i4.Ref);
+
+  @override
+  Set<_i17.BaseNotifier<dynamic>> get dependencies =>
+      (super.noSuchMethod(
+            Invocation.getter(#dependencies),
+            returnValue: <_i17.BaseNotifier<dynamic>>{},
+            returnValueForMissingStub: <_i17.BaseNotifier<dynamic>>{},
+          )
+          as Set<_i17.BaseNotifier<dynamic>>);
+
+  @override
+  Set<_i17.BaseNotifier<dynamic>> get dependents =>
+      (super.noSuchMethod(
+            Invocation.getter(#dependents),
+            returnValue: <_i17.BaseNotifier<dynamic>>{},
+            returnValueForMissingStub: <_i17.BaseNotifier<dynamic>>{},
+          )
+          as Set<_i17.BaseNotifier<dynamic>>);
+
+  @override
+  bool get disposed =>
+      (super.noSuchMethod(
+            Invocation.getter(#disposed),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  List<_i24.LogEntry> get state =>
+      (super.noSuchMethod(
+            Invocation.getter(#state),
+            returnValue: <_i24.LogEntry>[],
+            returnValueForMissingStub: <_i24.LogEntry>[],
+          )
+          as List<_i24.LogEntry>);
+
+  @override
+  String get debugLabel =>
+      (super.noSuchMethod(
+            Invocation.getter(#debugLabel),
+            returnValue: _i10.dummyValue<String>(
+              this,
+              Invocation.getter(#debugLabel),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<String>(
+              this,
+              Invocation.getter(#debugLabel),
+            ),
+          )
+          as String);
+
+  @override
+  bool get requireBuildContext =>
+      (super.noSuchMethod(
+            Invocation.getter(#requireBuildContext),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  set state(List<_i24.LogEntry>? value) => super.noSuchMethod(
+    Invocation.setter(#state, value),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  List<_i24.LogEntry> init() =>
+      (super.noSuchMethod(
+            Invocation.method(#init, []),
+            returnValue: <_i24.LogEntry>[],
+            returnValueForMissingStub: <_i24.LogEntry>[],
+          )
+          as List<_i24.LogEntry>);
+
+  @override
+  void addLog(String? log) => super.noSuchMethod(
+    Invocation.method(#addLog, [log]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void clear() => super.noSuchMethod(
+    Invocation.method(#clear, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void internalSetup(
+    _i19.ProxyRef? ref,
+    _i20.BaseProvider<_i17.BaseNotifier<List<_i24.LogEntry>>, List<_i24.LogEntry>>? provider,
+  ) => super.noSuchMethod(
+    Invocation.method(#internalSetup, [ref, provider]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void dispose() => super.noSuchMethod(
+    Invocation.method(#dispose, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  bool updateShouldNotify(
+    List<_i24.LogEntry>? prev,
+    List<_i24.LogEntry>? next,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateShouldNotify, [prev, next]),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  String describeState(List<_i24.LogEntry>? state) =>
+      (super.noSuchMethod(
+            Invocation.method(#describeState, [state]),
+            returnValue: _i10.dummyValue<String>(
+              this,
+              Invocation.method(#describeState, [state]),
+            ),
+            returnValueForMissingStub: _i10.dummyValue<String>(
+              this,
+              Invocation.method(#describeState, [state]),
+            ),
+          )
+          as String);
+
+  @override
+  void postInit() => super.noSuchMethod(
+    Invocation.method(#postInit, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  List<_i4.Rebuildable> getListeners() =>
+      (super.noSuchMethod(
+            Invocation.method(#getListeners, []),
+            returnValue: <_i4.Rebuildable>[],
+            returnValueForMissingStub: <_i4.Rebuildable>[],
+          )
+          as List<_i4.Rebuildable>);
+
+  @override
+  void cleanupListeners() => super.noSuchMethod(
+    Invocation.method(#cleanupListeners, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void addListener(
+    _i4.Rebuildable? rebuildable,
+    _i21.ListenerConfig<List<_i24.LogEntry>>? config,
+  ) => super.noSuchMethod(
+    Invocation.method(#addListener, [rebuildable, config]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void removeListener(_i4.Rebuildable? rebuildable) => super.noSuchMethod(
+    Invocation.method(#removeListener, [rebuildable]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  _i5.Stream<_i4.NotifierEvent<List<_i24.LogEntry>>> getStream() =>
+      (super.noSuchMethod(
+            Invocation.method(#getStream, []),
+            returnValue: _i5.Stream<_i4.NotifierEvent<List<_i24.LogEntry>>>.empty(),
+            returnValueForMissingStub: _i5.Stream<_i4.NotifierEvent<List<_i24.LogEntry>>>.empty(),
+          )
+          as _i5.Stream<_i4.NotifierEvent<List<_i24.LogEntry>>>);
+}
+
+/// A class which mocks [LsSignalingConnection].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockLsSignalingConnection extends _i1.Mock implements _i6.LsSignalingConnection {
+  @override
+  bool get isDisposed =>
+      (super.noSuchMethod(
+            Invocation.getter(#isDisposed),
+            returnValue: false,
+            returnValueForMissingStub: false,
+          )
+          as bool);
+
+  @override
+  _i5.Future<_i6.RtcReceiveController> acceptOffer({
+    required List<String>? stunServers,
+    required _i6.WsServerSdpMessage? offer,
+    required String? privateKey,
+    _i6.ExpectingPublicKey? expectingPublicKey,
+    _i6.PinConfig? pin,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#acceptOffer, [], {
+              #stunServers: stunServers,
+              #offer: offer,
+              #privateKey: privateKey,
+              #expectingPublicKey: expectingPublicKey,
+              #pin: pin,
+            }),
+            returnValue: _i5.Future<_i6.RtcReceiveController>.value(
+              _FakeRtcReceiveController_6(
+                this,
+                Invocation.method(#acceptOffer, [], {
+                  #stunServers: stunServers,
+                  #offer: offer,
+                  #privateKey: privateKey,
+                  #expectingPublicKey: expectingPublicKey,
+                  #pin: pin,
+                }),
+              ),
+            ),
+            returnValueForMissingStub: _i5.Future<_i6.RtcReceiveController>.value(
+              _FakeRtcReceiveController_6(
+                this,
+                Invocation.method(#acceptOffer, [], {
+                  #stunServers: stunServers,
+                  #offer: offer,
+                  #privateKey: privateKey,
+                  #expectingPublicKey: expectingPublicKey,
+                  #pin: pin,
+                }),
+              ),
+            ),
+          )
+          as _i5.Future<_i6.RtcReceiveController>);
+
+  @override
+  _i5.Future<_i6.RtcSendController> sendOffer({
+    required List<String>? stunServers,
+    required _i25.UuidValue? target,
+    required String? privateKey,
+    _i6.ExpectingPublicKey? expectingPublicKey,
+    _i6.PinConfig? pin,
+    required List<_i26.FileDto>? files,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendOffer, [], {
+              #stunServers: stunServers,
+              #target: target,
+              #privateKey: privateKey,
+              #expectingPublicKey: expectingPublicKey,
+              #pin: pin,
+              #files: files,
+            }),
+            returnValue: _i5.Future<_i6.RtcSendController>.value(
+              _FakeRtcSendController_7(
+                this,
+                Invocation.method(#sendOffer, [], {
+                  #stunServers: stunServers,
+                  #target: target,
+                  #privateKey: privateKey,
+                  #expectingPublicKey: expectingPublicKey,
+                  #pin: pin,
+                  #files: files,
+                }),
+              ),
+            ),
+            returnValueForMissingStub: _i5.Future<_i6.RtcSendController>.value(
+              _FakeRtcSendController_7(
+                this,
+                Invocation.method(#sendOffer, [], {
+                  #stunServers: stunServers,
+                  #target: target,
+                  #privateKey: privateKey,
+                  #expectingPublicKey: expectingPublicKey,
+                  #pin: pin,
+                  #files: files,
+                }),
+              ),
+            ),
+          )
+          as _i5.Future<_i6.RtcSendController>);
+
+  @override
+  _i5.Future<void> updateInfo({required _i6.ClientInfoWithoutId? info}) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateInfo, [], {#info: info}),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  void dispose() => super.noSuchMethod(
+    Invocation.method(#dispose, []),
+    returnValueForMissingStub: null,
+  );
 }

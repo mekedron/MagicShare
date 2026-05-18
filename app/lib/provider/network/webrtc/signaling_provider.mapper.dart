@@ -37,12 +37,17 @@ class SignalingStateMapper extends ClassMapperBase<SignalingState> {
       v.connections;
   static const Field<SignalingState, Map<String, LsSignalingConnection>>
   _f$connections = Field('connections', _$connections);
+  static Map<String, Set<String>> _$localIdentities(SignalingState v) =>
+      v.localIdentities;
+  static const Field<SignalingState, Map<String, Set<String>>>
+  _f$localIdentities = Field('localIdentities', _$localIdentities);
 
   @override
   final MappableFields<SignalingState> fields = const {
     #signalingServers: _f$signalingServers,
     #stunServers: _f$stunServers,
     #connections: _f$connections,
+    #localIdentities: _f$localIdentities,
   };
 
   static SignalingState _instantiate(DecodingData data) {
@@ -50,6 +55,7 @@ class SignalingStateMapper extends ClassMapperBase<SignalingState> {
       signalingServers: data.dec(_f$signalingServers),
       stunServers: data.dec(_f$stunServers),
       connections: data.dec(_f$connections),
+      localIdentities: data.dec(_f$localIdentities),
     );
   }
 
@@ -125,10 +131,18 @@ abstract class SignalingStateCopyWith<$R, $In extends SignalingState, $Out>
     ObjectCopyWith<$R, LsSignalingConnection, LsSignalingConnection>
   >
   get connections;
+  MapCopyWith<
+    $R,
+    String,
+    Set<String>,
+    ObjectCopyWith<$R, Set<String>, Set<String>>
+  >
+  get localIdentities;
   $R call({
     List<String>? signalingServers,
     List<String>? stunServers,
     Map<String, LsSignalingConnection>? connections,
+    Map<String, Set<String>>? localIdentities,
   });
   SignalingStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -170,15 +184,29 @@ class _SignalingStateCopyWithImpl<$R, $Out>
     (v) => call(connections: v),
   );
   @override
+  MapCopyWith<
+    $R,
+    String,
+    Set<String>,
+    ObjectCopyWith<$R, Set<String>, Set<String>>
+  >
+  get localIdentities => MapCopyWith(
+    $value.localIdentities,
+    (v, t) => ObjectCopyWith(v, $identity, t),
+    (v) => call(localIdentities: v),
+  );
+  @override
   $R call({
     List<String>? signalingServers,
     List<String>? stunServers,
     Map<String, LsSignalingConnection>? connections,
+    Map<String, Set<String>>? localIdentities,
   }) => $apply(
     FieldCopyWithData({
       if (signalingServers != null) #signalingServers: signalingServers,
       if (stunServers != null) #stunServers: stunServers,
       if (connections != null) #connections: connections,
+      if (localIdentities != null) #localIdentities: localIdentities,
     }),
   );
   @override
@@ -186,6 +214,7 @@ class _SignalingStateCopyWithImpl<$R, $Out>
     signalingServers: data.get(#signalingServers, or: $value.signalingServers),
     stunServers: data.get(#stunServers, or: $value.stunServers),
     connections: data.get(#connections, or: $value.connections),
+    localIdentities: data.get(#localIdentities, or: $value.localIdentities),
   );
 
   @override

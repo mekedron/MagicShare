@@ -6,6 +6,7 @@ import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cross_file.dart';
 import 'package:magicshare_app/model/persistence/favorite_device.dart';
 import 'package:magicshare_app/model/send_mode.dart';
+import 'package:magicshare_app/model/state/nearby_devices_state.dart';
 import 'package:magicshare_app/pages/progress_page.dart';
 import 'package:magicshare_app/pages/send_page.dart';
 import 'package:magicshare_app/pages/web_send_page.dart';
@@ -237,9 +238,29 @@ class SendTabInitAction extends AsyncGlobalAction {
 
   @override
   Future<void> reduce() async {
-    final devices = ref.read(nearbyDevicesProvider).devices;
-    if (devices.isEmpty) {
+    final state = ref.read(nearbyDevicesProvider);
+    final devices = state.devices;
+    // Force a fresh subnet scan when we have a signaling-discovered device
+    // that lacks an HTTP twin — the signaling server can find peers faster
+    // than the LAN handshake (or before the peer's HTTPS server is up), so
+    // the merged list would otherwise be stuck on "WebRTC only" and the
+    // send-via-HTTP path would abort.
+    if (devices.isEmpty || _hasSignalingWithoutLanMatch(state)) {
       await dispatchAsync(StartSmartScan(forceLegacy: false));
     }
+  }
+
+  bool _hasSignalingWithoutLanMatch(NearbyDevicesState state) {
+    for (final group in state.signalingDevices.values) {
+      for (final sigDev in group) {
+        final hasLanTwin = state.devices.values.any(
+          (lanDev) => lanDev.alias == sigDev.alias && lanDev.deviceModel == sigDev.deviceModel && lanDev.deviceType == sigDev.deviceType,
+        );
+        if (!hasLanTwin) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

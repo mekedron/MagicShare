@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:magicshare_app/provider/device_info_provider.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
+import 'package:magicshare_app/provider/network/scan_facade.dart';
 import 'package:magicshare_app/provider/network/webrtc/webrtc_receiver.dart';
 import 'package:magicshare_app/provider/persistence_provider.dart';
 import 'package:magicshare_app/provider/security_provider.dart';
@@ -24,10 +25,20 @@ class SignalingState with SignalingStateMappable {
   final List<String> stunServers;
   final Map<String, LsSignalingConnection> connections;
 
+  /// Per signaling server, the set of `(signalingId, serverToken)` values
+  /// this client has received in its own [WsServerMessage_Hello.client]
+  /// response. Used to drop peer-discovery events that refer back to the
+  /// local device — the equivalent of LAN multicast's cert-hash self-filter.
+  ///
+  /// signalingIds (UUIDs) and serverTokens (sha256.…) have disjoint formats,
+  /// so we keep them in one set and check incoming endpoints against both.
+  final Map<String, Set<String>> localIdentities;
+
   SignalingState({
     required this.signalingServers,
     required this.stunServers,
     required this.connections,
+    required this.localIdentities,
   });
 }
 
@@ -50,6 +61,7 @@ class SignalingService extends ReduxNotifier<SignalingState> {
       signalingServers: _persistence.getSignalingServers() ?? ['wss://public.localsend.org/v1/ws'],
       stunServers: _persistence.getStunServers() ?? ['stun:stun.localsend.org:5349'],
       connections: {},
+      localIdentities: {},
     );
   }
 }
@@ -58,6 +70,11 @@ class SetupSignalingConnection extends ReduxAction<SignalingService, SignalingSt
   @override
   SignalingState reduce() {
     for (final signalingServer in state.signalingServers) {
+      if (state.connections.containsKey(signalingServer)) {
+        // Already connected. _RemoveConnectionAction clears it on disconnect,
+        // so this guard keeps HomePage rebuilds from spawning duplicates.
+        continue;
+      }
       // ignore: discarded_futures
       global.dispatchAsync(_SetupSignalingConnection(signalingServer: signalingServer));
     }
@@ -110,14 +127,41 @@ class _SetupSignalingConnection extends AsyncGlobalAction {
       await for (final message in stream) {
         switch (message) {
           case WsServerMessage_Hello():
+            ref
+                .redux(signalingProvider)
+                .dispatch(
+                  _RegisterLocalIdentityAction(
+                    signalingServer: signalingServer,
+                    signalingId: message.client.id.uuid,
+                    serverToken: message.client.token,
+                  ),
+                );
+            final selfId = message.client.id.uuid;
+            final selfToken = message.client.token;
+            final localIdentities = ref.read(signalingProvider).localIdentities[signalingServer] ?? const <String>{};
+            var anyPeerLacksLan = false;
             for (final d in message.peers) {
+              if (d.id.uuid == selfId || d.token == selfToken) {
+                // Server occasionally echoes our own ClientInfo in peers —
+                // e.g. when a previous connection from the same NAT'd IP
+                // hasn't been torn down yet. Drop it before it pollutes
+                // signalingDevices.
+                continue;
+              }
               ref
                   .redux(nearbyDevicesProvider)
                   .dispatch(
                     RegisterSignalingDeviceAction(
                       d.toDevice(signalingServer),
+                      localIdentities: localIdentities,
                     ),
                   );
+              if (!_hasLanTwin(ref, d)) {
+                anyPeerLacksLan = true;
+              }
+            }
+            if (anyPeerLacksLan) {
+              _kickOffLanRescan(ref);
             }
             break;
           case WsServerMessage_Join(peer: final peer):
@@ -127,8 +171,12 @@ class _SetupSignalingConnection extends AsyncGlobalAction {
                 .dispatch(
                   RegisterSignalingDeviceAction(
                     peer.toDevice(signalingServer),
+                    localIdentities: ref.read(signalingProvider).localIdentities[signalingServer] ?? const <String>{},
                   ),
                 );
+            if (message is WsServerMessage_Join && !_hasLanTwin(ref, peer)) {
+              _kickOffLanRescan(ref);
+            }
             break;
           case WsServerMessage_Left():
             ref
@@ -198,8 +246,60 @@ class _RemoveConnectionAction extends ReduxAction<SignalingService, SignalingSta
         for (final entry in state.connections.entries)
           if (entry.key != signalingServer) entry.key: entry.value,
       },
+      localIdentities: {
+        for (final entry in state.localIdentities.entries)
+          if (entry.key != signalingServer) entry.key: entry.value,
+      },
     );
   }
+}
+
+class _RegisterLocalIdentityAction extends ReduxAction<SignalingService, SignalingState> {
+  final String signalingServer;
+  final String signalingId;
+  final String serverToken;
+
+  _RegisterLocalIdentityAction({
+    required this.signalingServer,
+    required this.signalingId,
+    required this.serverToken,
+  });
+
+  @override
+  SignalingState reduce() {
+    final existing = state.localIdentities[signalingServer] ?? const <String>{};
+    return state.copyWith(
+      localIdentities: {
+        ...state.localIdentities,
+        signalingServer: {...existing, signalingId, serverToken},
+      },
+    );
+  }
+}
+
+/// True when [peer] has an HTTP-discovered twin (same identity tuple) in
+/// [NearbyDevicesService.state.devices]. Signaling tokens and LAN cert hashes
+/// share no value space, so we fall back to the user-visible identity tuple —
+/// the same heuristic the merge in `NearbyDevicesState.allDevices` uses.
+bool _hasLanTwin(Ref ref, ClientInfo peer) {
+  final lanDevices = ref.read(nearbyDevicesProvider).devices.values;
+  for (final lan in lanDevices) {
+    if (lan.alias == peer.alias && lan.deviceModel == peer.deviceModel) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Schedule a forced subnet scan when signaling has surfaced a peer that the
+/// LAN hasn't seen yet. `forceLegacy: true` bypasses the early-return that
+/// `StartSmartScan` does when devices is already non-empty — without it, we'd
+/// never find the new peer's HTTPS endpoint if another LAN device is already
+/// in the list. The fire-and-forget pattern is intentional: the signaling
+/// stream loop must not block on scan completion.
+void _kickOffLanRescan(Ref ref) {
+  // ignore: discarded_futures
+  ref.global.dispatchAsync(StartSmartScan(forceLegacy: true));
 }
 
 extension ClientInfoExt on ClientInfo {

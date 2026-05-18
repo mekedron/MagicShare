@@ -3,15 +3,24 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:common/isolate.dart';
 import 'package:common/model/device.dart';
+import 'package:common/model/session_status.dart';
 import 'package:logging/logging.dart';
 import 'package:magicshare_app/model/persistence/favorite_device.dart';
 import 'package:magicshare_app/model/state/nearby_devices_state.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/logging/discovery_logs_provider.dart';
+import 'package:magicshare_app/provider/network/send_provider.dart';
+import 'package:magicshare_app/provider/network/server/server_provider.dart';
 import 'package:magicshare_app/provider/settings_provider.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 final _logger = Logger('NearbyDevices');
+
+/// Number of consecutive failed probes before [ProbeAndPruneKnownDevicesAction]
+/// evicts a device. A single timeout is not enough — iOS HTTPS first-byte can
+/// be slow when the peer's uplink is saturated by an ongoing upload, and a
+/// transient Wi-Fi blip should not nuke a working entry.
+const _kMaxConsecutiveProbeFailures = 3;
 
 /// This provider is responsible for:
 /// - Scanning the network for other LocalSend instances
@@ -24,24 +33,59 @@ final nearbyDevicesProvider = ReduxProvider<NearbyDevicesService, NearbyDevicesS
     favoriteService: ref.notifier(favoritesProvider),
     discoveryLogs: ref.notifier(discoveryLoggerProvider),
     httpsReader: () => ref.read(settingsProvider).https,
+    activeIpsReader: () => _readActiveSessionIps(ref),
   );
 });
+
+/// IPs of peers currently in an outbound send or inbound receive that's still
+/// in flight. A peer's uplink can be saturated mid-transfer, causing /info to
+/// time out — but it is still very much reachable. Skipping these in
+/// [ProbeAndPruneKnownDevicesAction] prevents the active partner from being
+/// evicted out from under the user's own transfer.
+Set<String> _readActiveSessionIps(Ref ref) {
+  final result = <String>{};
+  for (final session in ref.read(sendProvider).values) {
+    if (_isActiveSession(session.status)) {
+      final ip = session.target.firstHttpEndpoint?.ip;
+      if (ip != null && ip.isNotEmpty) result.add(ip);
+    }
+  }
+  final receive = ref.read(serverProvider)?.session;
+  if (receive != null && _isActiveSession(receive.status)) {
+    final ip = receive.sender.firstHttpEndpoint?.ip;
+    if (ip != null && ip.isNotEmpty) result.add(ip);
+  }
+  return result;
+}
+
+bool _isActiveSession(SessionStatus status) {
+  return status == SessionStatus.waiting || status == SessionStatus.sending;
+}
 
 class NearbyDevicesService extends ReduxNotifier<NearbyDevicesState> {
   final IsolateController _isolateController;
   final FavoritesService _favoriteService;
   final DiscoveryLogger _discoveryLogger;
   final bool Function() _httpsReader;
+  final Set<String> Function() _activeIpsReader;
+
+  /// Per-IP count of consecutive failed probes since the last successful
+  /// probe. Reset when a probe succeeds; entries are removed when the IP is
+  /// evicted. Kept off the public [NearbyDevicesState] because consumers
+  /// don't need to rebuild on transient counter changes.
+  final Map<String, int> _consecutiveProbeFailures = {};
 
   NearbyDevicesService({
     required IsolateController isolateController,
     required FavoritesService favoriteService,
     required DiscoveryLogger discoveryLogs,
     required bool Function() httpsReader,
+    required Set<String> Function() activeIpsReader,
   }) : _discoveryLogger = discoveryLogs,
        _isolateController = isolateController,
        _favoriteService = favoriteService,
-       _httpsReader = httpsReader;
+       _httpsReader = httpsReader,
+       _activeIpsReader = activeIpsReader;
 
   @override
   NearbyDevicesState init() => const NearbyDevicesState(
@@ -148,10 +192,20 @@ class RegisterDeviceAction extends AsyncReduxAction<NearbyDevicesService, Nearby
 }
 
 /// Registers a new device found via signaling.
+///
+/// [localIdentities] holds the `signalingId` and `serverToken` values of the
+/// connections this client has opened against the same signaling server.
+/// Any incoming device whose endpoint matches one of those values is the
+/// local device looping back through the server's room and is dropped —
+/// equivalent to the cert-hash self-filter the LAN multicast path performs.
 class RegisterSignalingDeviceAction extends ReduxAction<NearbyDevicesService, NearbyDevicesState> {
   final Device device;
+  final Set<String> localIdentities;
 
-  RegisterSignalingDeviceAction(this.device);
+  RegisterSignalingDeviceAction(
+    this.device, {
+    this.localIdentities = const <String>{},
+  });
 
   @override
   NearbyDevicesState reduce() {
@@ -162,6 +216,12 @@ class RegisterSignalingDeviceAction extends ReduxAction<NearbyDevicesService, Ne
     }
     final token = endpoint.serverToken;
     final signalingId = endpoint.signalingId;
+    if (localIdentities.contains(signalingId) || localIdentities.contains(token)) {
+      _logger.fine(
+        'Register: SIGNALING ${device.alias} dropped (matches local identity)',
+      );
+      return state;
+    }
     final tokenShort = token.substring(0, token.length.clamp(0, 8));
     _logger.fine(
       'Register: SIGNALING ${device.alias} sigId=$signalingId tok=$tokenShort…',
@@ -318,11 +378,33 @@ class ProbeAndPruneKnownDevicesAction extends AsyncReduxAction<NearbyDevicesServ
 
   @override
   Future<NearbyDevicesState> reduce() async {
+    // Step 1: figure out which peers we should NOT probe right now.
+    //
+    // A peer that is currently the target of an outgoing send (or the source
+    // of an active receive) has its uplink saturated by the transfer itself.
+    // Its /info handler is still alive — it just can't get a packet in
+    // edgewise behind the upload window. Probing it would consistently time
+    // out and the prune step would then yank the LAN HTTP endpoint out from
+    // under the very transfer in progress, dropping the device into
+    // signaling-only / WebRTC mode mid-flight and breaking subsequent sends.
+    final activeIps = notifier._activeIpsReader();
+
     final probeTargets = <(String, int)>[];
+    final skippedIps = <String>{};
     for (final device in state.devices.values) {
       final endpoint = device.firstHttpEndpoint;
       if (endpoint == null || endpoint.ip.isEmpty) continue;
+      if (activeIps.contains(endpoint.ip)) {
+        skippedIps.add(endpoint.ip);
+        // Reset the failure counter — an active session is positive evidence
+        // the peer is up, even when /info wouldn't have made it through.
+        notifier._consecutiveProbeFailures.remove(endpoint.ip);
+        continue;
+      }
       probeTargets.add((endpoint.ip, endpoint.port));
+    }
+    if (skippedIps.isNotEmpty) {
+      _logger.fine('Probe-prune: skipping $skippedIps — active session in flight');
     }
     if (probeTargets.isEmpty) {
       return state;
@@ -348,12 +430,31 @@ class ProbeAndPruneKnownDevicesAction extends AsyncReduxAction<NearbyDevicesServ
       await dispatchAsync(RegisterDeviceAction(device));
     }
 
-    final toRemove = probedIps.difference(seenIps);
+    // Step 2: tolerate transient probe failures. iOS HTTPS first-byte can
+    // exceed the per-probe timeout when the peer is busy serving another
+    // request; a single miss is not enough evidence to prune. Track
+    // consecutive failures per IP and only evict after
+    // [_kMaxConsecutiveProbeFailures] strikes in a row.
+    final failedIps = probedIps.difference(seenIps);
+    for (final ip in seenIps) {
+      notifier._consecutiveProbeFailures.remove(ip);
+    }
+    final toRemove = <String>{};
+    for (final ip in failedIps) {
+      final count = (notifier._consecutiveProbeFailures[ip] ?? 0) + 1;
+      if (count >= _kMaxConsecutiveProbeFailures) {
+        toRemove.add(ip);
+        notifier._consecutiveProbeFailures.remove(ip);
+      } else {
+        notifier._consecutiveProbeFailures[ip] = count;
+        _logger.fine('Probe-prune: $ip missed probe ($count/$_kMaxConsecutiveProbeFailures) — keeping');
+      }
+    }
     if (toRemove.isEmpty) {
-      _logger.fine('Probe-prune: every probed IP responded; nothing to remove');
+      _logger.fine('Probe-prune: every probed IP responded (or under failure threshold)');
       return state;
     }
-    _logger.info('Probe-prune: removing stale entries for $toRemove');
+    _logger.info('Probe-prune: removing stale entries for $toRemove (exceeded $_kMaxConsecutiveProbeFailures consecutive misses)');
     return state.copyWith(
       devices: {...state.devices}..removeWhere((ip, _) => toRemove.contains(ip)),
     );
