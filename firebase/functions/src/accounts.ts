@@ -40,13 +40,13 @@ export async function createAccountLogic(db: Firestore, uid: string): Promise<Cr
 }
 
 /**
- * Idempotent destroy: tears down the entire account subtree (devices +
- * their inbox subcollections) plus the account doc itself. Returns
- * `{ deleted: false }` when there was nothing to delete.
+ * Idempotent destroy: tears down the entire account subtree (devices)
+ * plus the account doc itself. Returns `{ deleted: false }` when there
+ * was nothing to delete.
  *
  * `recursiveDelete` is not transactional, but it is the canonical
  * Admin-SDK primitive for nuking a Firestore subtree. The scheduled
- * cleanup job in Epic 6 sweeps any stragglers from a partial run.
+ * cleanup job sweeps any stragglers from a partial run.
  */
 export async function deleteAccountLogic(db: Firestore, uid: string): Promise<DeleteAccountResult> {
   const ref = db.doc(accountPath(uid));

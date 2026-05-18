@@ -13,12 +13,10 @@ import { parseRenameDeviceInput, parseSetDeviceIconInput } from '../../src/valid
 import {
   clearEmulator,
   listDeviceIds,
-  listInboxIds,
   readAccount,
   readDevice,
   seedAccount,
   seedDevice,
-  seedInboxItem,
 } from './_helpers';
 
 const UID = 'devicesTester';
@@ -248,30 +246,14 @@ describe('removeDeviceLogic', () => {
     expect(await listDeviceIds(UID)).toEqual([DEVICE_B]);
   });
 
-  it("clears the removed device's inbox subcollection", async () => {
-    await seedAccount(UID, { deviceCount: 2 });
-    await seedDevice(UID, DEVICE_A);
-    await seedDevice(UID, DEVICE_B);
-    await seedInboxItem(UID, DEVICE_A, 'inboxOne');
-    await seedInboxItem(UID, DEVICE_A, 'inboxTwo');
-    await seedInboxItem(UID, DEVICE_B, 'survivor');
-
-    await removeDeviceLogic(getDb(), UID, { deviceId: DEVICE_A });
-
-    expect(await listInboxIds(UID, DEVICE_A)).toEqual([]);
-    expect(await listInboxIds(UID, DEVICE_B)).toEqual(['survivor']);
-  });
-
   it('destroys the account when removing the last device', async () => {
     await seedAccount(UID, { deviceCount: 1 });
     await seedDevice(UID, DEVICE_A);
-    await seedInboxItem(UID, DEVICE_A, 'soonGone');
 
     const result = await removeDeviceLogic(getDb(), UID, { deviceId: DEVICE_A });
 
     expect(result).toEqual({ accountDeleted: true });
     expect(await readAccount(UID)).toBeNull();
     expect(await listDeviceIds(UID)).toEqual([]);
-    expect(await listInboxIds(UID, DEVICE_A)).toEqual([]);
   });
 });

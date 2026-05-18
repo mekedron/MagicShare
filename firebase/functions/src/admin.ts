@@ -32,11 +32,11 @@ export function getDb(): Firestore {
 }
 
 /**
- * Returns the singleton admin Messaging client used by `sendWake` and
- * `sendLinkNotification` to publish FCM messages. Tests inject a stub
- * conforming to `MessagingSender` directly into the `*Logic` functions
- * instead of going through this getter, so the production code path
- * never reaches FCM in the emulator.
+ * Returns the singleton admin Messaging client used by
+ * `notifyTransferIntent` to publish visible FCM notifications. Tests
+ * inject a stub conforming to `MessagingSender` directly into
+ * `notifyTransferIntentLogic` instead of going through this getter, so
+ * the production code path never reaches FCM in the emulator.
  */
 export function getMessaging(): Messaging {
   if (!cachedMessaging) {

@@ -155,16 +155,14 @@ export interface RemoveDeviceResult {
 
 /**
  * Remove one device from the caller's account. If it was the last
- * device, the entire account subtree (account doc, devices, inbox
- * items) is destroyed — matching the spec's "removing the last device
- * in a group destroys the group automatically."
+ * device, the entire account subtree (account doc + devices) is
+ * destroyed — matching the spec's "removing the last device in a
+ * group destroys the group automatically."
  *
  * The transaction picks the branch (decrement vs nuke) atomically.
- * Subcollection cleanup runs after the transaction: Firestore
- * transactions can delete docs but not their subcollections, so we
- * pair the transactional work with `recursiveDelete` to sweep the
- * device's inbox (or the entire account subtree on the last-device
- * branch).
+ * `recursiveDelete` runs after the transaction to sweep any
+ * subcollections — Firestore transactions can delete docs but not
+ * their subcollections.
  */
 export async function removeDeviceLogic(
   db: Firestore,
@@ -199,9 +197,9 @@ export async function removeDeviceLogic(
   });
 
   // Transactional deletes don't cascade into subcollections. Sweep
-  // those out of band: the device's inbox on the partial path, and the
-  // whole account subtree on the last-device path (which also nukes
-  // any other lingering devices from a partial earlier failure).
+  // any out of band: the whole account subtree on the last-device path
+  // (which also nukes any other lingering devices from a partial
+  // earlier failure).
   if (result.accountDeleted) {
     await db.recursiveDelete(accountRef);
   } else {

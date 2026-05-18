@@ -64,7 +64,6 @@ pub struct _FileMetadata {
 pub struct _PrepareUploadRequestDto {
     pub info: RegisterDto,
     pub files: HashMap<String, FileDto>,
-    pub wake_session_id: Option<String>,
 }
 
 #[frb(mirror(PrepareUploadResponseDto))]

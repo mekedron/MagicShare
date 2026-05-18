@@ -12,17 +12,8 @@ const TOKEN_ID_MAX = 128;
  * the field is opaque to the backend — we don't validate the format.
  */
 const FINGERPRINT_MAX = 128;
-/**
- * Encrypted wake/link payloads are AES-GCM ciphertext over a small
- * JSON envelope, base64-encoded by the client. 16 KiB is comfortable
- * headroom over the LocalSend wake metadata + nonce; well below FCM's
- * 4 KiB data-message limit on the wire because that limit is the
- * decoded message size, but storing oversize blobs in `inbox` would
- * still be wasteful.
- */
-const ENCRYPTED_PAYLOAD_MAX = 16 * 1024;
-const LINK_URL_MAX = 2048;
-const LINK_TITLE_MAX = 200;
+const TRANSFER_KINDS = ['file', 'text', 'url'] as const;
+export type TransferKind = (typeof TRANSFER_KINDS)[number];
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -221,15 +212,6 @@ export function parseJoinNetworkInput(raw: unknown): JoinNetworkInput {
   return result;
 }
 
-function assertEncryptedPayload(value: unknown, field: string): string {
-  if (typeof value !== 'string') fail(field, 'expected a string');
-  if ((value as string).length === 0) fail(field, 'must not be empty');
-  if ((value as string).length > ENCRYPTED_PAYLOAD_MAX) {
-    fail(field, `must be ${ENCRYPTED_PAYLOAD_MAX} characters or fewer`);
-  }
-  return value as string;
-}
-
 function assertSourceDeviceId(value: unknown): string {
   return assertNonEmptyString(value, 'sourceDeviceId', DEVICE_ID_MAX);
 }
@@ -238,98 +220,24 @@ function assertTargetDeviceId(value: unknown): string {
   return assertNonEmptyString(value, 'targetDeviceId', DEVICE_ID_MAX);
 }
 
-export interface SendWakeInput {
-  sourceDeviceId: string;
-  targetDeviceId: string;
-  payload: string;
+function assertTransferKind(value: unknown): TransferKind {
+  if (typeof value !== 'string' || !(TRANSFER_KINDS as readonly string[]).includes(value)) {
+    fail('kind', `expected one of ${TRANSFER_KINDS.join(', ')}`);
+  }
+  return value as TransferKind;
 }
 
-export function parseSendWakeInput(raw: unknown): SendWakeInput {
+export interface NotifyTransferIntentInput {
+  sourceDeviceId: string;
+  targetDeviceId: string;
+  kind: TransferKind;
+}
+
+export function parseNotifyTransferIntentInput(raw: unknown): NotifyTransferIntentInput {
   const obj = asObject(raw);
   return {
     sourceDeviceId: assertSourceDeviceId(obj.sourceDeviceId),
     targetDeviceId: assertTargetDeviceId(obj.targetDeviceId),
-    payload: assertEncryptedPayload(obj.payload, 'payload'),
-  };
-}
-
-function assertHttpUrl(value: unknown, field: string): string {
-  if (typeof value !== 'string') fail(field, 'expected a string');
-  if ((value as string).length === 0) fail(field, 'must not be empty');
-  if ((value as string).length > LINK_URL_MAX) {
-    fail(field, `must be ${LINK_URL_MAX} characters or fewer`);
-  }
-  let parsed: URL;
-  try {
-    parsed = new URL(value as string);
-  } catch {
-    fail(field, 'must be a valid URL');
-  }
-  // Block javascript:, file:, data:, vbscript:, etc — only http(s)
-  // links are allowed in plaintext mode per spec §5.3 Notifications.
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    fail(field, 'must use http or https scheme');
-  }
-  return value as string;
-}
-
-function assertOptionalTitle(value: unknown): string | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== 'string') fail('title', 'expected a string or undefined');
-  const trimmed = (value as string).trim();
-  if (trimmed.length === 0) fail('title', 'must not be empty');
-  if ((value as string).length > LINK_TITLE_MAX) {
-    fail('title', `must be ${LINK_TITLE_MAX} characters or fewer`);
-  }
-  return value as string;
-}
-
-export type SendLinkNotificationInput =
-  | {
-      mode: 'plaintext';
-      sourceDeviceId: string;
-      targetDeviceId: string;
-      url: string;
-      title?: string;
-    }
-  | {
-      mode: 'encrypted';
-      sourceDeviceId: string;
-      targetDeviceId: string;
-      payload: string;
-    };
-
-export function parseSendLinkNotificationInput(raw: unknown): SendLinkNotificationInput {
-  const obj = asObject(raw);
-  const sourceDeviceId = assertSourceDeviceId(obj.sourceDeviceId);
-  const targetDeviceId = assertTargetDeviceId(obj.targetDeviceId);
-  if (obj.mode === 'plaintext') {
-    return {
-      mode: 'plaintext',
-      sourceDeviceId,
-      targetDeviceId,
-      url: assertHttpUrl(obj.url, 'url'),
-      title: assertOptionalTitle(obj.title),
-    };
-  }
-  if (obj.mode === 'encrypted') {
-    return {
-      mode: 'encrypted',
-      sourceDeviceId,
-      targetDeviceId,
-      payload: assertEncryptedPayload(obj.payload, 'payload'),
-    };
-  }
-  fail('mode', "expected 'plaintext' or 'encrypted'");
-}
-
-export interface PollPendingWakesInput {
-  deviceId: string;
-}
-
-export function parsePollPendingWakesInput(raw: unknown): PollPendingWakesInput {
-  const obj = asObject(raw);
-  return {
-    deviceId: assertDeviceId(obj.deviceId),
+    kind: assertTransferKind(obj.kind),
   };
 }

@@ -25,7 +25,6 @@ import 'package:magicshare_app/pages/home_page.dart';
 import 'package:magicshare_app/pages/home_page_controller.dart';
 import 'package:magicshare_app/pages/progress_page.dart';
 import 'package:magicshare_app/pages/receive_page.dart';
-import 'package:magicshare_app/provider/cloud/wake_nonce_registry_provider.dart';
 import 'package:magicshare_app/provider/device_info_provider.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/http_provider.dart';
@@ -280,22 +279,14 @@ class ReceiveController {
         quickSave = true;
       }
     }
-    // MagicShare wake → P2P bridge: this prepareUpload may carry a
-    // session nonce that arrived earlier in an encrypted FCM wake
-    // payload. A matching, single-use consume short-circuits the
-    // Accept prompt the same way quickSave does. Tracked separately
-    // from quickSave so settings semantics stay clean across upstream
-    // rebases.
-    final wakeSessionId = dto.wakeSessionId;
-    final autoAcceptViaWake = wakeSessionId != null && server.ref.read(wakeNonceRegistryProvider).consume(wakeSessionId);
-    final bool acceptAll = quickSave || autoAcceptViaWake;
+    final bool acceptAll = quickSave;
 
     // Link auto-open: when the prepareUpload is a single text-mode file
     // whose preview is an http(s) URL, open it in the browser, log a
     // history entry, and respond 204 — matching the "message" UX (no
     // file bytes to download) without showing the receive page. Wins
-    // over quickSave / autoAcceptViaWake because opening a URL in the
-    // browser is the right action regardless of save preferences.
+    // over quickSave because opening a URL in the browser is the right
+    // action regardless of save preferences.
     final messagePreview = server.getState().session?.message;
     final linkUri = _tryParseHttpUri(messagePreview);
 

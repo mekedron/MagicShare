@@ -13,14 +13,12 @@ import {
 import {
   clearEmulator,
   listDeviceIds,
-  listInboxIds,
   listJoinTokenIds,
   readAccount,
   readDevice,
   readJoinToken,
   seedAccount,
   seedDevice,
-  seedInboxItem,
   seedJoinToken,
 } from './_helpers';
 
@@ -315,7 +313,6 @@ describe('joinNetworkLogic', () => {
   it('destroys the source account when the moving device was the only member', async () => {
     await seedTargetGroupOnly();
     await seedSourceWithLastDevice();
-    await seedInboxItem(SOURCE_UID, SOURCE_DEVICE, 'pendingWake');
 
     const result = await joinNetworkLogic(
       getDb(),
@@ -327,28 +324,8 @@ describe('joinNetworkLogic', () => {
     expect(result.oldAccountDeleted).toBe(true);
     expect(await readAccount(SOURCE_UID)).toBeNull();
     expect(await listDeviceIds(SOURCE_UID)).toEqual([]);
-    expect(await listInboxIds(SOURCE_UID, SOURCE_DEVICE)).toEqual([]);
     expect((await readAccount(TARGET_UID))?.deviceCount).toBe(2);
     expect(await readDevice(TARGET_UID, SOURCE_DEVICE)).not.toBeNull();
-  });
-
-  it("clears the moved device's old inbox on the surviving-source branch", async () => {
-    await seedTargetGroupOnly();
-    await seedSourceWithSurvivor();
-    await seedInboxItem(SOURCE_UID, SOURCE_DEVICE, 'movingItem');
-    await seedInboxItem(SOURCE_UID, SOURCE_OTHER, 'survivorItem');
-
-    await joinNetworkLogic(
-      getDb(),
-      SOURCE_UID,
-      { tokenId: TOKEN_ID, deviceId: SOURCE_DEVICE },
-      fakeMinter,
-    );
-
-    expect(await listInboxIds(SOURCE_UID, SOURCE_DEVICE)).toEqual([]);
-    expect(await listInboxIds(SOURCE_UID, SOURCE_OTHER)).toEqual(['survivorItem']);
-    // The new home does not inherit the source-side inbox.
-    expect(await listInboxIds(TARGET_UID, SOURCE_DEVICE)).toEqual([]);
   });
 
   it('rejects self-join without consuming the token', async () => {

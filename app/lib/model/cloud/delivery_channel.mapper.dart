@@ -29,12 +29,10 @@ class DeliveryChannelMapper extends EnumMapper<DeliveryChannel> {
     switch (value) {
       case r'fcm':
         return DeliveryChannel.fcm;
-      case r'inbox':
-        return DeliveryChannel.inbox;
       case r'none':
         return DeliveryChannel.none;
       default:
-        return DeliveryChannel.values[2];
+        return DeliveryChannel.values[1];
     }
   }
 
@@ -43,8 +41,6 @@ class DeliveryChannelMapper extends EnumMapper<DeliveryChannel> {
     switch (self) {
       case DeliveryChannel.fcm:
         return r'fcm';
-      case DeliveryChannel.inbox:
-        return r'inbox';
       case DeliveryChannel.none:
         return r'none';
     }

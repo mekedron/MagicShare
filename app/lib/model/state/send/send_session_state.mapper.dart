@@ -71,6 +71,18 @@ class SendSessionStateMapper extends ClassMapperBase<SendSessionState> {
     'errorMessage',
     _$errorMessage,
   );
+  static String? _$stableTargetId(SendSessionState v) => v.stableTargetId;
+  static const Field<SendSessionState, String> _f$stableTargetId = Field(
+    'stableTargetId',
+    _$stableTargetId,
+    opt: true,
+  );
+  static int? _$waitDeadlineMs(SendSessionState v) => v.waitDeadlineMs;
+  static const Field<SendSessionState, int> _f$waitDeadlineMs = Field(
+    'waitDeadlineMs',
+    _$waitDeadlineMs,
+    opt: true,
+  );
 
   @override
   final MappableFields<SendSessionState> fields = const {
@@ -84,6 +96,8 @@ class SendSessionStateMapper extends ClassMapperBase<SendSessionState> {
     #endTime: _f$endTime,
     #sendingTasks: _f$sendingTasks,
     #errorMessage: _f$errorMessage,
+    #stableTargetId: _f$stableTargetId,
+    #waitDeadlineMs: _f$waitDeadlineMs,
   };
 
   static SendSessionState _instantiate(DecodingData data) {
@@ -98,6 +112,8 @@ class SendSessionStateMapper extends ClassMapperBase<SendSessionState> {
       endTime: data.dec(_f$endTime),
       sendingTasks: data.dec(_f$sendingTasks),
       errorMessage: data.dec(_f$errorMessage),
+      stableTargetId: data.dec(_f$stableTargetId),
+      waitDeadlineMs: data.dec(_f$waitDeadlineMs),
     );
   }
 
@@ -184,6 +200,8 @@ abstract class SendSessionStateCopyWith<$R, $In extends SendSessionState, $Out>
     int? endTime,
     List<SendingTask>? sendingTasks,
     String? errorMessage,
+    String? stableTargetId,
+    int? waitDeadlineMs,
   });
   SendSessionStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
@@ -234,6 +252,8 @@ class _SendSessionStateCopyWithImpl<$R, $Out>
     Object? endTime = $none,
     Object? sendingTasks = $none,
     Object? errorMessage = $none,
+    Object? stableTargetId = $none,
+    Object? waitDeadlineMs = $none,
   }) => $apply(
     FieldCopyWithData({
       if (sessionId != null) #sessionId: sessionId,
@@ -246,6 +266,8 @@ class _SendSessionStateCopyWithImpl<$R, $Out>
       if (endTime != $none) #endTime: endTime,
       if (sendingTasks != $none) #sendingTasks: sendingTasks,
       if (errorMessage != $none) #errorMessage: errorMessage,
+      if (stableTargetId != $none) #stableTargetId: stableTargetId,
+      if (waitDeadlineMs != $none) #waitDeadlineMs: waitDeadlineMs,
     }),
   );
   @override
@@ -260,6 +282,8 @@ class _SendSessionStateCopyWithImpl<$R, $Out>
     endTime: data.get(#endTime, or: $value.endTime),
     sendingTasks: data.get(#sendingTasks, or: $value.sendingTasks),
     errorMessage: data.get(#errorMessage, or: $value.errorMessage),
+    stableTargetId: data.get(#stableTargetId, or: $value.stableTargetId),
+    waitDeadlineMs: data.get(#waitDeadlineMs, or: $value.waitDeadlineMs),
   );
 
   @override

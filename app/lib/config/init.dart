@@ -27,7 +27,6 @@ import 'package:magicshare_app/provider/cloud/cloud_alias_sync_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_bootstrap_service.dart';
 import 'package:magicshare_app/provider/cloud/cloud_message_listener_provider.dart';
 import 'package:magicshare_app/provider/cloud/fcm_provider.dart';
-import 'package:magicshare_app/provider/cloud/linux_wake_poller_provider.dart';
 import 'package:magicshare_app/provider/cloud/local_notifications_provider.dart';
 import 'package:magicshare_app/provider/device_info_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
@@ -218,7 +217,6 @@ Future<RefenaContainer> preInit(List<String> args) async {
   // master toggle off.
   container.read(cloudAuthProvider);
   container.read(fcmProvider);
-  container.read(linuxWakePollerProvider);
   container.read(accountRepositoryProvider);
   container.read(cloudBootstrapProvider);
   container.read(cloudMessageListenerProvider);

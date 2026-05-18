@@ -25,14 +25,6 @@ service cloud.firestore {
       match /devices/{deviceId} {
         allow read:  if request.auth != null && request.auth.uid == accountId;
         allow write: if false;
-
-        // accounts/{uid}/devices/{deviceId}/inbox/{itemId}: Linux-only
-        // polling fallback. Items are produced and consumed exclusively
-        // by Cloud Functions (`sendWake`, `pollPendingWakes` in Epic 6),
-        // so clients never touch this subcollection directly.
-        match /inbox/{itemId} {
-          allow read, write: if false;
-        }
       }
     }
 

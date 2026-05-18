@@ -1793,7 +1793,6 @@ const _: fn() = || {
         let _: crate::api::model::RegisterDto = PrepareUploadRequestDto.info;
         let _: std::collections::HashMap<String, crate::api::model::FileDto> =
             PrepareUploadRequestDto.files;
-        let _: Option<String> = PrepareUploadRequestDto.wake_session_id;
     }
     {
         let PrepareUploadResponseDto = None::<crate::api::model::PrepareUploadResponseDto>.unwrap();
@@ -2518,11 +2517,9 @@ impl SseDecode for crate::api::model::PrepareUploadRequestDto {
             <std::collections::HashMap<String, crate::api::model::FileDto>>::sse_decode(
                 deserializer,
             );
-        let mut var_wakeSessionId = <Option<String>>::sse_decode(deserializer);
         return crate::api::model::PrepareUploadRequestDto {
             info: var_info,
             files: var_files,
-            wake_session_id: var_wakeSessionId,
         };
     }
 }
@@ -3359,7 +3356,6 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::model::PrepareUplo
         [
             self.0.info.into_into_dart().into_dart(),
             self.0.files.into_into_dart().into_dart(),
-            self.0.wake_session_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4228,7 +4224,6 @@ impl SseEncode for crate::api::model::PrepareUploadRequestDto {
         <std::collections::HashMap<String, crate::api::model::FileDto>>::sse_encode(
             self.files, serializer,
         );
-        <Option<String>>::sse_encode(self.wake_session_id, serializer);
     }
 }
 

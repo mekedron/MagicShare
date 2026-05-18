@@ -5,9 +5,7 @@ import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cloud/delivery_channel.dart';
-import 'package:magicshare_app/model/cloud/inbox_item_type.dart';
 import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
-import 'package:magicshare_app/model/cloud/requests/send_link_notification_request.dart';
 
 class _RecordingInvoker {
   final List<({String name, Object? data})> calls = [];
@@ -214,97 +212,39 @@ void main() {
       });
     });
 
-    test('sendWake forwards opaque payload and decodes channel', () async {
+    test('notifyTransferIntent forwards kind on the wire and decodes channel', () async {
       final inv = _RecordingInvoker()..respond = (_, __) => {'delivered': true, 'channel': 'fcm'};
       final c = _client(inv);
 
-      final result = await c.sendWake(
+      final result = await c.notifyTransferIntent(
         sourceDeviceId: 'src',
         targetDeviceId: 'tgt',
-        payload: 'ciphertext-base64',
+        kind: NotifyTransferKind.file,
       );
 
-      expect(inv.calls.single.name, 'sendWake');
+      expect(inv.calls.single.name, 'notifyTransferIntent');
       expect(inv.calls.single.data, {
         'sourceDeviceId': 'src',
         'targetDeviceId': 'tgt',
-        'payload': 'ciphertext-base64',
+        'kind': 'file',
       });
+      expect(result.delivered, isTrue);
       expect(result.channel, DeliveryChannel.fcm);
     });
 
-    test('sendLinkNotification serialises plaintext request with mode field', () async {
-      final inv = _RecordingInvoker()..respond = (_, __) => {'delivered': true, 'channel': 'inbox'};
+    test('notifyTransferIntent decodes channel=none when target has no fcmToken', () async {
+      final inv = _RecordingInvoker()..respond = (_, __) => {'delivered': false, 'channel': 'none'};
       final c = _client(inv);
 
-      await c.sendLinkNotification(
-        const PlaintextLinkNotificationRequest(
-          sourceDeviceId: 'src',
-          targetDeviceId: 'tgt',
-          url: 'https://example.com',
-          title: 'Hi',
-        ),
+      final result = await c.notifyTransferIntent(
+        sourceDeviceId: 'src',
+        targetDeviceId: 'linux-tgt',
+        kind: NotifyTransferKind.url,
       );
 
-      expect(inv.calls.single.name, 'sendLinkNotification');
-      expect(inv.calls.single.data, {
-        'mode': 'plaintext',
-        'sourceDeviceId': 'src',
-        'targetDeviceId': 'tgt',
-        'url': 'https://example.com',
-        'title': 'Hi',
-      });
-    });
-
-    test('sendLinkNotification serialises encrypted request with mode field', () async {
-      final inv = _RecordingInvoker()..respond = (_, __) => {'delivered': true, 'channel': 'fcm'};
-      final c = _client(inv);
-
-      await c.sendLinkNotification(
-        const EncryptedLinkNotificationRequest(
-          sourceDeviceId: 'src',
-          targetDeviceId: 'tgt',
-          payload: 'ciphertext',
-        ),
-      );
-
-      expect(inv.calls.single.data, {
-        'mode': 'encrypted',
-        'sourceDeviceId': 'src',
-        'targetDeviceId': 'tgt',
-        'payload': 'ciphertext',
-      });
-    });
-
-    test('pollPendingWakes decodes mixed payload union', () async {
-      final inv = _RecordingInvoker()
-        ..respond = (_, __) => {
-          'items': [
-            {
-              'id': 'item-1',
-              'type': 'wake',
-              'payload': 'ct-1',
-              'createdAtMs': 1,
-              'expiresAtMs': 2,
-            },
-            {
-              'id': 'item-2',
-              'type': 'link',
-              'payload': {'url': 'https://example.com'},
-              'createdAtMs': 3,
-              'expiresAtMs': 4,
-            },
-          ],
-        };
-      final c = _client(inv);
-
-      final result = await c.pollPendingWakes(deviceId: 'd-1');
-
-      expect(inv.calls.single.data, {'deviceId': 'd-1'});
-      expect(result.items, hasLength(2));
-      expect(result.items.first.type, InboxItemType.wake);
-      expect(result.items.first.encryptedPayload, 'ct-1');
-      expect(result.items.last.plaintextPayload?.url, 'https://example.com');
+      expect(result.delivered, isFalse);
+      expect(result.channel, DeliveryChannel.none);
+      expect((inv.calls.single.data as Map)['kind'], 'url');
     });
   });
 

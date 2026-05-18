@@ -259,7 +259,7 @@ export interface JoinNetworkResult {
  *   non-null `consumedAt`, or sees the source device already missing.
  *   Either way it rejects with `failed-precondition`.
  * - Out-of-transaction `recursiveDelete` sweeps subcollections that
- *   transactions can't (the moved device's old inbox on the
+ *   transactions can't (any device-scoped subcollections on the
  *   surviving-source branch, or the entire source account subtree on
  *   the last-device branch). Mirrors `removeDeviceLogic`.
  * - **No source account.** When the caller's account doc does not

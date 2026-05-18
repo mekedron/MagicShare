@@ -4,15 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createAccountLogic, deleteAccountLogic } from '../../src/accounts';
 import { getDb } from '../../src/admin';
 
-import {
-  clearEmulator,
-  listDeviceIds,
-  listInboxIds,
-  readAccount,
-  seedAccount,
-  seedDevice,
-  seedInboxItem,
-} from './_helpers';
+import { clearEmulator, listDeviceIds, readAccount, seedAccount, seedDevice } from './_helpers';
 
 const UID = 'accountTester';
 
@@ -55,19 +47,16 @@ describe('deleteAccountLogic', () => {
     expect(result).toEqual({ deleted: false });
   });
 
-  it('cascades through devices and inbox items', async () => {
+  it('cascades through devices', async () => {
     await seedAccount(UID, { deviceCount: 2 });
     await seedDevice(UID, 'devA');
     await seedDevice(UID, 'devB');
-    await seedInboxItem(UID, 'devA', 'inboxOne');
-    await seedInboxItem(UID, 'devA', 'inboxTwo');
 
     const result = await deleteAccountLogic(getDb(), UID);
 
     expect(result).toEqual({ deleted: true });
     expect(await readAccount(UID)).toBeNull();
     expect(await listDeviceIds(UID)).toEqual([]);
-    expect(await listInboxIds(UID, 'devA')).toEqual([]);
   });
 
   it('is idempotent: deleting a freshly-deleted account is a no-op', async () => {

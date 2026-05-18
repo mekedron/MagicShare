@@ -2,10 +2,10 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 
 /**
- * Soft per-device send limit: 30 calls per rolling hour. Both
- * `sendWake` and `sendLinkNotification` share the same counter — the
- * spec calls out "30 sends per device per hour" as a guard against
- * runaway callers, not a per-callable ceiling.
+ * Soft per-device send limit: 30 calls per rolling hour. The single
+ * `notifyTransferIntent` callable charges this counter every time a
+ * group device taps a target in the Send tab, regardless of whether
+ * the target is online.
  *
  * Stored on the source device's `recentSendsAt` field as an array of
  * Timestamps; `consumeSendQuota` slides the window, throws when full,

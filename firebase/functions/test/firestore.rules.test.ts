@@ -16,7 +16,6 @@ const RULES_PATH = resolve(__dirname, '..', '..', 'firestore.rules');
 const USER_A = 'userA';
 const USER_B = 'userB';
 const DEVICE_ID = 'deviceOne';
-const INBOX_ITEM_ID = 'itemOne';
 const JOIN_TOKEN_ID = 'tokenOne';
 
 let env: RulesTestEnvironment;
@@ -32,13 +31,6 @@ const deviceDoc = () => ({
   icon: 'laptop',
   fcmToken: null,
   platform: 'macos',
-});
-
-const inboxItemDoc = () => ({
-  type: 'wake',
-  payload: 'encrypted-blob',
-  createdAt: Timestamp.now(),
-  expiresAt: Timestamp.fromMillis(Date.now() + 5 * 60_000),
 });
 
 const joinTokenDoc = () => ({
@@ -68,10 +60,6 @@ beforeEach(async () => {
     const admin = ctx.firestore();
     await setDoc(doc(admin, `accounts/${USER_A}`), accountDoc());
     await setDoc(doc(admin, `accounts/${USER_A}/devices/${DEVICE_ID}`), deviceDoc());
-    await setDoc(
-      doc(admin, `accounts/${USER_A}/devices/${DEVICE_ID}/inbox/${INBOX_ITEM_ID}`),
-      inboxItemDoc(),
-    );
     await setDoc(doc(admin, `accounts/${USER_B}`), accountDoc());
     await setDoc(doc(admin, `joinTokens/${JOIN_TOKEN_ID}`), joinTokenDoc());
   });
@@ -113,25 +101,6 @@ describe('accounts/{accountId}/devices/{deviceId}', () => {
   it('rejects direct client writes to a device document (server-only)', async () => {
     const db = env.authenticatedContext(USER_A).firestore();
     await assertFails(setDoc(doc(db, `accounts/${USER_A}/devices/${DEVICE_ID}`), deviceDoc()));
-  });
-});
-
-describe('accounts/{accountId}/devices/{deviceId}/inbox/{itemId}', () => {
-  it('rejects owner reads (Linux polling goes through callables, not Firestore)', async () => {
-    const db = env.authenticatedContext(USER_A).firestore();
-    await assertFails(
-      getDoc(doc(db, `accounts/${USER_A}/devices/${DEVICE_ID}/inbox/${INBOX_ITEM_ID}`)),
-    );
-  });
-
-  it('rejects owner writes', async () => {
-    const db = env.authenticatedContext(USER_A).firestore();
-    await assertFails(
-      setDoc(
-        doc(db, `accounts/${USER_A}/devices/${DEVICE_ID}/inbox/${INBOX_ITEM_ID}`),
-        inboxItemDoc(),
-      ),
-    );
   });
 });
 

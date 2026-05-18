@@ -59,7 +59,9 @@ class HttpScanDiscoveryService {
       onError: null,
     );
     if (device != null) {
-      _logger.info('[DISCOVER/TCP] ${device.alias} (${device.firstHttpEndpoint?.ip}, model: ${device.deviceModel})');
+      // Fires on every probe cycle for every reachable device. Keep
+      // at `fine` so the per-poll repetition stays out of the console.
+      _logger.fine('[DISCOVER/TCP] ${device.alias} (${device.firstHttpEndpoint?.ip}, model: ${device.deviceModel})');
     }
 
     return device;

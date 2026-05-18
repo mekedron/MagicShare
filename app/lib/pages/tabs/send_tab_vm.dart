@@ -2,7 +2,6 @@ import 'package:collection/collection.dart';
 import 'package:common/model/device.dart';
 import 'package:common/model/session_status.dart';
 import 'package:flutter/material.dart';
-import 'package:magicshare_app/model/cloud/cloud_device.dart';
 import 'package:magicshare_app/model/cross_file.dart';
 import 'package:magicshare_app/model/persistence/favorite_device.dart';
 import 'package:magicshare_app/model/send_mode.dart';
@@ -11,7 +10,6 @@ import 'package:magicshare_app/pages/progress_page.dart';
 import 'package:magicshare_app/pages/send_page.dart';
 import 'package:magicshare_app/pages/web_send_page.dart';
 import 'package:magicshare_app/provider/cloud/merged_network_devices_provider.dart';
-import 'package:magicshare_app/provider/cloud/wake_orchestrator.dart';
 import 'package:magicshare_app/provider/favorites_provider.dart';
 import 'package:magicshare_app/provider/local_ip_provider.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
@@ -34,15 +32,12 @@ class SendTabVm {
   final List<String> localIps;
   final List<MergedDevice> networkDevices;
   final List<FavoriteDevice> favoriteDevices;
-  final Map<String, WakeStatus> wakeStatuses;
   final Future<void> Function(BuildContext context) onTapAddress;
   final Future<void> Function(BuildContext context) onTapFavorite;
   final Future<void> Function(BuildContext context, SendMode mode) onTapSendMode;
   final Future<void> Function(BuildContext context, Device device) onToggleFavorite;
-  final Future<void> Function(BuildContext context, Device device) onTapDevice;
-  final Future<void> Function(BuildContext context, Device device) onTapDeviceMultiSend;
-  final Future<void> Function(BuildContext context, CloudDevice target) onTapWakeDevice;
-  final void Function(String targetDeviceId) onClearWakeError;
+  final Future<void> Function(BuildContext context, MergedDevice merged) onTapDevice;
+  final Future<void> Function(BuildContext context, MergedDevice merged) onTapDeviceMultiSend;
 
   const SendTabVm({
     required this.sendMode,
@@ -50,15 +45,12 @@ class SendTabVm {
     required this.localIps,
     required this.networkDevices,
     required this.favoriteDevices,
-    required this.wakeStatuses,
     required this.onTapAddress,
     required this.onTapFavorite,
     required this.onTapSendMode,
     required this.onToggleFavorite,
     required this.onTapDevice,
     required this.onTapDeviceMultiSend,
-    required this.onTapWakeDevice,
-    required this.onClearWakeError,
   });
 }
 
@@ -68,7 +60,6 @@ final sendTabVmProvider = ViewProvider((ref) {
   final localIps = ref.watch(localIpProvider).localIps;
   final networkDevices = ref.watch(mergedNetworkDevicesProvider);
   final favoriteDevices = ref.watch(favoritesProvider);
-  final wakeStatuses = ref.watch(wakeOrchestratorProvider);
 
   return SendTabVm(
     sendMode: sendMode,
@@ -76,7 +67,6 @@ final sendTabVmProvider = ViewProvider((ref) {
     localIps: localIps,
     networkDevices: networkDevices,
     favoriteDevices: favoriteDevices,
-    wakeStatuses: wakeStatuses,
     onTapAddress: (context) async {
       final files = ref.read(selectedSendingFilesProvider);
       if (files.isEmpty) {
@@ -151,22 +141,33 @@ final sendTabVmProvider = ViewProvider((ref) {
         );
       }
     },
-    onTapDevice: (context, device) async {
+    onTapDevice: (context, merged) async {
       if (selectedFiles.isEmpty) {
         await context.pushBottomSheet(() => const NoFilesDialog());
         return;
       }
 
+      // Pass the cloud device id as the stable target identifier so
+      // the wait-for-online popup can resolve the same physical
+      // device once it appears on LAN. For pure-LAN peers (stock
+      // LocalSend) we pass null — there's no offline waiting to do.
+      // Using cloud.deviceId (not merged.stableId) keeps the
+      // identifier stable across the offline→online transition,
+      // where `stableId` swaps from the cloud deviceId to the
+      // freshly-discovered cert hash.
+      final stableTargetId = merged.cloud?.deviceId;
+
       await ref
           .notifier(sendProvider)
           .startSession(
-            target: device,
+            target: merged.displayDevice,
             files: selectedFiles,
             background: false,
+            stableTargetId: stableTargetId,
           );
     },
-    onTapDeviceMultiSend: (context, device) async {
-      final deviceIp = device.firstHttpEndpoint?.ip;
+    onTapDeviceMultiSend: (context, merged) async {
+      final deviceIp = merged.displayDevice.firstHttpEndpoint?.ip;
       final session = deviceIp == null
           ? null
           : ref
@@ -203,30 +204,16 @@ final sendTabVmProvider = ViewProvider((ref) {
         ref.notifier(sendProvider).closeSession(session.sessionId);
       }
 
+      final stableTargetId = merged.cloud?.deviceId;
+
       await ref
           .notifier(sendProvider)
           .startSession(
-            target: device,
+            target: merged.displayDevice,
             files: files,
             background: true,
+            stableTargetId: stableTargetId,
           );
-    },
-    onTapWakeDevice: (context, target) async {
-      final files = ref.read(selectedSendingFilesProvider);
-      if (files.isEmpty) {
-        await context.pushBottomSheet(() => const NoFilesDialog());
-        return;
-      }
-      await ref
-          .notifier(wakeOrchestratorProvider)
-          .start(
-            target: target,
-            files: files,
-            background: false,
-          );
-    },
-    onClearWakeError: (targetDeviceId) {
-      ref.notifier(wakeOrchestratorProvider).clearError(targetDeviceId);
     },
   );
 });

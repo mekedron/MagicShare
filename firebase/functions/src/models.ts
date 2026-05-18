@@ -22,14 +22,6 @@ export type DeviceIcon = (typeof DEVICE_ICONS)[number];
 export const DEVICE_PLATFORMS = ['android', 'ios', 'macos', 'windows', 'linux'] as const;
 export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
 
-export type InboxItemType = 'wake' | 'link';
-
-/** A plaintext link payload as stored in `inbox` for opt-in plaintext mode. */
-export interface PlaintextLinkPayload {
-  url: string;
-  title?: string;
-}
-
 /** `accounts/{accountId}` — a device group keyed by anonymous-auth UID. */
 export interface AccountDoc {
   createdAt: Timestamp;
@@ -52,24 +44,12 @@ export interface DeviceDoc {
    */
   fingerprint?: string | null;
   /**
-   * Sliding-window record of recent `sendWake` / `sendLinkNotification`
-   * timestamps. Used by `src/rate-limit.ts` to enforce the soft
-   * 30-sends-per-hour ceiling. Optional so existing devices migrate in
-   * place — an absent or empty array reads as "no sends yet".
+   * Sliding-window record of recent `notifyTransferIntent` timestamps.
+   * Used by `src/rate-limit.ts` to enforce the soft 30-sends-per-hour
+   * ceiling. Optional so existing devices migrate in place — an absent
+   * or empty array reads as "no sends yet".
    */
   recentSendsAt?: Timestamp[];
-}
-
-/**
- * `accounts/{accountId}/devices/{deviceId}/inbox/{itemId}` — Linux-only
- * polling queue. `payload` is an encrypted blob for `wake` / encrypted
- * link items, and a plaintext object for plaintext-mode link items.
- */
-export interface InboxItemDoc {
-  type: InboxItemType;
-  payload: string | PlaintextLinkPayload;
-  createdAt: Timestamp;
-  expiresAt: Timestamp;
 }
 
 /** `joinTokens/{tokenId}` — a one-time pairing token, server-only. */
@@ -84,18 +64,11 @@ export interface JoinTokenDoc {
 /** Collection-name constants — single source of truth for paths. */
 export const ACCOUNTS_COLLECTION = 'accounts';
 export const DEVICES_SUBCOLLECTION = 'devices';
-export const INBOX_SUBCOLLECTION = 'inbox';
 export const JOIN_TOKENS_COLLECTION = 'joinTokens';
 
 export const accountPath = (accountId: string): string => `${ACCOUNTS_COLLECTION}/${accountId}`;
 
 export const devicePath = (accountId: string, deviceId: string): string =>
   `${accountPath(accountId)}/${DEVICES_SUBCOLLECTION}/${deviceId}`;
-
-export const inboxPath = (accountId: string, deviceId: string): string =>
-  `${devicePath(accountId, deviceId)}/${INBOX_SUBCOLLECTION}`;
-
-export const inboxItemPath = (accountId: string, deviceId: string, itemId: string): string =>
-  `${inboxPath(accountId, deviceId)}/${itemId}`;
 
 export const joinTokenPath = (tokenId: string): string => `${JOIN_TOKENS_COLLECTION}/${tokenId}`;

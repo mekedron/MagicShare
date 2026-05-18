@@ -53,33 +53,13 @@ A single MagicShare installation registered under a device group.
 | `lastSeenAt`     | `Timestamp`         | Bumped by `updateDevicePresence` (rate-limited to one call per minute per device).                      |
 | `presence`       | `DevicePresence`    | `online` while the app is foregrounded; `offline` otherwise.                                            |
 | `fingerprint?`   | `string \| null`    | The LocalSend cert hash this device announces over multicast. Lets the Send tab dedup LAN-discovered devices against the cloud device list. Optional — older devices that pre-date the field read as `null` until they re-register. |
-| `recentSendsAt?` | `Timestamp[]`       | Sliding-window record of recent `sendWake` / `sendLinkNotification` calls (≤ 30 entries, ≤ 1 h old).    |
+| `recentSendsAt?` | `Timestamp[]`       | Sliding-window record of recent `notifyTransferIntent` calls (≤ 30 entries, ≤ 1 h old).                  |
 
 - **Read:** authenticated user where `request.auth.uid == accountId`.
 - **Write:** Cloud Functions only.
 - **Retention:** removed when the user unlinks the device, when the
   parent account is deleted, or when the parent is GC'd by the
   scheduled cleanup job.
-
----
-
-## `accounts/{accountId}/devices/{deviceId}/inbox/{itemId}`
-
-A short-lived per-device delivery queue used **only** by Linux clients,
-which cannot receive FCM pushes. Other platforms ignore this
-subcollection.
-
-| Field       | Type                                       | Notes                                                                |
-|-------------|--------------------------------------------|----------------------------------------------------------------------|
-| `type`      | `'wake' \| 'link'`                         | Same wire shape as the corresponding FCM data message.               |
-| `payload`   | `string \| { url: string; title?: string }`| Encrypted blob (wake / encrypted-link), or plaintext-link object.    |
-| `createdAt` | `Timestamp`                                | Set on insert.                                                       |
-| `expiresAt` | `Timestamp`                                | `createdAt + 5 min`. Used by the polling consumer and the TTL sweep. |
-
-- **Read:** Cloud Functions only — Linux clients pull items via the
-  `pollPendingWakes` callable (Epic 6), which atomically consumes them.
-- **Write:** Cloud Functions only.
-- **Retention:** consumed on poll, swept by TTL when expired.
 
 ---
 

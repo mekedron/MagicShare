@@ -10,8 +10,7 @@ setGlobalOptions({
 
 /**
  * Health probe. Used to verify the Cloud Functions deployment is reachable
- * and the emulator wires up correctly. Real callables (account, device,
- * pairing, sendWake, etc.) land in Epics 4 through 6.
+ * and the emulator wires up correctly.
  */
 export const health = onCall(
   instrument('health', async () => {
@@ -25,6 +24,6 @@ export const health = onCall(
 
 export { createAccount, deleteAccount } from './accounts';
 export { registerDevice, removeDevice, renameDevice, setDeviceIcon } from './devices';
-export { pollPendingWakes, sendLinkNotification, sendWake } from './notifications';
+export { notifyTransferIntent } from './transfer-notify';
 export { createJoinToken, joinNetwork, previewJoinToken } from './pairing';
 export { cleanupExpiredJoinTokens, cleanupInactiveAccounts } from './scheduled';

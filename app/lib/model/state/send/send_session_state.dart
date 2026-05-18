@@ -27,6 +27,20 @@ class SendSessionState with SendSessionStateMappable implements SessionState {
   final List<SendingTask>? sendingTasks; // used to cancel tasks
   final String? errorMessage;
 
+  /// MagicShare wait-for-online: stable identity (cert hash, falls back
+  /// to signaling token / cloud deviceId) of the device the user
+  /// originally tapped. Non-null only while `status` is
+  /// [SessionStatus.waitingForDevice] or
+  /// [SessionStatus.waitingForDeviceTimedOut] — the send pipeline uses
+  /// this to spot the same physical device reappearing on LAN with a
+  /// usable HTTP endpoint and resume the transfer.
+  final String? stableTargetId;
+
+  /// Epoch-ms deadline for the current wait window. Cleared once the
+  /// session leaves the waiting branch. The popup renders a countdown
+  /// against this.
+  final int? waitDeadlineMs;
+
   const SendSessionState({
     required this.sessionId,
     required this.remoteSessionId,
@@ -38,6 +52,8 @@ class SendSessionState with SendSessionStateMappable implements SessionState {
     required this.endTime,
     required this.sendingTasks,
     required this.errorMessage,
+    this.stableTargetId,
+    this.waitDeadlineMs,
   });
 
   /// Custom toString() to avoid printing the bytes.
@@ -45,7 +61,11 @@ class SendSessionState with SendSessionStateMappable implements SessionState {
   /// SendingFile.
   @override
   String toString() {
-    return 'SendSessionState(sessionId: $sessionId, remoteSessionId: $remoteSessionId, background: $background, status: $status, target: $target, files: $files, startTime: $startTime, endTime: $endTime, sendingTasks: $sendingTasks, errorMessage: $errorMessage)';
+    return 'SendSessionState(sessionId: $sessionId, remoteSessionId: $remoteSessionId, '
+        'background: $background, status: $status, target: $target, files: $files, '
+        'startTime: $startTime, endTime: $endTime, sendingTasks: $sendingTasks, '
+        'errorMessage: $errorMessage, stableTargetId: $stableTargetId, '
+        'waitDeadlineMs: $waitDeadlineMs)';
   }
 }
 

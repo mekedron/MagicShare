@@ -12,7 +12,6 @@ import {
   readDevice,
   seedAccount,
   seedDevice,
-  seedInboxItem,
   seedJoinToken,
 } from './_helpers';
 
@@ -64,7 +63,6 @@ describe('cleanupInactiveAccountsLogic', () => {
 
     await seedAccount('zombie', { lastActiveAt: inactive, deviceCount: 1 });
     await seedDevice('zombie', 'd1');
-    await seedInboxItem('zombie', 'd1', 'queued');
 
     await seedAccount('alive', { lastActiveAt: fresh, deviceCount: 1 });
     await seedDevice('alive', 'd2');

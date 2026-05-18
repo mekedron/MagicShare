@@ -5,18 +5,15 @@ import 'package:magicshare_app/model/cloud/cloud_device_icon.dart';
 import 'package:magicshare_app/model/cloud/cloud_device_platform.dart';
 import 'package:magicshare_app/model/cloud/cloud_exception.dart';
 import 'package:magicshare_app/model/cloud/requests/join_network_new_device.dart';
-import 'package:magicshare_app/model/cloud/requests/send_link_notification_request.dart';
 import 'package:magicshare_app/model/cloud/results/create_account_result.dart';
 import 'package:magicshare_app/model/cloud/results/create_join_token_result.dart';
 import 'package:magicshare_app/model/cloud/results/delete_account_result.dart';
 import 'package:magicshare_app/model/cloud/results/health_result.dart';
 import 'package:magicshare_app/model/cloud/results/join_network_result.dart';
-import 'package:magicshare_app/model/cloud/results/poll_pending_wakes_result.dart';
+import 'package:magicshare_app/model/cloud/results/notify_transfer_intent_result.dart';
 import 'package:magicshare_app/model/cloud/results/preview_join_token_result.dart';
 import 'package:magicshare_app/model/cloud/results/register_device_result.dart';
 import 'package:magicshare_app/model/cloud/results/remove_device_result.dart';
-import 'package:magicshare_app/model/cloud/results/send_link_notification_result.dart';
-import 'package:magicshare_app/model/cloud/results/send_wake_result.dart';
 
 /// Type for the underlying callable invocation. Allows the client to be
 /// constructed with a fake invoker in tests, avoiding the need to mock the
@@ -188,48 +185,41 @@ class CloudFunctionsClient {
     );
   }
 
-  Future<SendWakeResult> sendWake({
+  /// Publishes a visible "transfer incoming" FCM notification to the
+  /// target device. Returns `delivered: false, channel: none` when the
+  /// target has no FCM token (Linux, or never registered) — the sender
+  /// side handles that case via the wait-for-online popup.
+  Future<NotifyTransferIntentResult> notifyTransferIntent({
     required String sourceDeviceId,
     required String targetDeviceId,
-    required String payload,
+    required NotifyTransferKind kind,
   }) {
     return _call(
-      'sendWake',
+      'notifyTransferIntent',
       <String, dynamic>{
         'sourceDeviceId': sourceDeviceId,
         'targetDeviceId': targetDeviceId,
-        'payload': payload,
+        'kind': kind.wireName,
       },
-      (raw) => SendWakeResult.fromJson(_asMap(raw)),
+      (raw) => NotifyTransferIntentResult.fromJson(_asMap(raw)),
     );
   }
+}
 
-  /// Accepts either [PlaintextLinkNotificationRequest] or
-  /// [EncryptedLinkNotificationRequest] — the discriminator is encoded as
-  /// `mode: plaintext|encrypted` per the backend's
-  /// `SendLinkNotificationInput`.
-  Future<SendLinkNotificationResult> sendLinkNotification(
-    SendLinkNotificationRequest request,
-  ) {
-    return _call(
-      'sendLinkNotification',
-      request.toJson(),
-      (raw) => SendLinkNotificationResult.fromJson(_asMap(raw)),
-    );
-  }
+/// Kind of transfer the sender is about to initiate. Drives the
+/// notification body wording ("files" / "a message" / "a link") on the
+/// receiver phone. Mirrors the Zod enum in
+/// firebase/functions/src/validation.ts.
+enum NotifyTransferKind {
+  file,
+  text,
+  url;
 
-  /// Linux polling fallback. Atomically removes the inbox items it returns,
-  /// so the caller is responsible for handling them — re-polling will not
-  /// re-deliver.
-  Future<PollPendingWakesResult> pollPendingWakes({
-    required String deviceId,
-  }) {
-    return _call(
-      'pollPendingWakes',
-      <String, dynamic>{'deviceId': deviceId},
-      (raw) => PollPendingWakesResult.fromMap(_asMap(raw)),
-    );
-  }
+  String get wireName => switch (this) {
+    NotifyTransferKind.file => 'file',
+    NotifyTransferKind.text => 'text',
+    NotifyTransferKind.url => 'url',
+  };
 }
 
 Object? _ignoreResponse(Object? _) => null;

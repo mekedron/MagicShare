@@ -32,25 +32,17 @@ class PrepareUploadRequestDtoMapper extends ClassMapperBase<PrepareUploadRequest
   );
   static Map<String, FileDto> _$files(PrepareUploadRequestDto v) => v.files;
   static const Field<PrepareUploadRequestDto, Map<String, FileDto>> _f$files = Field('files', _$files);
-  static String? _$wakeSessionId(PrepareUploadRequestDto v) => v.wakeSessionId;
-  static const Field<PrepareUploadRequestDto, String> _f$wakeSessionId = Field(
-    'wakeSessionId',
-    _$wakeSessionId,
-    opt: true,
-  );
 
   @override
   final MappableFields<PrepareUploadRequestDto> fields = const {
     #info: _f$info,
     #files: _f$files,
-    #wakeSessionId: _f$wakeSessionId,
   };
 
   static PrepareUploadRequestDto _instantiate(DecodingData data) {
     return PrepareUploadRequestDto(
       info: data.dec(_f$info),
       files: data.dec(_f$files),
-      wakeSessionId: data.dec(_f$wakeSessionId),
     );
   }
 
@@ -109,11 +101,7 @@ extension PrepareUploadRequestDtoValueCopy<$R, $Out> on ObjectCopyWith<$R, Prepa
 abstract class PrepareUploadRequestDtoCopyWith<$R, $In extends PrepareUploadRequestDto, $Out> implements ClassCopyWith<$R, $In, $Out> {
   InfoRegisterDtoCopyWith<$R, InfoRegisterDto, InfoRegisterDto> get info;
   MapCopyWith<$R, String, FileDto, ObjectCopyWith<$R, FileDto, FileDto>> get files;
-  $R call({
-    InfoRegisterDto? info,
-    Map<String, FileDto>? files,
-    String? wakeSessionId,
-  });
+  $R call({InfoRegisterDto? info, Map<String, FileDto>? files});
   PrepareUploadRequestDtoCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(
     Then<$Out2, $R2> t,
   );
@@ -134,23 +122,16 @@ class _PrepareUploadRequestDtoCopyWithImpl<$R, $Out> extends ClassCopyWithBase<$
         (v) => call(files: v),
       );
   @override
-  $R call({
-    InfoRegisterDto? info,
-    Map<String, FileDto>? files,
-    Object? wakeSessionId = $none,
-  }) =>
-      $apply(
+  $R call({InfoRegisterDto? info, Map<String, FileDto>? files}) => $apply(
         FieldCopyWithData({
           if (info != null) #info: info,
           if (files != null) #files: files,
-          if (wakeSessionId != $none) #wakeSessionId: wakeSessionId,
         }),
       );
   @override
   PrepareUploadRequestDto $make(CopyWithData data) => PrepareUploadRequestDto(
         info: data.get(#info, or: $value.info),
         files: data.get(#files, or: $value.files),
-        wakeSessionId: data.get(#wakeSessionId, or: $value.wakeSessionId),
       );
 
   @override

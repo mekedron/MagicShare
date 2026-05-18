@@ -115,7 +115,7 @@ class MulticastService {
     for (final wait in [100, 500, 2000]) {
       await sleepAsync(wait);
 
-      _logger.info('Announce via UDP');
+      _logger.fine('Announce via UDP');
       for (final socket in sockets) {
         try {
           socket.socket.send(dto, InternetAddress(syncState.multicastGroup), syncState.port);
@@ -215,7 +215,11 @@ Future<List<_SocketResult>> _getSockets({
       socket.joinMulticast(InternetAddress(multicastGroup), interface);
       sockets.add(_SocketResult(interface, socket));
     } catch (e) {
-      _logger.warning(
+      // Expected on IPv6-only interfaces: bind() against an IPv4
+      // multicast group throws SocketException on every poll. Keep the
+      // trace at `fine` so it's available behind a verbose logger but
+      // doesn't drown the console.
+      _logger.fine(
         'Could not bind UDP multicast port (ip: ${interface.addresses.map((a) => a.address).toList()}, group: $multicastGroup, port: $port)',
         e,
       );

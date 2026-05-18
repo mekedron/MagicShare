@@ -24,11 +24,25 @@ class CustomRefenaObserver extends RefenaMultiObserver {
       );
 }
 
+/// Names of actions whose dispatch/finish events fire on every nearby-
+/// devices poller tick (≈ every 2 s) and add no signal to the console.
+/// Match by stringified runtime type so leading underscores on private
+/// classes still hit.
+const Set<String> _noisyPollActions = {
+  '_FetchLocalIpAction',
+  'StartNearbyDevicesPoller',
+  'StartMulticastScan',
+  'IsolateSendMulticastAnnouncementAction',
+  'ProbeAndPruneKnownDevicesAction',
+  'IsolateFavoriteHttpDiscoveryAction',
+  'RegisterDeviceAction',
+};
+
 bool _exclude(RefenaEvent event) {
   return switch (event) {
     ChangeEvent() => event.notifier is DiscoveryLogger || event.notifier is LocalIpService || event.notifier is ProgressNotifier,
-    ActionDispatchedEvent() => event.action.runtimeType.toString() == '_FetchLocalIpAction',
-    ActionFinishedEvent() => event.action.runtimeType.toString() == '_FetchLocalIpAction',
+    ActionDispatchedEvent() => _noisyPollActions.contains(event.action.runtimeType.toString()),
+    ActionFinishedEvent() => _noisyPollActions.contains(event.action.runtimeType.toString()),
     _ => false,
   };
 }

@@ -12,7 +12,6 @@ import 'package:magicshare_app/pages/tabs/send_tab_vm.dart';
 import 'package:magicshare_app/pages/troubleshoot_page.dart';
 import 'package:magicshare_app/provider/animation_provider.dart';
 import 'package:magicshare_app/provider/cloud/merged_network_devices_provider.dart';
-import 'package:magicshare_app/provider/cloud/wake_orchestrator.dart';
 import 'package:magicshare_app/provider/network/nearby_devices_provider.dart';
 import 'package:magicshare_app/provider/network/scan_facade.dart';
 import 'package:magicshare_app/provider/network/send_provider.dart';
@@ -215,8 +214,7 @@ class SendTab extends StatelessWidget {
                 ...vm.networkDevices.map((merged) {
                   final device = merged.displayDevice;
                   final favoriteEntry = merged.isLanReachable ? vm.favoriteDevices.findDevice(device) : null;
-                  final wakeStatus = merged.cloud == null ? null : vm.wakeStatuses[merged.cloud!.deviceId];
-                  final presence = _presenceInfoFor(merged: merged, wakeStatus: wakeStatus);
+                  final presence = _presenceInfoFor(merged: merged);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10, left: _horizontalPadding, right: _horizontalPadding),
                     child: Hero(
@@ -227,7 +225,6 @@ class SendTab extends StatelessWidget {
                               isFavorite: favoriteEntry != null,
                               nameOverride: favoriteEntry?.alias,
                               networkPresence: presence,
-                              wakeStatus: wakeStatus,
                               vm: vm,
                             )
                           : DeviceListTile(
@@ -236,12 +233,7 @@ class SendTab extends StatelessWidget {
                               nameOverride: favoriteEntry?.alias,
                               networkPresence: presence,
                               onFavoriteTap: merged.isLanReachable ? () async => await vm.onToggleFavorite(context, device) : null,
-                              onTap: _onTapHandlerFor(
-                                context: context,
-                                merged: merged,
-                                wakeStatus: wakeStatus,
-                                vm: vm,
-                              ),
+                              onTap: () async => await vm.onTapDevice(context, merged),
                             ),
                     ),
                   );
@@ -575,7 +567,6 @@ class _MultiSendDeviceListTile extends StatelessWidget {
   final bool isFavorite;
   final String? nameOverride;
   final NetworkPresenceInfo? networkPresence;
-  final WakeStatus? wakeStatus;
   final SendTabVm vm;
 
   const _MultiSendDeviceListTile({
@@ -583,7 +574,6 @@ class _MultiSendDeviceListTile extends StatelessWidget {
     required this.isFavorite,
     required this.nameOverride,
     required this.networkPresence,
-    required this.wakeStatus,
     required this.vm,
   });
 
@@ -616,68 +606,28 @@ class _MultiSendDeviceListTile extends StatelessWidget {
       nameOverride: nameOverride,
       networkPresence: networkPresence,
       onFavoriteTap: merged.isLanReachable && device.hasHttpEndpoint ? () async => await vm.onToggleFavorite(context, device) : null,
-      onTap: merged.isOfflineCloud
-          ? _onTapHandlerFor(context: context, merged: merged, wakeStatus: wakeStatus, vm: vm)
-          : () async => await vm.onTapDeviceMultiSend(context, device),
+      onTap: () async => await vm.onTapDeviceMultiSend(context, merged),
     );
   }
 }
 
 NetworkPresenceInfo _presenceInfoFor({
   required MergedDevice merged,
-  required WakeStatus? wakeStatus,
 }) {
   // Online/offline is independent of Firebase: a device is online when
   // it's reachable on LAN (multicast + HTTP /info) or via WebRTC
-  // signaling. The cloud account only contributes the wake-indicator —
-  // we can fire `sendWake` for cloud-known peers that have gone dark.
-  final String statusLabel;
-  final String? wakeLabel;
-  switch (wakeStatus) {
-    case WakeStatusSending() || WakeStatusWaiting():
-      statusLabel = t.sendTab.wakingUp(device: merged.displayDevice.alias);
-      wakeLabel = null;
-    case WakeStatusError(:final timedOut, :final message):
-      statusLabel = timedOut ? t.sendTab.wakeTimedOut : message;
-      wakeLabel = t.sendTab.wakeRetry;
-    case null:
-      statusLabel = merged.isOnline ? t.general.online : t.general.offline;
-      wakeLabel = merged.isOfflineCloud ? t.sendTab.wakeIndicator : null;
-  }
+  // signaling. Cloud-known devices that are offline get tapped just
+  // like online ones — the send page handles the wait-for-online flow.
   return NetworkPresenceInfo(
     isOnline: merged.isOnline,
-    statusLabel: statusLabel,
-    wakeLabel: wakeLabel,
+    statusLabel: merged.isOnline ? t.general.online : t.general.offline,
+    wakeLabel: null,
     // A non-null `cloud` means this physical device is registered in
     // the user's cloud device group. Surface a small "Group" badge so
     // the user can tell at a glance which nearby tiles are their own
-    // devices vs. stock-LocalSend peers. Hardcoded for now (matches
-    // the other transport badges); plug into t.sendTab.groupIndicator
-    // when the next slang codegen sweep runs.
+    // devices vs. stock-LocalSend peers.
     groupLabel: merged.cloud != null ? 'Group' : null,
   );
-}
-
-VoidCallback? _onTapHandlerFor({
-  required BuildContext context,
-  required MergedDevice merged,
-  required WakeStatus? wakeStatus,
-  required SendTabVm vm,
-}) {
-  if (!merged.isOfflineCloud) {
-    return () async => await vm.onTapDevice(context, merged.displayDevice);
-  }
-  if (wakeStatus is WakeStatusSending || wakeStatus is WakeStatusWaiting) {
-    return null;
-  }
-  final cloud = merged.cloud;
-  if (cloud == null) return null;
-  return () async {
-    if (wakeStatus is WakeStatusError) {
-      vm.onClearWakeError(cloud.deviceId);
-    }
-    await vm.onTapWakeDevice(context, cloud);
-  };
 }
 
 extension on SessionStatus {
@@ -685,6 +635,10 @@ extension on SessionStatus {
     switch (this) {
       case SessionStatus.waiting:
         return t.sendPage.waiting;
+      case SessionStatus.waitingForDevice:
+      case SessionStatus.waitingForDeviceTimedOut:
+        // Multi-send list row keeps it terse — full UI lives in SendPage.
+        return t.general.offline;
       case SessionStatus.recipientBusy:
         return t.sendPage.busy;
       case SessionStatus.declined:

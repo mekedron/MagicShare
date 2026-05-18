@@ -140,51 +140,9 @@ void main() {
       expect(parsed.files.values.first.fileType, FileType.apk);
     });
 
-    test('should parse wakeSessionId when present', () {
-      final dto = {
-        'info': {
-          'alias': 'Nice Banana',
-          'deviceModel': 'Samsung',
-          'deviceType': 'mobile',
-        },
-        'files': {
-          'some id': {
-            'id': 'some id',
-            'fileName': 'photo.jpg',
-            'size': 1234,
-            'fileType': 'image',
-          },
-        },
-        'wakeSessionId': 'nonce-abc',
-      };
-      final parsed = PrepareUploadRequestDto.fromJson(dto);
-      expect(parsed.wakeSessionId, 'nonce-abc');
-    });
-
-    test('should default wakeSessionId to null when missing', () {
-      final dto = {
-        'info': {
-          'alias': 'Nice Banana',
-          'deviceModel': 'Samsung',
-          'deviceType': 'mobile',
-        },
-        'files': {
-          'some id': {
-            'id': 'some id',
-            'fileName': 'photo.jpg',
-            'size': 1234,
-            'fileType': 'image',
-          },
-        },
-      };
-      final parsed = PrepareUploadRequestDto.fromJson(dto);
-      expect(parsed.wakeSessionId, isNull);
-    });
-
     test('should parse stock LocalSend fixture', () {
       final fixture = File('test/fixtures/prepare_upload_request_stock_localsend.json').readAsStringSync();
       final parsed = PrepareUploadRequestDto.fromJson(jsonDecode(fixture));
-      expect(parsed.wakeSessionId, isNull);
       expect(parsed.info.alias, 'Stock LocalSend');
       expect(parsed.files.length, 1);
       expect(parsed.files.values.first.fileType, FileType.image);
@@ -240,28 +198,6 @@ void main() {
         'modified': '2020-01-01T00:00:00.000Z',
         'accessed': '2021-01-01T00:00:00.000Z',
       });
-    });
-
-    test('should serialize wakeSessionId as null when not set', () {
-      // dart_mappable emits nullable fields as null rather than omitting them.
-      // The Rust side accepts both null and missing-key for Option<String>,
-      // so this asymmetry with the Rust serializer (which skips) is harmless.
-      final dto = PrepareUploadRequestDto(
-        info: info,
-        files: const {},
-      );
-      final serialized = dto.toJson();
-      expect(serialized['wakeSessionId'], isNull);
-    });
-
-    test('should include wakeSessionId when set', () {
-      final dto = PrepareUploadRequestDto(
-        info: info,
-        files: const {},
-        wakeSessionId: 'nonce-abc',
-      );
-      final serialized = dto.toJson();
-      expect(serialized['wakeSessionId'], 'nonce-abc');
     });
   });
 
