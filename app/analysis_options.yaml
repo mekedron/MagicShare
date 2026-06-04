@@ -17,7 +17,7 @@ analyzer:
     - lib/**.freezed.dart
     - lib/rust/**           # flutter_rust_bridge auto-generated FFI bindings
     - test/**.mocks.dart    # mockito-generated mocks; ship with their own ignore_for_file pragmas and surface @experimental warnings from third-party types we don't control
-    - build/**              # CocoaPods / native build intermediates
+    - "**/build/**"         # build artifacts at any depth — `build/`, `ios/build/`, `macos/build/`, etc.
     - submodules/**
 
 formatter:
