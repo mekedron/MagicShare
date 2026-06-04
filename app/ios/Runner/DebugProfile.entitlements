@@ -2,17 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.magicshare.app</string>
 	</array>
-	<!-- aps-environment (Push Notifications) and
-	     com.apple.developer.networking.multicast are intentionally
-	     omitted here. Both are restricted capabilities that personal
-	     (free) Apple Developer teams cannot synthesise a provisioning
-	     profile for, so including them breaks `flutter run` for any
-	     developer without a paid Apple Developer Program membership.
-	     Push delivery and multicast device discovery are verified in
-	     Release builds — Runner.entitlements keeps both. -->
 </dict>
 </plist>

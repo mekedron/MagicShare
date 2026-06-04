@@ -271,6 +271,14 @@ class CloudBootstrapService extends Notifier<BootstrapState> {
       _lastUploadedFcmToken = fcmToken;
       _logger.info('Bootstrap: DONE for uid=$uid deviceId=$deviceId');
       state = BootstrapDone(accountId: uid, deviceId: deviceId);
+      // FCM is async on iOS (APNs handshake) so the token often arrives
+      // *during* this bootstrap call. The FCM-change listener would
+      // have early-returned because state was not yet BootstrapDone.
+      // Re-check here so the late-arriving token still reaches Firestore.
+      final lateFcm = _deps.fcmTokenReader();
+      if (lateFcm is FcmTokenAvailable && lateFcm.token != _lastUploadedFcmToken) {
+        unawaited(_maybeReuploadToken(lateFcm.token));
+      }
     } on CloudException catch (e, st) {
       _logger.warning('Bootstrap failed (code=${e.code.name} message="${e.message}" details=${e.details})', e, st);
       state = BootstrapFailed(message: e.message, error: e);

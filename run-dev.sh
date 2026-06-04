@@ -26,6 +26,17 @@
 # server on 8080 — it lists the offending PIDs and offers to kill
 # them, so the user doesn't have to drop into `lsof`/`pkill` manually.
 #
+# Push notifications: notifyTransferIntent runs in the Functions
+# emulator but messaging.send() always reaches real FCM (no FCM
+# emulator exists). The pre-flight resolves a Firebase Admin SDK
+# credential from one of three places —
+# $GOOGLE_APPLICATION_CREDENTIALS, the project-local
+# firebase/.local-credentials/service-account.json, or gcloud ADC at
+# ~/.config/gcloud/application_default_credentials.json — and exports
+# GOOGLE_APPLICATION_CREDENTIALS into the emulator window so the
+# Admin SDK can mint OAuth tokens for FCM. Missing creds abort with
+# copy-paste setup steps.
+#
 # Pairing-friendly setup
 # ----------------------
 # The Android emulator can't reach the macOS host's real LAN IP
@@ -140,6 +151,19 @@ FIREBASE_EMULATOR_HOST="${FIREBASE_EMULATOR_HOST:-10.0.2.2}"
 HOST_LAN_IP="${HOST_LAN_IP:-$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)}"
 PAIRING_LAN_PORT="${PAIRING_LAN_PORT:-51820}"
 EMULATOR_BOOT_TIMEOUT_SECONDS="${EMULATOR_BOOT_TIMEOUT_SECONDS:-180}"
+
+# Firebase Admin SDK credentials for the Functions emulator. Searched
+# in this order; first hit wins:
+#   1. $GOOGLE_APPLICATION_CREDENTIALS (explicit caller override).
+#   2. firebase/.local-credentials/service-account.json (project-local).
+#   3. ~/.config/gcloud/application_default_credentials.json (gcloud ADC).
+# notifyTransferIntent calls messaging.send() against real FCM (there
+# is no FCM emulator), so without one of these the emulated function
+# fails with "messaging/third-party-auth-error" and the iPhone never
+# sees the push.
+LOCAL_SERVICE_ACCOUNT="$REPO_ROOT/firebase/.local-credentials/service-account.json"
+GCLOUD_ADC="$HOME/.config/gcloud/application_default_credentials.json"
+FIREBASE_FUNCTIONS_ENV_PREFIX=""
 
 # Per-run logs: one file per platform, timestamped, with a `latest-*`
 # symlink so `tail -F logs/latest-macos.log` always follows the most
@@ -334,6 +358,66 @@ setup_adb_reverse() {
   done
 }
 
+# Resolves which Firebase Admin SDK credential the Functions emulator
+# will use, exports the right env var for the emulator window, and
+# aborts with copy-paste-able setup instructions if none is present.
+ensure_firebase_admin_credentials() {
+  local source=""
+  local path=""
+
+  if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+    path="$GOOGLE_APPLICATION_CREDENTIALS"
+    source="caller override"
+    if [[ ! -f "$path" ]]; then
+      echo "error: GOOGLE_APPLICATION_CREDENTIALS=$path does not exist." >&2
+      exit 1
+    fi
+    FIREBASE_FUNCTIONS_ENV_PREFIX="GOOGLE_APPLICATION_CREDENTIALS='$path' "
+  elif [[ -f "$LOCAL_SERVICE_ACCOUNT" ]]; then
+    path="$LOCAL_SERVICE_ACCOUNT"
+    source="project-local service account"
+    FIREBASE_FUNCTIONS_ENV_PREFIX="GOOGLE_APPLICATION_CREDENTIALS='$path' "
+  elif [[ -f "$GCLOUD_ADC" ]]; then
+    path="$GCLOUD_ADC"
+    source="gcloud ADC"
+    # Admin SDK auto-discovers ADC at the default path — no env var needed.
+  else
+    cat >&2 <<EOF
+error: no Firebase Admin SDK credentials found.
+
+The Firebase Functions emulator runs notifyTransferIntent (the
+cloud→device push), but messaging.send() always reaches real
+Firebase Cloud Messaging — there is no FCM emulator. Without a
+service-account-level credential, every send fails with:
+
+  FirebaseMessagingError: Request is missing required authentication
+  credential. Expected OAuth 2 access token, login cookie or other
+  valid authentication credential.
+
+…and the iPhone never receives the push. Pick one:
+
+A) Project-local service-account JSON (no extra tooling):
+   1. Open https://console.firebase.google.com/project/magic-share-backend/settings/serviceaccounts/adminsdk
+   2. Click "Generate new private key" and save the file as:
+        $LOCAL_SERVICE_ACCOUNT
+      (firebase/.local-credentials/ is gitignored.)
+   3. Re-run ./run-dev.sh.
+
+B) Google Cloud Application Default Credentials:
+   1. brew install --cask google-cloud-sdk
+   2. gcloud auth application-default login
+   3. gcloud auth application-default set-quota-project magic-share-backend
+   4. Re-run ./run-dev.sh.
+
+C) Per-run override (CI / one-off):
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json ./run-dev.sh
+EOF
+    exit 1
+  fi
+
+  echo "Firebase Admin SDK credentials: $path ($source)"
+}
+
 # Returns the PIDs (one per line) listening on tcp:<port>, or empty.
 pids_listening_on_port() {
   local port="$1"
@@ -483,6 +567,7 @@ open_terminal_window() {
 echo "Selected targets: ${TARGETS[*]}"
 
 if has_target firebase; then
+  ensure_firebase_admin_credentials
   ensure_firebase_ports_free
 fi
 
@@ -507,7 +592,7 @@ fi
 if has_target firebase; then
   open_terminal_window_in "MagicShare · Firebase emulators" "$FIREBASE_LOG" \
     "$FIREBASE_FUNCTIONS_DIR" \
-    "npm run dev"
+    "${FIREBASE_FUNCTIONS_ENV_PREFIX}npm run dev"
   wait_for_firebase_emulator_ready
 fi
 
